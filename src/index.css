@@ -6,61 +6,79 @@
 
 @layer base {
   :root {
-    /* iOS-inspired dark theme */
-    --background: 0 0% 0%;
+    /* Premium Dark Theme - Luxurious & Vibrant */
+    --background: 240 15% 3%;
     --foreground: 0 0% 98%;
     
-    --card: 0 0% 7%;
+    --card: 240 12% 8%;
     --card-foreground: 0 0% 98%;
     
-    --popover: 0 0% 10%;
+    --popover: 240 12% 10%;
     --popover-foreground: 0 0% 98%;
     
-    --primary: 211 100% 50%;
+    /* Vibrant Electric Blue Primary */
+    --primary: 220 100% 60%;
     --primary-foreground: 0 0% 100%;
     
-    --secondary: 0 0% 15%;
+    --secondary: 240 10% 14%;
     --secondary-foreground: 0 0% 98%;
     
-    --muted: 0 0% 12%;
-    --muted-foreground: 0 0% 55%;
+    --muted: 240 8% 12%;
+    --muted-foreground: 240 5% 55%;
     
-    --accent: 328 100% 54%;
+    /* Hot Pink/Magenta Accent */
+    --accent: 330 100% 60%;
     --accent-foreground: 0 0% 100%;
     
-    --destructive: 0 84% 60%;
+    --destructive: 0 85% 60%;
     --destructive-foreground: 0 0% 98%;
     
-    --border: 0 0% 15%;
-    --input: 0 0% 12%;
-    --ring: 211 100% 50%;
+    --border: 240 10% 16%;
+    --input: 240 10% 12%;
+    --ring: 220 100% 60%;
     
     --radius: 1rem;
     
-    /* iOS Dynamic Island inspired colors */
-    --gradient-start: 211 100% 50%;
-    --gradient-end: 328 100% 54%;
-    --glow-primary: 211 100% 50%;
-    --glow-accent: 328 100% 54%;
+    /* Premium Gradient Colors */
+    --gradient-start: 220 100% 60%;
+    --gradient-mid: 270 100% 65%;
+    --gradient-end: 330 100% 60%;
     
-    /* Enhanced glass effect - iOS style */
-    --glass-bg: 0 0% 8% / 0.75;
-    --glass-border: 0 0% 100% / 0.08;
-    --glass-blur: 40px;
+    /* Vibrant Glow Colors */
+    --glow-primary: 220 100% 60%;
+    --glow-accent: 330 100% 60%;
+    --glow-purple: 270 100% 65%;
+    --glow-cyan: 185 100% 55%;
+    --glow-green: 145 100% 50%;
+    --glow-orange: 25 100% 55%;
+    
+    /* Premium Glass Effect */
+    --glass-bg: 240 15% 8% / 0.8;
+    --glass-border: 0 0% 100% / 0.1;
+    --glass-blur: 50px;
+    
+    /* Premium Card Surfaces */
+    --surface-elevated: 240 12% 10%;
+    --surface-overlay: 240 12% 6%;
     
     /* Sidebar */
-    --sidebar-background: 0 0% 5%;
+    --sidebar-background: 240 15% 4%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 211 100% 50%;
+    --sidebar-primary: 220 100% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 0 0% 12%;
+    --sidebar-accent: 240 10% 12%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 0 0% 12%;
-    --sidebar-ring: 211 100% 50%;
+    --sidebar-border: 240 10% 14%;
+    --sidebar-ring: 220 100% 60%;
+    
+    /* Semantic Colors */
+    --success: 145 80% 50%;
+    --warning: 40 100% 55%;
+    --info: 200 100% 55%;
   }
 
   .dark {
-    --background: 0 0% 0%;
+    --background: 240 15% 3%;
     --foreground: 0 0% 98%;
   }
 }
@@ -108,53 +126,101 @@
     background: rgba(0, 0, 0, 0.85);
   }
   
-  /* Gradient text - Apple Music style */
+  /* Premium Gradient text */
   .gradient-text {
-    @apply bg-gradient-to-r from-[hsl(211,100%,60%)] via-[hsl(280,100%,65%)] to-[hsl(328,100%,60%)] bg-clip-text text-transparent;
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg, 
+      hsl(220, 100%, 65%) 0%, 
+      hsl(270, 100%, 70%) 50%, 
+      hsl(330, 100%, 65%) 100%
+    );
   }
   
-  /* iOS Glow effects */
+  .gradient-text-gold {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(45, 100%, 65%) 0%, hsl(25, 100%, 60%) 100%);
+  }
+  
+  .gradient-text-ocean {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(185, 100%, 55%) 0%, hsl(220, 100%, 60%) 100%);
+  }
+  
+  /* Premium Glow effects */
   .glow-primary {
     box-shadow: 
-      0 0 20px hsl(var(--primary) / 0.3),
-      0 0 60px hsl(var(--primary) / 0.15),
-      0 0 100px hsl(var(--primary) / 0.05);
+      0 0 20px hsl(var(--primary) / 0.4),
+      0 0 60px hsl(var(--primary) / 0.2),
+      0 0 100px hsl(var(--primary) / 0.1);
   }
   
   .glow-accent {
     box-shadow: 
-      0 0 20px hsl(var(--accent) / 0.3),
-      0 0 60px hsl(var(--accent) / 0.15);
+      0 0 20px hsl(var(--accent) / 0.4),
+      0 0 60px hsl(var(--accent) / 0.2);
+  }
+  
+  .glow-purple {
+    box-shadow: 
+      0 0 25px hsl(270, 100%, 65% / 0.4),
+      0 0 60px hsl(270, 100%, 65% / 0.2);
+  }
+  
+  .glow-cyan {
+    box-shadow: 
+      0 0 25px hsl(185, 100%, 55% / 0.4),
+      0 0 60px hsl(185, 100%, 55% / 0.2);
+  }
+  
+  .glow-multi {
+    box-shadow: 
+      0 0 30px hsl(var(--primary) / 0.3),
+      0 0 60px hsl(var(--accent) / 0.2),
+      0 0 90px hsl(270, 100%, 65% / 0.15);
   }
   
   .glow-sm {
     box-shadow: 0 0 15px hsl(var(--primary) / 0.25);
   }
   
-  /* iOS-style premium buttons */
+  /* Premium buttons with vivid gradients */
   .btn-premium {
     @apply relative overflow-hidden font-semibold;
     @apply rounded-2xl px-8 py-4 transition-all duration-300;
-    background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(270, 100%, 65%) 50%, hsl(var(--accent)) 100%);
     box-shadow: 
-      0 4px 15px hsl(var(--primary) / 0.3),
-      inset 0 1px 0 rgba(255,255,255,0.2);
-  }
-  
-  .btn-premium:hover {
-    transform: scale(1.02) translateY(-2px);
-    box-shadow: 
-      0 8px 30px hsl(var(--primary) / 0.4),
+      0 4px 20px hsl(var(--primary) / 0.4),
+      0 8px 40px hsl(var(--accent) / 0.2),
       inset 0 1px 0 rgba(255,255,255,0.25);
   }
   
+  .btn-premium:hover {
+    transform: scale(1.03) translateY(-3px);
+    box-shadow: 
+      0 10px 40px hsl(var(--primary) / 0.5),
+      0 15px 60px hsl(var(--accent) / 0.3),
+      inset 0 1px 0 rgba(255,255,255,0.3);
+  }
+  
   .btn-premium:active {
-    transform: scale(0.98);
+    transform: scale(0.97);
   }
   
   .btn-glass {
     @apply glass px-6 py-3 rounded-2xl font-medium transition-all duration-200;
     @apply hover:bg-white/10 active:scale-95;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+  }
+  
+  .btn-glow {
+    @apply relative rounded-2xl px-6 py-3 font-semibold transition-all duration-300;
+    background: hsl(var(--primary));
+    box-shadow: 0 0 30px hsl(var(--primary) / 0.5);
+  }
+  
+  .btn-glow:hover {
+    box-shadow: 0 0 50px hsl(var(--primary) / 0.7);
   }
   
   /* iOS Card style */
@@ -195,18 +261,40 @@
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
   
-  /* iOS Progress bar */
+  /* Premium Progress bar */
   .progress-glow {
     @apply h-1 rounded-full;
-    background: linear-gradient(90deg, hsl(var(--primary)), hsl(var(--accent)));
-    box-shadow: 0 0 12px hsl(var(--primary) / 0.5);
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(270, 100%, 65%), hsl(var(--accent)));
+    box-shadow: 
+      0 0 15px hsl(var(--primary) / 0.6),
+      0 0 30px hsl(var(--accent) / 0.3);
   }
   
-  /* Waveform animation */
+  /* Premium Waveform animation */
   .waveform-bar {
     @apply rounded-full;
-    background: linear-gradient(to top, hsl(var(--primary)), hsl(var(--accent)));
+    background: linear-gradient(to top, hsl(var(--primary)), hsl(270, 100%, 65%), hsl(var(--accent)));
     animation: waveform 0.8s ease-in-out infinite;
+  }
+  
+  /* Animated gradient border */
+  .gradient-border {
+    position: relative;
+    background: hsl(var(--card));
+    border-radius: 1.5rem;
+  }
+  
+  .gradient-border::before {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(270, 100%, 65%), hsl(var(--accent)));
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
   }
   
   /* iOS Skeleton loader */
