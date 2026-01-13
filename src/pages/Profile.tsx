@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Settings, LogOut, Shield, Music, Heart, Clock } from 'lucide-react';
+import { User, Mail, Settings, LogOut, Shield, Music, Heart, Clock, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from '@/components/BottomNav';
 import MiniPlayer from '@/components/MiniPlayer';
 import FullscreenPlayer from '@/components/FullscreenPlayer';
-import { Button } from '@/components/ui/button';
+import { iosSpring, iosBounce } from '@/lib/animations';
 
 const Profile = () => {
   const { user, isAdmin, signOut } = useAuth();
@@ -39,118 +39,199 @@ const Profile = () => {
     navigate('/auth');
   };
 
+  const menuItems = [
+    ...(isAdmin ? [{ icon: Shield, label: 'Admin Panel', action: () => navigate('/admin'), color: 'text-primary' }] : []),
+    { icon: Settings, label: 'Settings', action: () => navigate('/settings'), color: 'text-foreground' },
+    { icon: LogOut, label: 'Sign Out', action: handleLogout, color: 'text-destructive', destructive: true },
+  ];
+
   return (
-    <div className="min-h-screen bg-background pb-40">
+    <motion.div 
+      className="min-h-screen bg-black pb-44"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.3 }}
+    >
+      {/* iOS-style header */}
       <motion.header
-        className="sticky top-0 z-30 glass px-6 py-4"
-        initial={{ opacity: 0, y: -20 }}
+        className="sticky top-0 z-30 px-5 pt-4 pb-3 safe-area-pt"
+        style={{
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+        }}
+        initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
+        transition={iosSpring}
       >
-        <h1 className="text-2xl font-display font-bold">Profile</h1>
+        <motion.h1 
+          className="text-[28px] font-bold"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ ...iosSpring, delay: 0.1 }}
+        >
+          Profile
+        </motion.h1>
       </motion.header>
 
-      <main className="px-6 pt-6">
-        {/* Profile Card */}
+      <main className="px-5 pt-6">
+        {/* Profile Card - iOS style */}
         <motion.div
-          className="glass rounded-2xl p-6 mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl p-6 mb-6"
+          style={{
+            background: 'rgba(28, 28, 30, 0.8)',
+            backdropFilter: 'blur(40px)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+          }}
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={iosSpring}
         >
-          <div className="flex items-center gap-4">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-              <User className="w-10 h-10 text-primary-foreground" />
-            </div>
+          <div className="flex items-center gap-5">
+            <motion.div 
+              className="relative w-20 h-20 rounded-full flex items-center justify-center"
+              style={{
+                background: 'linear-gradient(135deg, hsl(211 100% 50%), hsl(328 100% 54%))',
+                boxShadow: '0 8px 30px -5px hsl(211 100% 50% / 0.4)',
+              }}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              transition={iosBounce}
+            >
+              <User className="w-10 h-10 text-white" />
+            </motion.div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-xl font-display font-bold truncate">
+              <motion.h2 
+                className="text-xl font-bold truncate"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ ...iosSpring, delay: 0.15 }}
+              >
                 {user?.email?.split('@')[0] || 'User'}
-              </h2>
-              <p className="text-sm text-muted-foreground truncate flex items-center gap-2">
+              </motion.h2>
+              <motion.p 
+                className="text-sm text-muted-foreground truncate flex items-center gap-2 mt-1"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
                 <Mail className="w-4 h-4" />
                 {user?.email}
-              </p>
+              </motion.p>
               {isAdmin && (
-                <span className="inline-flex items-center gap-1 mt-2 px-2 py-1 rounded-full bg-primary/20 text-primary text-xs font-medium">
+                <motion.span 
+                  className="inline-flex items-center gap-1 mt-2 px-3 py-1 rounded-full text-xs font-semibold"
+                  style={{
+                    background: 'hsl(211 100% 50% / 0.2)',
+                    color: 'hsl(211 100% 60%)',
+                  }}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ ...iosBounce, delay: 0.25 }}
+                >
                   <Shield className="w-3 h-3" /> Admin
-                </span>
+                </motion.span>
               )}
             </div>
           </div>
         </motion.div>
 
-        {/* Stats */}
+        {/* Stats - iOS style cards */}
         <motion.div
-          className="grid grid-cols-3 gap-4 mb-6"
+          className="grid grid-cols-3 gap-3 mb-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
+          transition={{ ...iosSpring, delay: 0.15 }}
         >
           {[
-            { icon: Heart, label: 'Liked', value: stats.likedSongs },
-            { icon: Clock, label: 'Plays', value: stats.recentPlays },
-            { icon: Music, label: 'Playlists', value: stats.playlists },
+            { icon: Heart, label: 'Liked', value: stats.likedSongs, color: 'from-pink-500 to-rose-500' },
+            { icon: Clock, label: 'Plays', value: stats.recentPlays, color: 'from-cyan-500 to-blue-500' },
+            { icon: Music, label: 'Playlists', value: stats.playlists, color: 'from-purple-500 to-violet-500' },
           ].map((stat, index) => {
             const Icon = stat.icon;
             return (
               <motion.div
                 key={stat.label}
-                className="glass rounded-xl p-4 text-center"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 + index * 0.1 }}
+                className="rounded-2xl p-4 text-center"
+                style={{
+                  background: 'rgba(28, 28, 30, 0.8)',
+                  border: '1px solid rgba(255, 255, 255, 0.06)',
+                }}
+                initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ ...iosBounce, delay: 0.2 + index * 0.08 }}
+                whileHover={{ scale: 1.03, y: -2 }}
+                whileTap={{ scale: 0.97 }}
               >
-                <Icon className="w-5 h-5 mx-auto mb-2 text-primary" />
-                <p className="text-2xl font-display font-bold">{stat.value}</p>
-                <p className="text-xs text-muted-foreground">{stat.label}</p>
+                <motion.div 
+                  className={`w-10 h-10 rounded-xl mx-auto mb-2 flex items-center justify-center bg-gradient-to-br ${stat.color}`}
+                  whileHover={{ rotate: [0, -10, 10, 0] }}
+                  transition={{ duration: 0.4 }}
+                >
+                  <Icon className="w-5 h-5 text-white" />
+                </motion.div>
+                <p className="text-2xl font-bold">{stat.value}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
               </motion.div>
             );
           })}
         </motion.div>
 
-        {/* Actions */}
+        {/* Menu Items - iOS style list */}
         <motion.div
-          className="space-y-3"
+          className="rounded-2xl overflow-hidden"
+          style={{
+            background: 'rgba(28, 28, 30, 0.8)',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+          }}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ ...iosSpring, delay: 0.35 }}
         >
-          {isAdmin && (
-            <motion.button
-              className="w-full flex items-center gap-4 p-4 glass rounded-xl hover:bg-white/5 transition-all"
-              onClick={() => navigate('/admin')}
-              whileHover={{ x: 4 }}
-              whileTap={{ scale: 0.98 }}
-            >
-              <Shield className="w-5 h-5 text-primary" />
-              <span className="font-medium">Admin Panel</span>
-            </motion.button>
-          )}
-
-          <motion.button
-            className="w-full flex items-center gap-4 p-4 glass rounded-xl hover:bg-white/5 transition-all"
-            onClick={() => navigate('/settings')}
-            whileHover={{ x: 4 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <Settings className="w-5 h-5" />
-            <span className="font-medium">Settings</span>
-          </motion.button>
-
-          <motion.button
-            className="w-full flex items-center gap-4 p-4 glass rounded-xl text-destructive hover:bg-destructive/10 transition-all"
-            onClick={handleLogout}
-            whileHover={{ x: 4 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <LogOut className="w-5 h-5" />
-            <span className="font-medium">Logout</span>
-          </motion.button>
+          {menuItems.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <motion.button
+                key={item.label}
+                className={`w-full flex items-center gap-4 px-5 py-4 text-left transition-all ${
+                  index !== menuItems.length - 1 ? 'border-b border-white/[0.06]' : ''
+                }`}
+                onClick={item.action}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ ...iosSpring, delay: 0.4 + index * 0.08 }}
+                whileTap={{ 
+                  scale: 0.98, 
+                  backgroundColor: item.destructive ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.05)' 
+                }}
+              >
+                <motion.div 
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.color}`}
+                  style={{
+                    background: item.destructive 
+                      ? 'rgba(239, 68, 68, 0.15)' 
+                      : item.color === 'text-primary' 
+                        ? 'rgba(59, 130, 246, 0.15)' 
+                        : 'rgba(118, 118, 128, 0.12)',
+                  }}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={iosBounce}
+                >
+                  <Icon className={`w-4 h-4 ${item.color}`} />
+                </motion.div>
+                <span className={`font-medium flex-1 ${item.color}`}>{item.label}</span>
+                {!item.destructive && <ChevronRight className="w-5 h-5 text-muted-foreground" />}
+              </motion.button>
+            );
+          })}
         </motion.div>
       </main>
 
       <BottomNav />
       <MiniPlayer />
       <FullscreenPlayer />
-    </div>
+    </motion.div>
   );
 };
 
