@@ -13,7 +13,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
       exit={{ opacity: 0 }}
       transition={{ duration: 0.4 }}
       onAnimationComplete={() => {
-        setTimeout(onComplete, 2500);
+        setTimeout(onComplete, 6000);
       }}
     >
       {/* Animated ambient background */}
