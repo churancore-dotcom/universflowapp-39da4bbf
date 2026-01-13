@@ -1,0 +1,201 @@
+import { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
+import { TrendingUp, Music, Users, PlayCircle, Calendar } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+
+interface TopSong {
+  id: string;
+  title: string;
+  artist: string;
+  cover_url: string | null;
+  play_count: number;
+}
+
+const Analytics = () => {
+  const [topSongs, setTopSongs] = useState<TopSong[]>([]);
+  const [recentPlays, setRecentPlays] = useState<any[]>([]);
+  const [stats, setStats] = useState({
+    totalPlays: 0,
+    uniqueListeners: 0,
+    songsThisMonth: 0,
+  });
+
+  useEffect(() => {
+    fetchAnalytics();
+  }, []);
+
+  const fetchAnalytics = async () => {
+    // Fetch top songs
+    const { data: songs } = await supabase
+      .from('songs')
+      .select('id, title, artist, cover_url, play_count')
+      .order('play_count', { ascending: false })
+      .limit(10);
+
+    if (songs) setTopSongs(songs);
+
+    // Fetch recent plays
+    const { data: plays } = await supabase
+      .from('recently_played')
+      .select('*, songs(*)')
+      .order('played_at', { ascending: false })
+      .limit(20);
+
+    if (plays) setRecentPlays(plays);
+
+    // Calculate stats
+    const { data: allSongs } = await supabase.from('songs').select('play_count, created_at');
+    const { data: profiles } = await supabase.from('profiles').select('id');
+
+    const now = new Date();
+    const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    setStats({
+      totalPlays: allSongs?.reduce((acc, s) => acc + (s.play_count || 0), 0) || 0,
+      uniqueListeners: profiles?.length || 0,
+      songsThisMonth: allSongs?.filter(s => new Date(s.created_at) >= thisMonth).length || 0,
+    });
+  };
+
+  return (
+    <div className="p-8">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="mb-8"
+      >
+        <h1 className="text-3xl font-display font-bold">Analytics</h1>
+        <p className="text-muted-foreground mt-1">Track your platform's performance</p>
+      </motion.div>
+
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        {[
+          { icon: PlayCircle, label: 'Total Plays', value: stats.totalPlays, color: 'from-primary to-cyan-400' },
+          { icon: Users, label: 'Unique Listeners', value: stats.uniqueListeners, color: 'from-accent to-pink-400' },
+          { icon: Calendar, label: 'Songs This Month', value: stats.songsThisMonth, color: 'from-green-500 to-emerald-400' },
+        ].map((stat, index) => {
+          const Icon = stat.icon;
+          return (
+            <motion.div
+              key={stat.label}
+              className="glass rounded-2xl p-6"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center mb-4`}>
+                <Icon className="w-6 h-6 text-white" />
+              </div>
+              <p className="text-sm text-muted-foreground">{stat.label}</p>
+              <p className="text-3xl font-display font-bold mt-1">{stat.value.toLocaleString()}</p>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Top Songs */}
+        <motion.div
+          className="glass rounded-2xl p-6"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <div className="flex items-center gap-2 mb-6">
+            <TrendingUp className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-display font-bold">Top Songs</h2>
+          </div>
+
+          {topSongs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <Music className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No data yet</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {topSongs.map((song, index) => (
+                <motion.div
+                  key={song.id}
+                  className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 + index * 0.05 }}
+                >
+                  <span className={`w-6 text-center font-display font-bold ${
+                    index < 3 ? 'text-primary' : 'text-muted-foreground'
+                  }`}>
+                    {index + 1}
+                  </span>
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center overflow-hidden">
+                    {song.cover_url ? (
+                      <img src={song.cover_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Music className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{song.title}</p>
+                    <p className="text-sm text-muted-foreground truncate">{song.artist}</p>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {song.play_count.toLocaleString()} plays
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+
+        {/* Recent Activity */}
+        <motion.div
+          className="glass rounded-2xl p-6"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <div className="flex items-center gap-2 mb-6">
+            <PlayCircle className="w-5 h-5 text-accent" />
+            <h2 className="text-xl font-display font-bold">Recent Activity</h2>
+          </div>
+
+          {recentPlays.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <PlayCircle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>No recent plays</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-[400px] overflow-y-auto custom-scrollbar">
+              {recentPlays.map((play, index) => (
+                <motion.div
+                  key={play.id}
+                  className="flex items-center gap-4 p-3 rounded-xl hover:bg-white/5 transition-all"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 + index * 0.03 }}
+                >
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center overflow-hidden">
+                    {play.songs?.cover_url ? (
+                      <img src={play.songs.cover_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Music className="w-4 h-4 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{play.songs?.title || 'Unknown'}</p>
+                    <p className="text-sm text-muted-foreground truncate">{play.songs?.artist}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(play.played_at).toLocaleTimeString()}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      </div>
+    </div>
+  );
+};
+
+export default Analytics;
