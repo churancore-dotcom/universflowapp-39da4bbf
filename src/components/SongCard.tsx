@@ -1,7 +1,9 @@
 import { motion } from 'framer-motion';
 import { Play, Pause } from 'lucide-react';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
+import { useDownloads } from '@/contexts/DownloadContext';
 import { iosSpring, iosBounce, staggerItem } from '@/lib/animations';
+import DownloadButton from './DownloadButton';
 
 interface SongCardProps {
   song: Song;
@@ -10,13 +12,17 @@ interface SongCardProps {
 
 const SongCard = ({ song, index = 0 }: SongCardProps) => {
   const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+  const { isDownloaded, getDownloadedUrl } = useDownloads();
   const isCurrentSong = currentSong?.id === song.id;
+  const downloaded = isDownloaded(song.id);
 
   const handleClick = () => {
     if (isCurrentSong) {
       togglePlay();
     } else {
-      playSong(song);
+      // Use offline URL if downloaded
+      const offlineUrl = getDownloadedUrl(song.id);
+      playSong(song, offlineUrl);
     }
   };
 
@@ -68,6 +74,27 @@ const SongCard = ({ song, index = 0 }: SongCardProps) => {
         
         {/* iOS-style gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+        
+        {/* Download button - top right */}
+        <div className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity">
+          <DownloadButton song={song} size="sm" />
+        </div>
+        
+        {/* Downloaded indicator badge */}
+        {downloaded && (
+          <motion.div
+            className="absolute top-2 left-2 z-10"
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={iosBounce}
+          >
+            <div className="w-5 h-5 rounded-full bg-primary/90 flex items-center justify-center backdrop-blur-sm">
+              <svg className="w-3 h-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          </motion.div>
+        )}
         
         {/* Play button overlay - iOS style */}
         <motion.div

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Music, Heart, ListMusic, Clock, Plus } from 'lucide-react';
+import { Music, Heart, ListMusic, Clock, Plus, Download, CloudOff, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
+import { useDownloads } from '@/contexts/DownloadContext';
 import BottomNav from '@/components/BottomNav';
 import MiniPlayer from '@/components/MiniPlayer';
 import FullscreenPlayer from '@/components/FullscreenPlayer';
@@ -11,9 +12,18 @@ import { TabTransition } from '@/components/PageTransition';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { iosSpring, iosBounce } from '@/lib/animations';
 
+const formatBytes = (bytes: number) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+};
+
 const Library = () => {
   const { user } = useAuth();
   const { playSong, currentSong, isPlaying } = usePlayer();
+  const { downloads, removeSong, getDownloadedUrl, totalStorageUsed, clearAllDownloads } = useDownloads();
   const [likedSongs, setLikedSongs] = useState<Song[]>([]);
   const [recentlyPlayed, setRecentlyPlayed] = useState<Song[]>([]);
   const [playlists, setPlaylists] = useState<any[]>([]);
@@ -83,6 +93,11 @@ const Library = () => {
     setLoading(false);
   };
 
+  const handlePlaySong = (song: Song) => {
+    const offlineUrl = getDownloadedUrl(song.id);
+    playSong(song, offlineUrl);
+  };
+
   const SongList = ({ songs, emptyMessage, emptyIcon: EmptyIcon }: { songs: Song[]; emptyMessage: string; emptyIcon: React.ElementType }) => (
     songs.length === 0 ? (
       <motion.div 
@@ -112,7 +127,7 @@ const Library = () => {
               className={`w-full flex items-center gap-4 p-3 rounded-2xl transition-all text-left ${
                 isActive ? 'bg-primary/10' : 'active:bg-white/5'
               }`}
-              onClick={() => playSong(song)}
+              onClick={() => handlePlaySong(song)}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ ...iosSpring, delay: index * 0.03 }}
@@ -150,6 +165,117 @@ const Library = () => {
             </motion.button>
           );
         })}
+      </div>
+    )
+  );
+
+  const DownloadsList = () => (
+    downloads.length === 0 ? (
+      <motion.div 
+        className="text-center py-16"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={iosSpring}
+      >
+        <motion.div
+          className="w-20 h-20 rounded-3xl mx-auto mb-4 flex items-center justify-center"
+          style={{ background: 'rgba(118, 118, 128, 0.12)' }}
+          initial={{ scale: 0, rotate: -20 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ ...iosBounce, delay: 0.1 }}
+        >
+          <CloudOff className="w-10 h-10 text-muted-foreground/50" />
+        </motion.div>
+        <p className="text-muted-foreground text-lg">No downloaded songs</p>
+        <p className="text-sm text-muted-foreground/70 mt-2">Songs you download will appear here for offline listening</p>
+      </motion.div>
+    ) : (
+      <div className="space-y-4">
+        {/* Storage info */}
+        <motion.div 
+          className="flex items-center justify-between p-4 rounded-2xl"
+          style={{ background: 'rgba(118, 118, 128, 0.12)' }}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          <div>
+            <p className="text-sm font-medium">{downloads.length} songs downloaded</p>
+            <p className="text-xs text-muted-foreground">{formatBytes(totalStorageUsed)} used</p>
+          </div>
+          {downloads.length > 0 && (
+            <motion.button
+              className="px-4 py-2 rounded-xl text-sm font-medium text-destructive bg-destructive/10"
+              onClick={clearAllDownloads}
+              whileTap={{ scale: 0.95 }}
+            >
+              Clear All
+            </motion.button>
+          )}
+        </motion.div>
+
+        {/* Downloaded songs list */}
+        <div className="space-y-1">
+          {downloads.map((song, index) => {
+            const isActive = currentSong?.id === song.id;
+            return (
+              <motion.div
+                key={song.id}
+                className={`flex items-center gap-4 p-3 rounded-2xl transition-all ${
+                  isActive ? 'bg-primary/10' : 'active:bg-white/5'
+                }`}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ ...iosSpring, delay: index * 0.03 }}
+              >
+                <motion.button
+                  className="flex-1 flex items-center gap-4 text-left"
+                  onClick={() => handlePlaySong(song)}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <div className="relative w-14 h-14 rounded-xl bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center overflow-hidden flex-shrink-0 shadow-lg">
+                    {song.cover_url ? (
+                      <img src={song.cover_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <Music className="w-6 h-6 text-muted-foreground" />
+                    )}
+                    {/* Offline badge */}
+                    <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                      <CloudOff className="w-2.5 h-2.5 text-primary-foreground" />
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-medium text-[15px] truncate ${isActive ? 'text-primary' : ''}`}>
+                      {song.title}
+                    </p>
+                    <p className="text-[13px] text-muted-foreground truncate">{song.artist}</p>
+                    <p className="text-[11px] text-muted-foreground/60">{formatBytes(song.size)}</p>
+                  </div>
+                </motion.button>
+                
+                {isActive && isPlaying ? (
+                  <div className="flex items-end gap-[3px] h-4 mr-2">
+                    {[...Array(3)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className="w-[3px] bg-primary rounded-full"
+                        animate={{ height: [5, 14, 5] }}
+                        transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.12, ease: "easeInOut" }}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <motion.button
+                    className="p-2 rounded-full text-muted-foreground hover:text-destructive transition-colors"
+                    onClick={() => removeSong(song.id)}
+                    whileTap={{ scale: 0.9 }}
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </motion.button>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
       </div>
     )
   );
@@ -198,6 +324,7 @@ const Library = () => {
             >
               {[
                 { value: 'liked', icon: Heart, label: 'Liked' },
+                { value: 'downloads', icon: Download, label: 'Downloads' },
                 { value: 'recent', icon: Clock, label: 'Recent' },
                 { value: 'playlists', icon: ListMusic, label: 'Playlists' },
               ].map((tab) => {
@@ -206,10 +333,10 @@ const Library = () => {
                   <TabsTrigger 
                     key={tab.value}
                     value={tab.value} 
-                    className="flex-1 h-full rounded-lg gap-1.5 text-[13px] font-semibold data-[state=active]:bg-white/15 data-[state=active]:shadow-sm transition-all duration-200"
+                    className="flex-1 h-full rounded-lg gap-1 text-[11px] sm:text-[13px] font-semibold data-[state=active]:bg-white/15 data-[state=active]:shadow-sm transition-all duration-200"
                   >
-                    <Icon className="w-4 h-4" />
-                    {tab.label}
+                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">{tab.label}</span>
                   </TabsTrigger>
                 );
               })}
@@ -233,6 +360,10 @@ const Library = () => {
               ) : (
                 <SongList songs={likedSongs} emptyMessage="No liked songs yet" emptyIcon={Heart} />
               )}
+            </TabsContent>
+
+            <TabsContent value="downloads" className="mt-0">
+              <DownloadsList />
             </TabsContent>
 
             <TabsContent value="recent" className="mt-0">

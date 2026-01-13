@@ -1,8 +1,9 @@
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Shuffle, Repeat, Repeat1, ChevronDown, Heart, ListMusic, AirplayIcon } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Shuffle, Repeat, Repeat1, ChevronDown, Heart, ListMusic } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { Slider } from '@/components/ui/slider';
-import { iosSpring, iosBounce, sheetVariants } from '@/lib/animations';
+import { iosSpring, iosBounce } from '@/lib/animations';
+import DownloadButton from './DownloadButton';
 
 const formatTime = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -180,14 +181,17 @@ const FullscreenPlayer = () => {
                   {currentSong.artist}
                 </motion.p>
               </div>
-              <motion.button
-                className="p-2 rounded-full"
-                whileHover={{ scale: 1.15 }}
-                whileTap={{ scale: 0.9 }}
-                transition={iosBounce}
-              >
-                <Heart className="w-6 h-6 text-muted-foreground hover:text-primary transition-colors" />
-              </motion.button>
+              <div className="flex items-center gap-2">
+                <DownloadButton song={currentSong} size="md" />
+                <motion.button
+                  className="p-2 rounded-full"
+                  whileHover={{ scale: 1.15 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={iosBounce}
+                >
+                  <Heart className="w-6 h-6 text-muted-foreground hover:text-primary transition-colors" />
+                </motion.button>
+              </div>
             </div>
           </motion.div>
 

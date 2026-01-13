@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import { AnimatePresence } from "framer-motion";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PlayerProvider } from "./contexts/PlayerContext";
+import { DownloadProvider } from "./contexts/DownloadContext";
 import SplashScreen from "./components/SplashScreen";
 import Auth from "./pages/Auth";
 import Home from "./pages/Home";
@@ -90,12 +91,14 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <PlayerProvider>
-        <TooltipProvider>
-          <Toaster />
-          <BrowserRouter>
-            <AppRoutes />
-          </BrowserRouter>
-        </TooltipProvider>
+        <DownloadProvider>
+          <TooltipProvider>
+            <Toaster />
+            <BrowserRouter>
+              <AppRoutes />
+            </BrowserRouter>
+          </TooltipProvider>
+        </DownloadProvider>
       </PlayerProvider>
     </AuthProvider>
   </QueryClientProvider>
