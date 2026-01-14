@@ -22,6 +22,7 @@ interface DownloadContextType {
   getDownloadedUrl: (songId: string) => string | null;
   totalStorageUsed: number;
   clearAllDownloads: () => void;
+  isIndexedDBSupported: boolean;
 }
 
 const DownloadContext = createContext<DownloadContextType | undefined>(undefined);
@@ -29,124 +30,187 @@ const DownloadContext = createContext<DownloadContextType | undefined>(undefined
 const DB_NAME = 'MusicAppOffline';
 const STORE_NAME = 'songs';
 
-// IndexedDB helper functions
+// Check if IndexedDB is supported (not available in some WebViews)
+const checkIndexedDBSupport = (): boolean => {
+  try {
+    if (typeof indexedDB === 'undefined') return false;
+    // Test if we can actually use it
+    const testRequest = indexedDB.open('test_db_support', 1);
+    testRequest.onerror = () => {};
+    testRequest.onsuccess = () => {
+      testRequest.result.close();
+      indexedDB.deleteDatabase('test_db_support');
+    };
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// IndexedDB helper functions with error handling
 const openDB = (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve(request.result);
-    
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+    try {
+      if (typeof indexedDB === 'undefined') {
+        reject(new Error('IndexedDB not supported'));
+        return;
       }
-    };
+      
+      const request = indexedDB.open(DB_NAME, 1);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(STORE_NAME)) {
+          db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+        }
+      };
+    } catch (error) {
+      reject(error);
+    }
   });
 };
 
 const saveToDB = async (song: DownloadedSong, audioBlob: Blob): Promise<void> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    
-    const songData = {
-      ...song,
-      audioBlob,
-    };
-    
-    const request = store.put(songData);
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-  });
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      
+      const songData = {
+        ...song,
+        audioBlob,
+      };
+      
+      const request = store.put(songData);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  } catch (error) {
+    console.warn('Failed to save to IndexedDB:', error);
+    throw error;
+  }
 };
 
 const getFromDB = async (id: string): Promise<{ song: DownloadedSong; audioBlob: Blob } | null> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.get(id);
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      if (request.result) {
-        const { audioBlob, ...song } = request.result;
-        resolve({ song, audioBlob });
-      } else {
-        resolve(null);
-      }
-    };
-  });
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.get(id);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        if (request.result) {
+          const { audioBlob, ...song } = request.result;
+          resolve({ song, audioBlob });
+        } else {
+          resolve(null);
+        }
+      };
+    });
+  } catch (error) {
+    console.warn('Failed to get from IndexedDB:', error);
+    return null;
+  }
 };
 
 const deleteFromDB = async (id: string): Promise<void> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.delete(id);
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-  });
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.delete(id);
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  } catch (error) {
+    console.warn('Failed to delete from IndexedDB:', error);
+  }
 };
 
 const getAllFromDB = async (): Promise<{ song: DownloadedSong; audioBlob: Blob }[]> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readonly');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.getAll();
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
-      const results = request.result.map((item: any) => {
-        const { audioBlob, ...song } = item;
-        return { song, audioBlob };
-      });
-      resolve(results);
-    };
-  });
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readonly');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.getAll();
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => {
+        const results = request.result.map((item: any) => {
+          const { audioBlob, ...song } = item;
+          return { song, audioBlob };
+        });
+        resolve(results);
+      };
+    });
+  } catch (error) {
+    console.warn('Failed to get all from IndexedDB:', error);
+    return [];
+  }
 };
 
 const clearDB = async (): Promise<void> => {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
-    const request = store.clear();
-    
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => resolve();
-  });
+  try {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction(STORE_NAME, 'readwrite');
+      const store = transaction.objectStore(STORE_NAME);
+      const request = store.clear();
+      
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve();
+    });
+  } catch (error) {
+    console.warn('Failed to clear IndexedDB:', error);
+  }
 };
 
 export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [downloads, setDownloads] = useState<DownloadedSong[]>([]);
   const [downloadProgress, setDownloadProgress] = useState<Record<string, DownloadProgress>>({});
   const [blobUrls, setBlobUrls] = useState<Record<string, string>>({});
+  const [isIndexedDBSupported, setIsIndexedDBSupported] = useState(true);
 
   // Load downloads from IndexedDB on mount
   useEffect(() => {
     const loadDownloads = async () => {
+      // Check IndexedDB support first
+      const supported = checkIndexedDBSupport();
+      setIsIndexedDBSupported(supported);
+      
+      if (!supported) {
+        console.warn('IndexedDB not supported in this environment');
+        return;
+      }
+
       try {
         const storedSongs = await getAllFromDB();
         const songs: DownloadedSong[] = [];
         const urls: Record<string, string> = {};
         
         for (const { song, audioBlob } of storedSongs) {
-          const blobUrl = URL.createObjectURL(audioBlob);
-          urls[song.id] = blobUrl;
-          songs.push({ ...song, blobUrl });
+          try {
+            const blobUrl = URL.createObjectURL(audioBlob);
+            urls[song.id] = blobUrl;
+            songs.push({ ...song, blobUrl });
+          } catch (e) {
+            console.warn('Failed to create blob URL for song:', song.id);
+          }
         }
         
         setDownloads(songs);
         setBlobUrls(urls);
       } catch (error) {
-        console.error('Failed to load downloads:', error);
+        console.warn('Failed to load downloads:', error);
       }
     };
     
@@ -154,11 +218,22 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     
     // Cleanup blob URLs on unmount
     return () => {
-      Object.values(blobUrls).forEach(url => URL.revokeObjectURL(url));
+      Object.values(blobUrls).forEach(url => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          // Ignore errors during cleanup
+        }
+      });
     };
   }, []);
 
   const downloadSong = useCallback(async (song: Song) => {
+    if (!isIndexedDBSupported) {
+      console.warn('Downloads not available - IndexedDB not supported');
+      return;
+    }
+
     // Check if already downloaded
     if (downloads.some(d => d.id === song.id)) {
       return;
@@ -177,7 +252,10 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         [song.id]: { songId: song.id, progress: 5, status: 'downloading' }
       }));
 
-      const response = await fetch(song.audio_url);
+      const response = await fetch(song.audio_url, {
+        mode: 'cors',
+        credentials: 'omit',
+      });
       
       if (!response.ok) {
         throw new Error('Failed to download');
@@ -189,7 +267,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       const reader = response.body?.getReader();
       if (!reader) throw new Error('No reader available');
 
-      const chunks: BlobPart[] = [];
+      const chunks: ArrayBuffer[] = [];
       let received = 0;
 
       while (true) {
@@ -197,8 +275,8 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         
         if (done) break;
         
-        // Convert to regular ArrayBuffer to satisfy BlobPart type
-        chunks.push(value.slice().buffer);
+        // Copy to regular ArrayBuffer for blob compatibility
+        chunks.push(value.buffer.slice(0) as ArrayBuffer);
         received += value.length;
         
         const progress = total > 0 ? Math.round((received / total) * 100) : 50;
@@ -209,7 +287,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }));
       }
 
-      // Create blob
+      // Create blob from chunks
       const blob = new Blob(chunks, { type: 'audio/mpeg' });
       const blobUrl = URL.createObjectURL(blob);
 
@@ -256,7 +334,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       }, 3000);
     }
-  }, [downloads]);
+  }, [downloads, isIndexedDBSupported]);
 
   const removeSong = useCallback(async (songId: string) => {
     try {
@@ -264,7 +342,11 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       
       // Revoke blob URL
       if (blobUrls[songId]) {
-        URL.revokeObjectURL(blobUrls[songId]);
+        try {
+          URL.revokeObjectURL(blobUrls[songId]);
+        } catch (e) {
+          // Ignore errors
+        }
       }
       
       setDownloads(prev => prev.filter(d => d.id !== songId));
@@ -291,7 +373,13 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const clearAllDownloads = useCallback(async () => {
     try {
       await clearDB();
-      Object.values(blobUrls).forEach(url => URL.revokeObjectURL(url));
+      Object.values(blobUrls).forEach(url => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          // Ignore errors
+        }
+      });
       setDownloads([]);
       setBlobUrls({});
     } catch (error) {
@@ -309,6 +397,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       getDownloadedUrl,
       totalStorageUsed,
       clearAllDownloads,
+      isIndexedDBSupported,
     }}>
       {children}
     </DownloadContext.Provider>

@@ -7,11 +7,11 @@ interface SplashScreenProps {
 }
 
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
-  // Auto redirect after 5 seconds
+  // Auto redirect after 3 seconds (faster for APK)
   useEffect(() => {
     const timer = setTimeout(() => {
       onComplete();
-    }, 5000);
+    }, 3000);
     
     return () => clearTimeout(timer);
   }, [onComplete]);
