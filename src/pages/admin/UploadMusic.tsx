@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Music, Image, X, Check, Loader2, AlertCircle, Link, Globe } from 'lucide-react';
+import { Upload, Music, Image, X, Check, Loader2, AlertCircle, Link, Globe, Youtube, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,13 @@ const MAX_AUDIO_SIZE = 100 * 1024 * 1024;
 const MAX_COVER_SIZE = 10 * 1024 * 1024;
 const ALLOWED_AUDIO_TYPES = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/aac', 'audio/ogg', 'audio/mp4', 'audio/x-m4a'];
 const ALLOWED_COVER_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+// Platforms that need extraction via backend
+const EXTRACTABLE_PLATFORMS = [
+  'youtube.com', 'youtu.be', 'soundcloud.com', 'tiktok.com', 
+  'twitter.com', 'x.com', 'instagram.com', 'facebook.com', 
+  'fb.watch', 'vimeo.com', 'twitch.tv', 'reddit.com', 'bilibili.com'
+];
 
 interface ValidationError {
   type: 'audio' | 'cover' | 'url';
@@ -38,6 +45,9 @@ const UploadMusic = () => {
   const [coverUrl, setCoverUrl] = useState('');
   const [isValidatingUrl, setIsValidatingUrl] = useState(false);
   const [urlValidated, setUrlValidated] = useState(false);
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractedUrl, setExtractedUrl] = useState<string | null>(null);
+  const [detectedPlatform, setDetectedPlatform] = useState<string | null>(null);
   
   const [metadata, setMetadata] = useState({
     title: '',
@@ -93,6 +103,11 @@ const UploadMusic = () => {
     });
   };
 
+  // Check if URL needs extraction (YouTube, SoundCloud, etc.)
+  const needsExtraction = (url: string): boolean => {
+    return EXTRACTABLE_PLATFORMS.some(platform => url.toLowerCase().includes(platform));
+  };
+
   // Transform URLs from various platforms to direct playable links
   const transformAudioUrl = (url: string): string => {
     let transformed = url.trim();
@@ -118,6 +133,33 @@ const UploadMusic = () => {
     return transformed;
   };
 
+  // Extract audio from platforms like YouTube, SoundCloud, etc.
+  const extractAudioFromPlatform = async (url: string): Promise<{ audioUrl: string; platform: string; filename?: string } | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('extract-audio', {
+        body: { url },
+      });
+
+      if (error) {
+        console.error('Extraction error:', error);
+        throw new Error(error.message || 'Failed to extract audio');
+      }
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to extract audio');
+      }
+
+      return {
+        audioUrl: data.audioUrl,
+        platform: data.platform,
+        filename: data.filename,
+      };
+    } catch (error: any) {
+      console.error('Error extracting audio:', error);
+      throw error;
+    }
+  };
+
   const validateAudioUrl = async () => {
     if (!audioUrl.trim()) {
       toast.error('Please enter an audio URL');
@@ -134,25 +176,58 @@ const UploadMusic = () => {
 
     setIsValidatingUrl(true);
     setValidationErrors(prev => prev.filter(e => e.type !== 'url'));
+    setExtractedUrl(null);
+    setDetectedPlatform(null);
 
-    const transformedUrl = transformAudioUrl(audioUrl);
-    
     try {
-      const duration = await getAudioDurationFromUrl(transformedUrl);
-      if (duration > 0) {
-        setAudioDuration(duration);
-        setUrlValidated(true);
-        toast.success('Audio URL validated!');
+      // Check if this URL needs extraction (YouTube, SoundCloud, etc.)
+      if (needsExtraction(audioUrl)) {
+        setIsExtracting(true);
+        toast.loading('Extracting audio from platform...', { id: 'extracting' });
+        
+        const result = await extractAudioFromPlatform(audioUrl);
+        
+        if (result) {
+          setExtractedUrl(result.audioUrl);
+          setDetectedPlatform(result.platform);
+          
+          // Try to get duration from extracted URL
+          const duration = await getAudioDurationFromUrl(result.audioUrl);
+          if (duration > 0) {
+            setAudioDuration(duration);
+          }
+          
+          // Auto-fill title from filename if available
+          if (result.filename && !metadata.title) {
+            const title = result.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
+            setMetadata(prev => ({ ...prev, title: prev.title || title }));
+          }
+          
+          setUrlValidated(true);
+          toast.dismiss('extracting');
+          toast.success(`Audio extracted from ${result.platform}!`);
+        }
       } else {
-        setUrlValidated(true);
-        toast.success('URL accepted - will be used as provided');
+        // Direct URL - transform and validate
+        const transformedUrl = transformAudioUrl(audioUrl);
+        
+        const duration = await getAudioDurationFromUrl(transformedUrl);
+        if (duration > 0) {
+          setAudioDuration(duration);
+          setUrlValidated(true);
+          toast.success('Audio URL validated!');
+        } else {
+          setUrlValidated(true);
+          toast.success('URL accepted - will be used as provided');
+        }
       }
-    } catch (error) {
-      // Accept URL anyway - user might know it works
-      setUrlValidated(true);
-      toast.success('URL accepted');
+    } catch (error: any) {
+      toast.dismiss('extracting');
+      toast.error(error.message || 'Failed to validate/extract audio');
+      setValidationErrors(prev => [...prev.filter(e => e.type !== 'url'), { type: 'url', message: error.message }]);
     } finally {
       setIsValidatingUrl(false);
+      setIsExtracting(false);
     }
   };
 
@@ -271,8 +346,8 @@ const UploadMusic = () => {
         finalAudioUrl = audioUrlData.publicUrl;
         fileSize = audioFile.size;
       } else if (uploadMode === 'url') {
-        // Transform the URL to make it playable
-        finalAudioUrl = transformAudioUrl(audioUrl);
+        // Use extracted URL if available, otherwise transform the original URL
+        finalAudioUrl = extractedUrl || transformAudioUrl(audioUrl);
       }
 
       setUploadProgress(50);
@@ -326,6 +401,8 @@ const UploadMusic = () => {
         setAudioUrl('');
         setCoverUrl('');
         setUrlValidated(false);
+        setExtractedUrl(null);
+        setDetectedPlatform(null);
         setMetadata({ title: '', artist: '', album: '', genre: '', mood: '', bpm: '' });
         setUploadProgress(0);
         setIsUploading(false);
@@ -479,21 +556,50 @@ const UploadMusic = () => {
             <div className="flex gap-2">
               <Input
                 value={audioUrl}
-                onChange={(e) => { setAudioUrl(e.target.value); setUrlValidated(false); }}
-                placeholder="https://example.com/song.mp3"
+                onChange={(e) => { 
+                  setAudioUrl(e.target.value); 
+                  setUrlValidated(false); 
+                  setExtractedUrl(null);
+                  setDetectedPlatform(null);
+                }}
+                placeholder="YouTube, SoundCloud, or direct audio URL"
                 className="flex-1 h-11 rounded-xl bg-muted/30 border-0"
               />
               <Button
                 onClick={validateAudioUrl}
-                disabled={isValidatingUrl || !audioUrl}
+                disabled={isValidatingUrl || isExtracting || !audioUrl}
                 variant="outline"
                 className="h-11 px-4 rounded-xl"
               >
-                {isValidatingUrl ? <Loader2 className="w-4 h-4 animate-spin" /> :
-                 urlValidated ? <Check className="w-4 h-4 text-green-500" /> : 'Verify'}
+                {isValidatingUrl || isExtracting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : urlValidated ? (
+                  <Check className="w-4 h-4 text-green-500" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
               </Button>
             </div>
-            {urlValidated && audioDuration > 0 && (
+            
+            {/* Status messages */}
+            {isExtracting && (
+              <p className="text-xs text-primary mt-2 flex items-center gap-1">
+                <Loader2 className="w-3 h-3 animate-spin" />
+                Extracting audio from platform...
+              </p>
+            )}
+            
+            {urlValidated && detectedPlatform && (
+              <div className="mt-2 p-2 rounded-lg bg-green-500/10 border border-green-500/20">
+                <p className="text-xs text-green-500 flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  Audio extracted from {detectedPlatform}
+                  {audioDuration > 0 && ` • ${formatDuration(audioDuration)}`}
+                </p>
+              </div>
+            )}
+            
+            {urlValidated && !detectedPlatform && audioDuration > 0 && (
               <p className="text-xs text-green-500 mt-2">✓ Duration: {formatDuration(audioDuration)}</p>
             )}
           </div>
@@ -570,14 +676,23 @@ const UploadMusic = () => {
           </div>
 
           {/* Tips */}
-          <div className="ios-card p-4 bg-primary/5 border-primary/10">
-            <h3 className="font-medium text-sm mb-2">💡 URL Import Tips</h3>
+          <div className="ios-card p-4 bg-gradient-to-br from-primary/10 to-accent/5 border-primary/20">
+            <h3 className="font-medium text-sm mb-2 flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-primary" />
+              Supported Platforms
+            </h3>
             <ul className="text-xs text-muted-foreground space-y-1">
-              <li>• Use direct audio file links (.mp3, .wav, .m4a, etc.)</li>
-              <li>• Google Drive: Use sharing link - auto-converted</li>
-              <li>• Dropbox: Use sharing link - auto-converted</li>
-              <li>• ⚠️ YouTube/Spotify/SoundCloud links won't work (they don't provide direct audio)</li>
+              <li>• <span className="text-foreground font-medium">YouTube</span> - Videos and music</li>
+              <li>• <span className="text-foreground font-medium">SoundCloud</span> - Tracks and mixes</li>
+              <li>• <span className="text-foreground font-medium">TikTok</span> - Video audio</li>
+              <li>• <span className="text-foreground font-medium">Twitter/X</span> - Video audio</li>
+              <li>• <span className="text-foreground font-medium">Instagram</span> - Reels and videos</li>
+              <li>• <span className="text-foreground font-medium">Direct links</span> - MP3, WAV, M4A files</li>
+              <li>• <span className="text-foreground font-medium">Cloud storage</span> - Google Drive, Dropbox</li>
             </ul>
+            <p className="text-xs text-muted-foreground/70 mt-2 italic">
+              Note: Spotify links are not supported due to DRM protection
+            </p>
           </div>
 
           {/* Metadata Card */}
