@@ -42,8 +42,30 @@ const FALLBACK_INSTANCES = [
 ];
 
 function extractVideoId(url: string): string | null {
+  // Try URL parsing first for query parameters
+  try {
+    const urlObj = new URL(url);
+    
+    // Check for ?v= parameter (most common)
+    const vParam = urlObj.searchParams.get('v');
+    if (vParam && vParam.length === 11) return vParam;
+    
+    // Check for playlist with currently playing video
+    // URLs like: youtube.com/watch?v=XXX&list=YYY
+    // But NOT: youtube.com/playlist?list=YYY (no video playing)
+    
+  } catch {
+    // Not a valid URL, try regex patterns
+  }
+  
   const patterns = [
-    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+    // Standard watch URLs
+    /(?:youtube\.com|music\.youtube\.com)\/watch\?.*v=([a-zA-Z0-9_-]{11})/,
+    // Short URLs
+    /youtu\.be\/([a-zA-Z0-9_-]{11})/,
+    // Embed and other formats
+    /youtube\.com\/(?:embed|v|shorts|live)\/([a-zA-Z0-9_-]{11})/,
+    // Direct video ID
     /^([a-zA-Z0-9_-]{11})$/,
   ];
   
@@ -52,6 +74,10 @@ function extractVideoId(url: string): string | null {
     if (match) return match[1];
   }
   return null;
+}
+
+function isPlaylistUrl(url: string): boolean {
+  return url.includes('playlist?list=') || (url.includes('list=') && !url.includes('v='));
 }
 
 // Fetch instances dynamically from official API
@@ -242,11 +268,27 @@ serve(async (req) => {
 
     // YouTube extraction
     if (platform === 'YouTube') {
+      // Check if it's a playlist URL without a specific video
+      if (isPlaylistUrl(url)) {
+        return new Response(
+          JSON.stringify({ 
+            error: 'Playlist URLs are not supported. Please copy the link of a specific video instead.',
+            platform: 'YouTube',
+            hint: 'Click on a video in the playlist, then copy its URL from the browser address bar.',
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       const videoId = extractVideoId(url);
       
       if (!videoId) {
         return new Response(
-          JSON.stringify({ error: 'Could not extract YouTube video ID from URL' }),
+          JSON.stringify({ 
+            error: 'Could not extract video ID. Please use a direct video link.',
+            platform: 'YouTube',
+            hint: 'Use a URL like youtube.com/watch?v=VIDEO_ID or youtu.be/VIDEO_ID',
+          }),
           { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
