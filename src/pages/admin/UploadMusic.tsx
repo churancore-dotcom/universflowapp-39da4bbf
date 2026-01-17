@@ -136,7 +136,14 @@ const UploadMusic = () => {
   };
 
   // Extract audio from platforms like YouTube, SoundCloud, etc.
-  const extractAudioFromPlatform = async (url: string): Promise<{ audioUrl: string; platform: string; filename?: string } | null> => {
+  const extractAudioFromPlatform = async (url: string): Promise<{ 
+    audioUrl: string; 
+    platform: string; 
+    title?: string;
+    artist?: string;
+    thumbnail?: string;
+    duration?: number;
+  } | null> => {
     try {
       const { data, error } = await supabase.functions.invoke('extract-audio', {
         body: { url },
@@ -154,7 +161,10 @@ const UploadMusic = () => {
       return {
         audioUrl: data.audioUrl,
         platform: data.platform,
-        filename: data.filename,
+        title: data.title,
+        artist: data.artist,
+        thumbnail: data.thumbnail,
+        duration: data.duration,
       };
     } catch (error: any) {
       console.error('Error extracting audio:', error);
@@ -193,16 +203,28 @@ const UploadMusic = () => {
           setExtractedUrl(result.audioUrl);
           setDetectedPlatform(result.platform);
           
-          // Try to get duration from extracted URL
-          const duration = await getAudioDurationFromUrl(result.audioUrl);
-          if (duration > 0) {
-            setAudioDuration(duration);
+          // Use duration from API if available, otherwise try to get from audio element
+          if (result.duration && result.duration > 0) {
+            setAudioDuration(result.duration);
+          } else {
+            const duration = await getAudioDurationFromUrl(result.audioUrl);
+            if (duration > 0) {
+              setAudioDuration(duration);
+            }
           }
           
-          // Auto-fill title from filename if available
-          if (result.filename && !metadata.title) {
-            const title = result.filename.replace(/\.[^/.]+$/, '').replace(/_/g, ' ');
-            setMetadata(prev => ({ ...prev, title: prev.title || title }));
+          // Auto-fill metadata from extracted video info
+          if (result.title && !metadata.title) {
+            setMetadata(prev => ({ ...prev, title: prev.title || result.title! }));
+          }
+          if (result.artist && !metadata.artist) {
+            setMetadata(prev => ({ ...prev, artist: prev.artist || result.artist! }));
+          }
+          
+          // Set thumbnail as cover URL if available
+          if (result.thumbnail && !coverUrl && !coverFile) {
+            setCoverUrl(result.thumbnail);
+            setCoverPreview(result.thumbnail);
           }
           
           setUrlValidated(true);
