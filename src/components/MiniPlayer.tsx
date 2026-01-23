@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, SkipForward, X } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
@@ -6,27 +6,34 @@ import { useNavigate } from 'react-router-dom';
 import { iosBounce } from '@/lib/animations';
 import LikeButton from './LikeButton';
 
-// Smooth audio wave component - replaces ugly up-down animation
-const AudioWave = memo(({ isPlaying }: { isPlaying: boolean }) => (
-  <div className="flex items-end gap-[2px] h-4">
-    {[0, 1, 2].map((i) => (
-      <div
-        key={i}
-        className={`w-[3px] bg-white rounded-full transition-all duration-300 ${
-          isPlaying ? 'animate-audio-wave' : 'h-[5px]'
-        }`}
-        style={{
-          animationDelay: `${i * 0.15}s`,
-          height: isPlaying ? undefined : '5px',
-        }}
-      />
-    ))}
-  </div>
-));
+// Smooth audio wave component - Apple Music style
+const AudioWave = memo(function AudioWave({ isPlaying }: { isPlaying: boolean }) {
+  return (
+    <div className="flex items-end gap-[2px] h-4">
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={i}
+          className="w-[3px] bg-white rounded-full"
+          animate={isPlaying ? {
+            height: [5, 14, 8, 12, 5],
+          } : {
+            height: 5,
+          }}
+          transition={isPlaying ? {
+            duration: 0.6,
+            repeat: Infinity,
+            delay: i * 0.12,
+            ease: "easeInOut",
+          } : {
+            duration: 0.2,
+          }}
+        />
+      ))}
+    </div>
+  );
+});
 
-AudioWave.displayName = 'AudioWave';
-
-const MiniPlayer = memo(() => {
+const MiniPlayer = memo(function MiniPlayer() {
   const {
     currentSong,
     isPlaying,
@@ -39,51 +46,85 @@ const MiniPlayer = memo(() => {
   } = usePlayer();
   const navigate = useNavigate();
 
-  if (!currentSong) return null;
-
-  const handleArtistClick = (e: React.MouseEvent) => {
+  const handleArtistClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
-    if (currentSong.artist_id) {
+    if (currentSong?.artist_id) {
       navigate(`/artist/${currentSong.artist_id}`);
     }
-  };
+  }, [currentSong?.artist_id, navigate]);
+
+  const handleTogglePlay = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      togglePlay();
+    } catch (error) {
+      console.error('Error toggling play:', error);
+    }
+  }, [togglePlay]);
+
+  const handleNextSong = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      nextSong();
+    } catch (error) {
+      console.error('Error skipping song:', error);
+    }
+  }, [nextSong]);
+
+  const handleStopSong = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      stopSong();
+    } catch (error) {
+      console.error('Error stopping song:', error);
+    }
+  }, [stopSong]);
+
+  const handleExpand = useCallback(() => {
+    try {
+      setExpanded(true);
+    } catch (error) {
+      console.error('Error expanding player:', error);
+    }
+  }, [setExpanded]);
+
+  if (!currentSong) return null;
 
   const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
 
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed bottom-0 left-0 right-0 z-50 safe-area-pb"
+        className="fixed bottom-16 left-0 right-0 z-40 mx-2 mb-2 rounded-2xl overflow-hidden safe-area-pb"
         style={{
-          background: 'rgba(18, 18, 18, 0.92)',
+          background: 'rgba(28, 28, 30, 0.95)',
           backdropFilter: 'blur(50px) saturate(180%)',
           WebkitBackdropFilter: 'blur(50px) saturate(180%)',
+          boxShadow: '0 -4px 30px rgba(0, 0, 0, 0.3)',
         }}
         initial={{ y: 100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 100, opacity: 0 }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
       >
-        {/* Progress bar */}
+        {/* Progress bar - Apple Music style thin line */}
         <div className="absolute top-0 left-0 right-0 h-[2px] bg-white/10">
-          <div
-            className="h-full transition-[width] duration-100"
-            style={{
-              width: `${progressPercent}%`,
-              background: 'linear-gradient(90deg, hsl(211 100% 50%), hsl(328 100% 54%))',
-            }}
+          <motion.div
+            className="h-full bg-primary"
+            style={{ width: `${progressPercent}%` }}
+            transition={{ duration: 0.1, ease: "linear" }}
           />
         </div>
 
-        <div className="flex items-center justify-between px-4 py-3">
-          {/* Song info */}
-          <motion.div
-            className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer"
-            onClick={() => setExpanded(true)}
+        <div className="flex items-center justify-between px-3 py-2.5">
+          {/* Song info - tappable to expand */}
+          <motion.button
+            className="flex items-center gap-3 flex-1 min-w-0 text-left"
+            onClick={handleExpand}
             whileTap={{ scale: 0.98, opacity: 0.8 }}
             transition={iosBounce}
           >
-            <div className="relative w-12 h-12 rounded-xl overflow-hidden bg-muted/50 flex-shrink-0 shadow-lg">
+            <div className="relative w-11 h-11 rounded-xl overflow-hidden bg-muted/50 flex-shrink-0 shadow-lg">
               {currentSong.cover_url ? (
                 <img
                   src={currentSong.cover_url}
@@ -101,8 +142,8 @@ const MiniPlayer = memo(() => {
               )}
             </div>
             
-            <div className="min-w-0">
-              <p className="font-medium text-[15px] truncate leading-tight">
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-[14px] truncate leading-tight">
                 {currentSong.title}
               </p>
               <div 
@@ -116,25 +157,24 @@ const MiniPlayer = memo(() => {
                     className="w-4 h-4 rounded-full object-cover flex-shrink-0"
                   />
                 )}
-                <p className={`text-[13px] text-muted-foreground truncate ${currentSong.artist_id ? 'hover:text-primary transition-colors' : ''}`}>
+                <p className={`text-[12px] text-muted-foreground truncate ${currentSong.artist_id ? 'hover:text-primary transition-colors' : ''}`}>
                   {currentSong.artist}
                 </p>
               </div>
             </div>
-          </motion.div>
+          </motion.button>
 
           {/* Controls */}
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <LikeButton songId={currentSong.id} size="sm" className="mr-1" />
             
+            {/* Play/Pause button - Apple Music style */}
             <motion.button
-              className="w-11 h-11 rounded-full bg-white flex items-center justify-center text-black shadow-lg"
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePlay();
-              }}
-              whileTap={{ scale: 0.88 }}
+              className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-black"
+              onClick={handleTogglePlay}
+              whileTap={{ scale: 0.85 }}
               transition={iosBounce}
+              aria-label={isPlaying ? 'Pause' : 'Play'}
             >
               {isPlaying ? (
                 <Pause className="w-5 h-5" fill="black" />
@@ -143,25 +183,21 @@ const MiniPlayer = memo(() => {
               )}
             </motion.button>
             
+            {/* Next button */}
             <motion.button
-              className="p-2.5 rounded-full flex items-center justify-center"
-              onClick={(e) => {
-                e.stopPropagation();
-                nextSong();
-              }}
+              className="w-10 h-10 rounded-full flex items-center justify-center"
+              onClick={handleNextSong}
               whileTap={{ scale: 0.85 }}
               transition={iosBounce}
+              aria-label="Next song"
             >
               <SkipForward className="w-5 h-5" fill="currentColor" />
             </motion.button>
 
             {/* Close/Stop button */}
             <motion.button
-              className="p-2 rounded-full flex items-center justify-center text-muted-foreground hover:text-white ml-1"
-              onClick={(e) => {
-                e.stopPropagation();
-                stopSong();
-              }}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-muted-foreground hover:text-white active:text-white"
+              onClick={handleStopSong}
               whileTap={{ scale: 0.85 }}
               transition={iosBounce}
               aria-label="Close player"
@@ -174,7 +210,5 @@ const MiniPlayer = memo(() => {
     </AnimatePresence>
   );
 });
-
-MiniPlayer.displayName = 'MiniPlayer';
 
 export default MiniPlayer;

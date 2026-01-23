@@ -1,4 +1,4 @@
-import React, { useState, useEffect, forwardRef } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Music, Check, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +20,12 @@ interface AddToPlaylistModalProps {
   onCreateNew: () => void;
 }
 
-const AddToPlaylistModal = forwardRef<HTMLDivElement, AddToPlaylistModalProps>(({ isOpen, onClose, song, onCreateNew }, ref) => {
+const AddToPlaylistModal = memo(function AddToPlaylistModal({ 
+  isOpen, 
+  onClose, 
+  song, 
+  onCreateNew 
+}: AddToPlaylistModalProps) {
   const { user } = useAuth();
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,16 +41,22 @@ const AddToPlaylistModal = forwardRef<HTMLDivElement, AddToPlaylistModalProps>((
   const fetchPlaylists = async () => {
     if (!user) return;
 
-    const { data } = await supabase
-      .from('playlists')
-      .select('id, title, cover_url')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    try {
+      const { data, error } = await supabase
+        .from('playlists')
+        .select('id, title, cover_url')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-    if (data) {
-      setPlaylists(data);
+      if (error) throw error;
+      if (data) {
+        setPlaylists(data);
+      }
+    } catch (error) {
+      console.error('Error fetching playlists:', error);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleAddToPlaylist = async (playlistId: string) => {
@@ -53,38 +64,46 @@ const AddToPlaylistModal = forwardRef<HTMLDivElement, AddToPlaylistModalProps>((
 
     setAddingTo(playlistId);
 
-    // Get current max position
-    const { data: existingSongs } = await supabase
-      .from('playlist_songs')
-      .select('position')
-      .eq('playlist_id', playlistId)
-      .order('position', { ascending: false })
-      .limit(1);
+    try {
+      // Get current max position
+      const { data: existingSongs, error: fetchError } = await supabase
+        .from('playlist_songs')
+        .select('position')
+        .eq('playlist_id', playlistId)
+        .order('position', { ascending: false })
+        .limit(1);
 
-    const nextPosition = existingSongs && existingSongs.length > 0 ? existingSongs[0].position + 1 : 0;
+      if (fetchError) throw fetchError;
 
-    const { error } = await supabase
-      .from('playlist_songs')
-      .insert({
-        playlist_id: playlistId,
-        song_id: song.id,
-        position: nextPosition,
-      });
+      const nextPosition = existingSongs && existingSongs.length > 0 ? existingSongs[0].position + 1 : 0;
 
-    if (error) {
-      if (error.code === '23505') {
-        toast.info('Song already in this playlist');
+      const { error } = await supabase
+        .from('playlist_songs')
+        .insert({
+          playlist_id: playlistId,
+          song_id: song.id,
+          position: nextPosition,
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          toast.info('Song already in this playlist');
+        } else {
+          throw error;
+        }
       } else {
-        console.error('Error adding to playlist:', error);
-        toast.error('Failed to add song');
+        toast.success('Added to playlist! 🎵');
+        setAddedTo(prev => new Set(prev).add(playlistId));
       }
-    } else {
-      toast.success('Added to playlist! 🎵');
-      setAddedTo(prev => new Set(prev).add(playlistId));
+    } catch (error) {
+      console.error('Error adding to playlist:', error);
+      toast.error('Failed to add song');
+    } finally {
+      setAddingTo(null);
     }
-
-    setAddingTo(null);
   };
+
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
@@ -213,7 +232,5 @@ const AddToPlaylistModal = forwardRef<HTMLDivElement, AddToPlaylistModalProps>((
     </AnimatePresence>
   );
 });
-
-AddToPlaylistModal.displayName = 'AddToPlaylistModal';
 
 export default AddToPlaylistModal;

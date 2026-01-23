@@ -1,4 +1,4 @@
-import React, { useState, forwardRef } from 'react';
+import { useState, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Music, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,7 +14,11 @@ interface CreatePlaylistModalProps {
   onCreated: () => void;
 }
 
-const CreatePlaylistModal = forwardRef<HTMLDivElement, CreatePlaylistModalProps>(({ isOpen, onClose, onCreated }, ref) => {
+const CreatePlaylistModal = memo(function CreatePlaylistModal({ 
+  isOpen, 
+  onClose, 
+  onCreated 
+}: CreatePlaylistModalProps) {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -29,28 +33,32 @@ const CreatePlaylistModal = forwardRef<HTMLDivElement, CreatePlaylistModalProps>
 
     setLoading(true);
 
-    const { error } = await supabase
-      .from('playlists')
-      .insert({
-        user_id: user.id,
-        title: title.trim(),
-        description: description.trim() || null,
-        is_public: isPublic,
-      });
+    try {
+      const { error } = await supabase
+        .from('playlists')
+        .insert({
+          user_id: user.id,
+          title: title.trim(),
+          description: description.trim() || null,
+          is_public: isPublic,
+        });
 
-    if (error) {
-      console.error('Error creating playlist:', error);
-      toast.error('Failed to create playlist');
-    } else {
+      if (error) throw error;
+
       toast.success('Playlist created! 🎵');
       setTitle('');
       setDescription('');
       onCreated();
       onClose();
+    } catch (error) {
+      console.error('Error creating playlist:', error);
+      toast.error('Failed to create playlist');
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
+
+  if (!isOpen) return null;
 
   return (
     <AnimatePresence>
@@ -139,6 +147,7 @@ const CreatePlaylistModal = forwardRef<HTMLDivElement, CreatePlaylistModalProps>
                   className="w-full flex items-center justify-between p-4 rounded-xl bg-white/5"
                   onClick={() => setIsPublic(!isPublic)}
                   whileTap={{ scale: 0.98 }}
+                  type="button"
                 >
                   <span className="font-medium">Public Playlist</span>
                   <div 
@@ -162,6 +171,7 @@ const CreatePlaylistModal = forwardRef<HTMLDivElement, CreatePlaylistModalProps>
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   transition={iosBounce}
+                  type="button"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -177,7 +187,5 @@ const CreatePlaylistModal = forwardRef<HTMLDivElement, CreatePlaylistModalProps>
     </AnimatePresence>
   );
 });
-
-CreatePlaylistModal.displayName = 'CreatePlaylistModal';
 
 export default CreatePlaylistModal;
