@@ -1,17 +1,18 @@
 import { useState, memo } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Repeat1, ChevronDown, ListMusic, Share2, Ellipsis, Mic2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Repeat1, ChevronDown, ListMusic, Share2, Ellipsis, Mic2, Heart } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import { iosBounce } from '@/lib/animations';
 import DownloadButton from './DownloadButton';
 import LikeButton from './LikeButton';
-import ShareSongModal from './ShareSongModal';
+import SocialShareModal from './SocialShareModal';
 import AddToPlaylistModal from './AddToPlaylistModal';
 import CreatePlaylistModal from './CreatePlaylistModal';
 import SongReactions from './SongReactions';
 import LyricsDisplay from './LyricsDisplay';
+import SendDedicationModal from './SendDedicationModal';
 import { useAudioVisualizer } from '@/hooks/useAudioVisualizer';
 import AlbumArtAnimations from './player/AlbumArtAnimations';
 
@@ -78,6 +79,7 @@ const FullscreenPlayer = () => {
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
+  const [showDedicationModal, setShowDedicationModal] = useState(false);
   const navigate = useNavigate();
 
   // Real audio frequency visualization
@@ -322,13 +324,21 @@ const FullscreenPlayer = () => {
               </div>
 
               {/* Bottom actions - Apple Music style */}
-              <div className="flex items-center justify-between px-8 pt-2">
+              <div className="flex items-center justify-between px-6 pt-2">
                 <motion.button
                   className="p-2"
                   onClick={() => setShowLyrics(true)}
                   whileTap={{ scale: 0.85 }}
                 >
                   <Mic2 className="w-5 h-5 text-white/50" />
+                </motion.button>
+
+                <motion.button
+                  className="p-2"
+                  onClick={() => setShowDedicationModal(true)}
+                  whileTap={{ scale: 0.85 }}
+                >
+                  <Heart className="w-5 h-5 text-white/50" />
                 </motion.button>
 
                 <motion.button
@@ -358,7 +368,7 @@ const FullscreenPlayer = () => {
       </AnimatePresence>
 
       {/* Modals */}
-      <ShareSongModal 
+      <SocialShareModal 
         isOpen={showShareModal} 
         onClose={() => setShowShareModal(false)} 
         song={currentSong} 
@@ -377,6 +387,11 @@ const FullscreenPlayer = () => {
       <LyricsDisplay
         isOpen={showLyrics}
         onClose={() => setShowLyrics(false)}
+      />
+      <SendDedicationModal
+        isOpen={showDedicationModal}
+        onClose={() => setShowDedicationModal(false)}
+        song={currentSong}
       />
     </>
   );

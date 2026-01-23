@@ -71,6 +71,33 @@ export type Database = {
         }
         Relationships: []
       }
+      friends: {
+        Row: {
+          created_at: string
+          friend_id: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          friend_id: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          friend_id?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       playlist_songs: {
         Row: {
           added_at: string
@@ -153,6 +180,7 @@ export type Database = {
           email: string | null
           id: string
           is_admin: boolean
+          share_code: string | null
           updated_at: string
           user_id: string
           username: string | null
@@ -163,6 +191,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_admin?: boolean
+          share_code?: string | null
           updated_at?: string
           user_id: string
           username?: string | null
@@ -173,6 +202,7 @@ export type Database = {
           email?: string | null
           id?: string
           is_admin?: boolean
+          share_code?: string | null
           updated_at?: string
           user_id?: string
           username?: string | null
@@ -242,6 +272,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      song_dedications: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string | null
+          recipient_id: string
+          sender_id: string
+          song_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          recipient_id: string
+          sender_id: string
+          song_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          recipient_id?: string
+          sender_id?: string
+          song_id?: string
+        }
+        Relationships: []
       }
       song_reactions: {
         Row: {
