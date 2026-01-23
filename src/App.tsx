@@ -32,6 +32,7 @@ import BulkActions from "./pages/admin/BulkActions";
 import SystemHealth from "./pages/admin/SystemHealth";
 import ContentScheduler from "./pages/admin/ContentScheduler";
 import BackupExport from "./pages/admin/BackupExport";
+import AddFriend from "./pages/AddFriend";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -67,6 +68,7 @@ const AnimatedRoutes = () => {
         <Route path="/artist/:artistName" element={<ProtectedRoute><ArtistDetail /></ProtectedRoute>} />
         <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="/add-friend/:shareCode" element={<AddFriend />} />
         <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
           <Route index element={<AdminDashboard />} />
           <Route path="upload" element={<UploadMusic />} />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Settings, LogOut, Shield, Music, Heart, Clock, ChevronRight, BarChart3, Users, Zap } from 'lucide-react';
+import { User, Mail, Settings, LogOut, Shield, Music, Heart, Clock, ChevronRight, BarChart3, Users, Zap, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,6 +9,8 @@ import MiniPlayer from '@/components/MiniPlayer';
 import FullscreenPlayer from '@/components/FullscreenPlayer';
 import ListeningStats from '@/components/ListeningStats';
 import FriendActivity from '@/components/FriendActivity';
+import FriendsManager from '@/components/FriendsManager';
+import DedicationsInbox from '@/components/DedicationsInbox';
 import Crossfade from '@/components/Crossfade';
 import { SheetTransition } from '@/components/PageTransition';
 import { iosSpring, iosBounce } from '@/lib/animations';
@@ -19,6 +21,8 @@ const Profile = () => {
   const [stats, setStats] = useState({ likedSongs: 0, recentPlays: 0, playlists: 0 });
   const [showStats, setShowStats] = useState(false);
   const [showFriendActivity, setShowFriendActivity] = useState(false);
+  const [showFriendsManager, setShowFriendsManager] = useState(false);
+  const [showDedications, setShowDedications] = useState(false);
   const [showCrossfade, setShowCrossfade] = useState(false);
 
   useEffect(() => {
@@ -49,6 +53,8 @@ const Profile = () => {
   const menuItems = [
     ...(isAdmin ? [{ icon: Shield, label: 'Admin Panel', action: () => navigate('/admin'), color: 'text-primary' }] : []),
     { icon: BarChart3, label: 'Your Stats', action: () => setShowStats(true), color: 'text-purple-400' },
+    { icon: Users, label: 'Friends', action: () => setShowFriendsManager(true), color: 'text-blue-400' },
+    { icon: Gift, label: 'Song Dedications', action: () => setShowDedications(true), color: 'text-pink-400' },
     { icon: Users, label: 'Friend Activity', action: () => setShowFriendActivity(true), color: 'text-green-400' },
     { icon: Zap, label: 'Playback Settings', action: () => setShowCrossfade(true), color: 'text-cyan-400' },
     { icon: Settings, label: 'Settings', action: () => navigate('/settings'), color: 'text-foreground' },
@@ -244,6 +250,8 @@ const Profile = () => {
       <FullscreenPlayer />
       <ListeningStats isOpen={showStats} onClose={() => setShowStats(false)} />
       <FriendActivity isOpen={showFriendActivity} onClose={() => setShowFriendActivity(false)} />
+      <FriendsManager isOpen={showFriendsManager} onClose={() => setShowFriendsManager(false)} />
+      <DedicationsInbox isOpen={showDedications} onClose={() => setShowDedications(false)} />
       <Crossfade isOpen={showCrossfade} onClose={() => setShowCrossfade(false)} />
       </motion.div>
     </SheetTransition>
