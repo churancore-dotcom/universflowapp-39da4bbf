@@ -1,12 +1,15 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Settings, LogOut, Shield, Music, Heart, Clock, ChevronRight } from 'lucide-react';
+import { User, Mail, Settings, LogOut, Shield, Music, Heart, Clock, ChevronRight, BarChart3, Users, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import BottomNav from '@/components/BottomNav';
 import MiniPlayer from '@/components/MiniPlayer';
 import FullscreenPlayer from '@/components/FullscreenPlayer';
+import ListeningStats from '@/components/ListeningStats';
+import FriendActivity from '@/components/FriendActivity';
+import Crossfade from '@/components/Crossfade';
 import { SheetTransition } from '@/components/PageTransition';
 import { iosSpring, iosBounce } from '@/lib/animations';
 
@@ -14,6 +17,9 @@ const Profile = () => {
   const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ likedSongs: 0, recentPlays: 0, playlists: 0 });
+  const [showStats, setShowStats] = useState(false);
+  const [showFriendActivity, setShowFriendActivity] = useState(false);
+  const [showCrossfade, setShowCrossfade] = useState(false);
 
   useEffect(() => {
     if (user) fetchStats();
@@ -42,6 +48,9 @@ const Profile = () => {
 
   const menuItems = [
     ...(isAdmin ? [{ icon: Shield, label: 'Admin Panel', action: () => navigate('/admin'), color: 'text-primary' }] : []),
+    { icon: BarChart3, label: 'Your Stats', action: () => setShowStats(true), color: 'text-purple-400' },
+    { icon: Users, label: 'Friend Activity', action: () => setShowFriendActivity(true), color: 'text-green-400' },
+    { icon: Zap, label: 'Playback Settings', action: () => setShowCrossfade(true), color: 'text-cyan-400' },
     { icon: Settings, label: 'Settings', action: () => navigate('/settings'), color: 'text-foreground' },
     { icon: LogOut, label: 'Sign Out', action: handleLogout, color: 'text-destructive', destructive: true },
   ];
@@ -233,6 +242,9 @@ const Profile = () => {
       <BottomNav />
       <MiniPlayer />
       <FullscreenPlayer />
+      <ListeningStats isOpen={showStats} onClose={() => setShowStats(false)} />
+      <FriendActivity isOpen={showFriendActivity} onClose={() => setShowFriendActivity(false)} />
+      <Crossfade isOpen={showCrossfade} onClose={() => setShowCrossfade(false)} />
       </motion.div>
     </SheetTransition>
   );
