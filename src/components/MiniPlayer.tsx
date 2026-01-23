@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, SkipForward, X } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { iosBounce } from '@/lib/animations';
+import { useAudioVisualizer } from '@/hooks/useAudioVisualizer';
 
 // Apple Music style animated bars
 const NowPlayingBars = memo(function NowPlayingBars({ isPlaying }: { isPlaying: boolean }) {
@@ -11,10 +12,7 @@ const NowPlayingBars = memo(function NowPlayingBars({ isPlaying }: { isPlaying: 
       {[0, 1, 2].map((i) => (
         <motion.div
           key={i}
-          className="w-[3px] rounded-full"
-          style={{
-            background: 'linear-gradient(to top, #FA2D48, #FB5C74)',
-          }}
+          className="w-[3px] rounded-full bg-gradient-to-t from-rose-500 to-rose-400"
           animate={isPlaying ? {
             height: ['4px', '14px', '6px', '12px', '4px'],
           } : {
@@ -40,11 +38,15 @@ const MiniPlayer = memo(function MiniPlayer() {
     isPlaying,
     progress,
     duration,
+    audioElement,
     togglePlay,
     nextSong,
     stopSong,
     setExpanded
   } = usePlayer();
+
+  // Real audio frequency visualization
+  const { bassFrequency } = useAudioVisualizer(audioElement, isPlaying);
 
   const handleTogglePlay = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -83,7 +85,12 @@ const MiniPlayer = memo(function MiniPlayer() {
 
   if (!currentSong) return null;
 
-  const progressPercent = duration > 0 ? (progress / duration) * 100 : 0;
+  const progressPercent = duration > 0 && isFinite(progress) && isFinite(duration) 
+    ? (progress / duration) * 100 
+    : 0;
+
+  // Real-time glow intensity based on bass
+  const glowIntensity = bassFrequency * 0.6;
 
   return (
     <AnimatePresence>
@@ -96,9 +103,8 @@ const MiniPlayer = memo(function MiniPlayer() {
       >
         {/* Apple Music style card */}
         <motion.div
-          className="rounded-2xl overflow-hidden"
+          className="rounded-2xl overflow-hidden bg-muted/95"
           style={{
-            background: 'rgba(45, 45, 48, 0.92)',
             backdropFilter: 'blur(60px) saturate(200%)',
             WebkitBackdropFilter: 'blur(60px) saturate(200%)',
             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2)',
@@ -109,47 +115,36 @@ const MiniPlayer = memo(function MiniPlayer() {
           {/* Progress bar - Apple Music thin red line */}
           <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-white/10 overflow-hidden rounded-t-2xl">
             <motion.div
-              className="h-full rounded-full"
-              style={{ 
-                width: `${progressPercent}%`,
-                background: 'linear-gradient(90deg, #FA2D48, #FB5C74)',
-              }}
+              className="h-full rounded-full bg-gradient-to-r from-rose-500 to-rose-400"
+              style={{ width: `${progressPercent}%` }}
               transition={{ duration: 0.1, ease: "linear" }}
             />
           </div>
 
           <div className="flex items-center gap-3 p-2.5 pr-2">
-            {/* Album Art with beat pulse animation */}
+            {/* Album Art with real frequency-reactive glow */}
             <div className="relative w-12 h-12 flex-shrink-0">
-              {/* Beat pulse glow behind artwork */}
+              {/* Real frequency-reactive glow behind artwork */}
               {isPlaying && (
                 <motion.div
-                  className="absolute inset-0 rounded-xl"
+                  className="absolute inset-0 rounded-xl pointer-events-none"
                   style={{
-                    background: 'radial-gradient(circle, rgba(250, 45, 72, 0.5) 0%, transparent 70%)',
+                    background: `radial-gradient(circle, rgba(250, 45, 72, ${0.4 + glowIntensity}) 0%, transparent 70%)`,
                   }}
                   animate={{
-                    scale: [1, 1.4, 1],
-                    opacity: [0.6, 0.2, 0.6],
+                    scale: 1 + bassFrequency * 0.4,
+                    opacity: 0.5 + bassFrequency * 0.5,
                   }}
-                  transition={{
-                    duration: 0.8,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
+                  transition={{ duration: 0.05, ease: 'linear' }}
                 />
               )}
               
               <motion.div 
                 className="relative w-full h-full rounded-xl overflow-hidden shadow-lg z-10"
-                animate={isPlaying ? {
-                  scale: [1, 1.03, 1],
-                } : { scale: 1 }}
-                transition={isPlaying ? {
-                  duration: 0.6,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                } : { duration: 0.2 }}
+                animate={{
+                  scale: isPlaying ? 1 + bassFrequency * 0.05 : 1,
+                }}
+                transition={{ duration: 0.05, ease: 'linear' }}
               >
                 {currentSong.cover_url ? (
                   <img

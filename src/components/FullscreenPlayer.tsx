@@ -11,9 +11,10 @@ import ShareSongModal from './ShareSongModal';
 import AddToPlaylistModal from './AddToPlaylistModal';
 import CreatePlaylistModal from './CreatePlaylistModal';
 import SongReactions from './SongReactions';
+import { useAudioVisualizer } from '@/hooks/useAudioVisualizer';
 
 const formatTime = (seconds: number) => {
-  if (!seconds || isNaN(seconds)) return '0:00';
+  if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
@@ -43,7 +44,7 @@ const AppleVolumeSlider = memo(function AppleVolumeSlider({
         max={100}
         step={1}
         onValueChange={([v]) => onChange(v / 100)}
-        className="flex-1 [&_[role=slider]]:w-[18px] [&_[role=slider]]:h-[18px] [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-md [&_[data-radix-slider-track]]:h-[4px] [&_[data-radix-slider-track]]:bg-white/20 [&_[data-radix-slider-range]]:bg-white/80"
+        className="flex-1 [&_[role=slider]]:w-[18px] [&_[role=slider]]:h-[18px] [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[role=slider]]:shadow-md [&_[data-radix-slider-track]]:h-[4px] [&_[data-radix-slider-track]]:bg-white/20 [&_[data-radix-slider-range]]:bg-rose-500"
       />
       <Volume2 className="w-4 h-4 text-white/40 flex-shrink-0" />
     </div>
@@ -60,6 +61,7 @@ const FullscreenPlayer = () => {
     shuffle,
     repeat,
     isExpanded,
+    audioElement,
     togglePlay,
     nextSong,
     prevSong,
@@ -75,13 +77,25 @@ const FullscreenPlayer = () => {
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const navigate = useNavigate();
 
+  // Real audio frequency visualization
+  const { bassFrequency, midFrequency, highFrequency } = useAudioVisualizer(audioElement, isPlaying);
+
   const handleDragEnd = (_: any, info: PanInfo) => {
     if (info.offset.y > 100) {
       setExpanded(false);
     }
   };
 
+  // Calculate real-time glow based on audio frequencies
+  const glowIntensity = bassFrequency * 0.8;
+  const pulseScale = 1 + bassFrequency * 0.12;
+
   if (!currentSong || !isExpanded) return null;
+
+  // Safe progress values
+  const safeProgress = isFinite(progress) ? progress : 0;
+  const safeDuration = isFinite(duration) && duration > 0 ? duration : 100;
+  const timeRemaining = safeDuration - safeProgress;
 
   return (
     <>
@@ -149,7 +163,7 @@ const FullscreenPlayer = () => {
               </motion.button>
             </div>
 
-            {/* Album Art - with beat pulse animation */}
+            {/* Album Art - with real audio frequency visualization */}
             <div className="flex-1 flex items-center justify-center py-6">
               <motion.div
                 className="relative w-full max-w-[320px] aspect-square"
@@ -160,55 +174,44 @@ const FullscreenPlayer = () => {
                 }}
                 transition={appleSpring}
               >
-                {/* Beat pulse rings - animated glow behind artwork */}
+                {/* Real frequency-reactive glow rings */}
                 {isPlaying && (
                   <>
+                    {/* Bass frequency ring */}
                     <motion.div
-                      className="absolute inset-0 rounded-2xl"
+                      className="absolute inset-0 rounded-2xl pointer-events-none"
                       style={{
-                        background: `radial-gradient(circle, rgba(250, 45, 72, 0.4) 0%, transparent 70%)`,
+                        background: `radial-gradient(circle, rgba(250, 45, 72, ${0.3 + glowIntensity * 0.5}) 0%, transparent 70%)`,
                       }}
                       animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.6, 0.2, 0.6],
+                        scale: pulseScale,
+                        opacity: 0.5 + bassFrequency * 0.5,
                       }}
-                      transition={{
-                        duration: 1.2,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                      }}
+                      transition={{ duration: 0.05, ease: 'linear' }}
                     />
+                    {/* Mid frequency ring */}
                     <motion.div
-                      className="absolute inset-0 rounded-2xl"
+                      className="absolute inset-0 rounded-2xl pointer-events-none"
                       style={{
-                        background: `radial-gradient(circle, rgba(250, 45, 72, 0.3) 0%, transparent 60%)`,
+                        background: `radial-gradient(circle, rgba(255, 100, 130, ${0.2 + midFrequency * 0.4}) 0%, transparent 60%)`,
                       }}
                       animate={{
-                        scale: [1.1, 1.5, 1.1],
-                        opacity: [0.4, 0.1, 0.4],
+                        scale: 1.15 + midFrequency * 0.25,
+                        opacity: 0.3 + midFrequency * 0.4,
                       }}
-                      transition={{
-                        duration: 1.2,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 0.2,
-                      }}
+                      transition={{ duration: 0.05, ease: 'linear' }}
                     />
+                    {/* High frequency ring */}
                     <motion.div
-                      className="absolute inset-0 rounded-2xl"
+                      className="absolute inset-0 rounded-2xl pointer-events-none"
                       style={{
-                        background: `radial-gradient(circle, rgba(200, 30, 60, 0.2) 0%, transparent 50%)`,
+                        background: `radial-gradient(circle, rgba(255, 150, 180, ${0.1 + highFrequency * 0.3}) 0%, transparent 50%)`,
                       }}
                       animate={{
-                        scale: [1.2, 1.7, 1.2],
-                        opacity: [0.3, 0.05, 0.3],
+                        scale: 1.3 + highFrequency * 0.2,
+                        opacity: 0.2 + highFrequency * 0.3,
                       }}
-                      transition={{
-                        duration: 1.2,
-                        repeat: Infinity,
-                        ease: "easeInOut",
-                        delay: 0.4,
-                      }}
+                      transition={{ duration: 0.05, ease: 'linear' }}
                     />
                   </>
                 )}
@@ -218,18 +221,11 @@ const FullscreenPlayer = () => {
                   className="relative w-full h-full rounded-xl overflow-hidden shadow-2xl z-10"
                   animate={{
                     boxShadow: isPlaying 
-                      ? '0 0 80px 20px rgba(250, 45, 72, 0.3), 0 30px 60px -15px rgba(0, 0, 0, 0.8)'
+                      ? `0 0 ${60 + bassFrequency * 40}px ${15 + bassFrequency * 15}px rgba(250, 45, 72, ${0.25 + bassFrequency * 0.2}), 0 30px 60px -15px rgba(0, 0, 0, 0.8)`
                       : '0 20px 40px -15px rgba(0, 0, 0, 0.6)',
-                    scale: isPlaying ? [1, 1.02, 1] : 1,
+                    scale: isPlaying ? 1 + bassFrequency * 0.03 : 1,
                   }}
-                  transition={isPlaying ? {
-                    scale: {
-                      duration: 0.6,
-                      repeat: Infinity,
-                      ease: "easeInOut",
-                    },
-                    boxShadow: { duration: 0.3 }
-                  } : { duration: 0.3 }}
+                  transition={{ duration: 0.05, ease: 'linear' }}
                 >
                   {currentSong.cover_url ? (
                     <img
@@ -278,18 +274,18 @@ const FullscreenPlayer = () => {
                 </div>
               </div>
 
-              {/* Progress bar - Apple Music style */}
+              {/* Progress bar - Apple Music style with fixed values */}
               <div>
                 <Slider
-                  value={[progress]}
-                  max={duration || 100}
+                  value={[safeProgress]}
+                  max={safeDuration}
                   step={0.1}
                   onValueChange={([value]) => seek(value)}
-                  className="[&_[role=slider]]:w-4 [&_[role=slider]]:h-4 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[data-radix-slider-track]]:h-[4px] [&_[data-radix-slider-track]]:bg-white/20 [&_[data-radix-slider-range]]:bg-white/80"
+                  className="[&_[role=slider]]:w-4 [&_[role=slider]]:h-4 [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[data-radix-slider-track]]:h-[4px] [&_[data-radix-slider-track]]:bg-white/20 [&_[data-radix-slider-range]]:bg-rose-500"
                 />
                 <div className="flex justify-between mt-2 text-[12px] font-medium text-white/50">
-                  <span>{formatTime(progress)}</span>
-                  <span>-{formatTime(Math.max(0, duration - progress))}</span>
+                  <span>{formatTime(safeProgress)}</span>
+                  <span>-{formatTime(Math.max(0, timeRemaining))}</span>
                 </div>
               </div>
 
@@ -315,36 +311,18 @@ const FullscreenPlayer = () => {
                   <SkipBack className="w-8 h-8 text-white" fill="white" />
                 </motion.button>
                 
-                {/* Play/Pause - Apple Music large circle */}
+                {/* Play/Pause - Apple Music large circle with proper state */}
                 <motion.button
                   className="w-[72px] h-[72px] rounded-full bg-white flex items-center justify-center"
                   onClick={togglePlay}
                   whileTap={{ scale: 0.9 }}
                   transition={appleSpring}
                 >
-                  <AnimatePresence mode="wait">
-                    {isPlaying ? (
-                      <motion.div
-                        key="pause"
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        transition={{ duration: 0.1 }}
-                      >
-                        <Pause className="w-8 h-8 text-black" fill="black" />
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="play"
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        exit={{ scale: 0, opacity: 0 }}
-                        transition={{ duration: 0.1 }}
-                      >
-                        <Play className="w-8 h-8 text-black ml-1" fill="black" />
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {isPlaying ? (
+                    <Pause className="w-8 h-8 text-black" fill="black" />
+                  ) : (
+                    <Play className="w-8 h-8 text-black ml-1" fill="black" />
+                  )}
                 </motion.button>
                 
                 {/* Next */}

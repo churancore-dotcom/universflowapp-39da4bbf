@@ -26,6 +26,7 @@ interface PlayerContextType {
   isExpanded: boolean;
   crossfade: boolean;
   crossfadeDuration: number;
+  audioElement: HTMLAudioElement | null;
   playSong: (song: Song, offlineUrl?: string | null) => void;
   togglePlay: () => void;
   pause: () => void;
@@ -507,6 +508,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isExpanded,
       crossfade,
       crossfadeDuration,
+      audioElement: audioRef.current,
       playSong,
       togglePlay,
       pause,
