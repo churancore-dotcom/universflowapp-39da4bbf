@@ -14,6 +14,7 @@ import FriendsManager from '@/components/FriendsManager';
 import DedicationsInbox from '@/components/DedicationsInbox';
 import Crossfade from '@/components/Crossfade';
 import AdvancedAudioSettings from '@/components/AdvancedAudioSettings';
+import RedeemCodeModal from '@/components/RedeemCodeModal';
 import { SheetTransition } from '@/components/PageTransition';
 import { iosSpring, iosBounce } from '@/lib/animations';
 
@@ -28,6 +29,7 @@ const Profile = () => {
   const [showDedications, setShowDedications] = useState(false);
   const [showCrossfade, setShowCrossfade] = useState(false);
   const [showAudioSettings, setShowAudioSettings] = useState(false);
+  const [showRedeemCode, setShowRedeemCode] = useState(false);
 
   useEffect(() => {
     if (user) fetchStats();
@@ -247,7 +249,7 @@ const Profile = () => {
         >
           <motion.button
             className="w-full flex items-center gap-4 px-5 py-4 text-left border-b border-white/[0.06]"
-            onClick={() => navigate('/support')}
+            onClick={() => isPremium ? navigate('/support') : setShowRedeemCode(true)}
             whileTap={{ scale: 0.98, backgroundColor: 'rgba(255, 255, 255, 0.05)' }}
           >
             <motion.div 
@@ -460,6 +462,7 @@ const Profile = () => {
       <DedicationsInbox isOpen={showDedications} onClose={() => setShowDedications(false)} />
       <Crossfade isOpen={showCrossfade} onClose={() => setShowCrossfade(false)} />
       <AdvancedAudioSettings isOpen={showAudioSettings} onClose={() => setShowAudioSettings(false)} />
+      <RedeemCodeModal isOpen={showRedeemCode} onClose={() => setShowRedeemCode(false)} />
       </motion.div>
     </SheetTransition>
   );

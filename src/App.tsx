@@ -40,6 +40,7 @@ import BulkActions from "./pages/admin/BulkActions";
 import SystemHealth from "./pages/admin/SystemHealth";
 import ContentScheduler from "./pages/admin/ContentScheduler";
 import BackupExport from "./pages/admin/BackupExport";
+import PromoCodes from "./pages/admin/PromoCodes";
 import AddFriend from "./pages/AddFriend";
 import NotFound from "./pages/NotFound";
 
@@ -98,6 +99,7 @@ const AnimatedRoutes = () => {
           <Route path="health" element={<SystemHealth />} />
           <Route path="scheduler" element={<ContentScheduler />} />
           <Route path="backup" element={<BackupExport />} />
+          <Route path="promo-codes" element={<PromoCodes />} />
           <Route path="settings" element={<AdminSettings />} />
         </Route>
         <Route path="*" element={<NotFound />} />

@@ -20,7 +20,8 @@ import {
   Palette,
   ToggleLeft,
   Bell,
-  Shield
+  Shield,
+  Gift
 } from 'lucide-react';
 
 const navItems = [
@@ -33,6 +34,7 @@ const navItems = [
   { icon: Users, label: 'Users', path: '/admin/users' },
   { icon: Crown, label: 'Subscriptions', path: '/admin/subscriptions' },
   { icon: Heart, label: 'Donations', path: '/admin/donations' },
+  { icon: Gift, label: 'Promo Codes', path: '/admin/promo-codes' },
   { icon: Palette, label: 'App Settings', path: '/admin/app-settings' },
   { icon: ToggleLeft, label: 'Feature Flags', path: '/admin/features' },
   { icon: Bell, label: 'Announcements', path: '/admin/announcements' },
