@@ -338,26 +338,28 @@ const Library = () => {
   return (
     <TabTransition>
       <motion.div 
-        className="min-h-screen bg-black pb-52"
+        className="min-h-screen bg-black pb-40 overflow-y-auto overflow-x-hidden"
+        style={{ WebkitOverflowScrolling: 'touch' }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.3 }}
       >
-      {/* iOS-style header */}
+      {/* Mobile header - compact */}
       <motion.header
-        className="sticky top-0 z-30 px-5 pt-4 pb-3 safe-area-pt"
+        className="sticky top-0 z-30 px-4 pt-3 pb-2 safe-area-pt"
         style={{
-          background: 'rgba(0, 0, 0, 0.85)',
+          background: 'rgba(0, 0, 0, 0.9)',
           backdropFilter: 'blur(40px) saturate(180%)',
           WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          borderBottom: '0.5px solid rgba(255, 255, 255, 0.08)',
         }}
-        initial={{ opacity: 0, y: -30 }}
+        initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={iosSpring}
       >
         <motion.h1 
-          className="text-[28px] font-bold"
-          initial={{ opacity: 0, x: -20 }}
+          className="text-xl font-bold"
+          initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ ...iosSpring, delay: 0.1 }}
         >
@@ -365,33 +367,33 @@ const Library = () => {
         </motion.h1>
       </motion.header>
 
-      <main className="px-5 pt-4">
+      <main className="px-3 pt-3">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* iOS-style segmented control */}
+          {/* Mobile segmented control - full width */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ ...iosSpring, delay: 0.15 }}
           >
             <TabsList 
-              className="w-full h-12 p-1 mb-6 rounded-xl"
+              className="w-full h-11 p-1 mb-4 rounded-xl grid grid-cols-4"
               style={{ background: 'rgba(118, 118, 128, 0.12)' }}
             >
               {[
                 { value: 'liked', icon: Heart, label: 'Liked' },
                 { value: 'artists', icon: User, label: 'Artists' },
-                { value: 'downloads', icon: Download, label: 'Downloads' },
-                { value: 'playlists', icon: ListMusic, label: 'Playlists' },
+                { value: 'downloads', icon: Download, label: 'Saved' },
+                { value: 'playlists', icon: ListMusic, label: 'Lists' },
               ].map((tab) => {
                 const Icon = tab.icon;
                 return (
                   <TabsTrigger 
                     key={tab.value}
                     value={tab.value} 
-                    className="flex-1 h-full rounded-lg gap-1 text-[11px] sm:text-[13px] font-semibold data-[state=active]:bg-white/15 data-[state=active]:shadow-sm transition-all duration-200"
+                    className="h-full rounded-lg gap-1 text-[11px] font-semibold data-[state=active]:bg-white/15 data-[state=active]:shadow-sm transition-all duration-200 flex flex-col items-center justify-center py-1"
                   >
-                    <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">{tab.label}</span>
+                    <Icon className="w-4 h-4" />
+                    <span>{tab.label}</span>
                   </TabsTrigger>
                 );
               })}
@@ -446,11 +448,11 @@ const Library = () => {
                   <p className="text-sm text-muted-foreground/70 mt-2">Upload songs to see artists here</p>
                 </motion.div>
               ) : (
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-3">
                   {artists.map((artist, index) => (
                     <motion.div
                       key={artist.id || artist.name}
-                      className="rounded-2xl overflow-hidden cursor-pointer"
+                      className="rounded-2xl overflow-hidden active:scale-95 transition-transform"
                       style={{
                         background: 'rgba(28, 28, 30, 0.8)',
                         border: '1px solid rgba(255, 255, 255, 0.06)',
@@ -458,8 +460,6 @@ const Library = () => {
                       initial={{ opacity: 0, scale: 0.9 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ ...iosSpring, delay: index * 0.03 }}
-                      whileHover={{ scale: 1.03, y: -4 }}
-                      whileTap={{ scale: 0.97 }}
                       onClick={() => navigate(`/artist/${artist.id || encodeURIComponent(artist.name)}`)}
                     >
                       <div className="aspect-square bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center relative overflow-hidden">
@@ -468,18 +468,12 @@ const Library = () => {
                         ) : artist.coverUrl ? (
                           <img src={artist.coverUrl} alt={artist.name} className="w-full h-full object-cover" />
                         ) : (
-                          <User className="w-12 h-12 text-muted-foreground" />
+                          <User className="w-10 h-10 text-muted-foreground" />
                         )}
-                        {/* Play indicator */}
-                        <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
-                          <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                            <Play className="w-6 h-6 fill-current text-primary-foreground ml-0.5" />
-                          </div>
-                        </div>
                       </div>
-                      <div className="p-3">
-                        <p className="font-semibold text-[15px] truncate">{artist.name}</p>
-                        <p className="text-[13px] text-muted-foreground">
+                      <div className="p-2.5">
+                        <p className="font-semibold text-sm truncate">{artist.name}</p>
+                        <p className="text-xs text-muted-foreground">
                           {artist.songCount} {artist.songCount === 1 ? 'song' : 'songs'}
                         </p>
                       </div>
@@ -531,26 +525,25 @@ const Library = () => {
                   </motion.button>
                 </motion.div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* Create new playlist button */}
                   <motion.button
                     onClick={() => setShowCreatePlaylist(true)}
-                    className="w-full flex items-center gap-4 p-4 rounded-2xl bg-primary/10"
-                    whileHover={{ scale: 1.02 }}
+                    className="w-full flex items-center gap-3 p-3 rounded-2xl bg-primary/10 active:scale-98"
                     whileTap={{ scale: 0.98 }}
                     transition={iosBounce}
                   >
-                    <div className="w-14 h-14 rounded-xl bg-primary flex items-center justify-center">
-                      <Plus className="w-7 h-7 text-primary-foreground" />
+                    <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
+                      <Plus className="w-6 h-6 text-primary-foreground" />
                     </div>
-                    <span className="font-semibold text-lg">Create New Playlist</span>
+                    <span className="font-semibold text-base">Create New Playlist</span>
                   </motion.button>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-3">
                     {playlists.map((playlist, index) => (
                       <motion.div
                         key={playlist.id}
-                        className="rounded-2xl overflow-hidden cursor-pointer"
+                        className="rounded-2xl overflow-hidden active:scale-95 transition-transform"
                         style={{
                           background: 'rgba(28, 28, 30, 0.8)',
                           border: '1px solid rgba(255, 255, 255, 0.06)',
@@ -558,20 +551,18 @@ const Library = () => {
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ ...iosSpring, delay: index * 0.05 }}
-                        whileHover={{ scale: 1.03, y: -4 }}
-                        whileTap={{ scale: 0.97 }}
                         onClick={() => navigate(`/playlist/${playlist.id}`)}
                       >
                         <div className="aspect-square bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center">
                           {playlist.cover_url ? (
                             <img src={playlist.cover_url} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            <ListMusic className="w-12 h-12 text-muted-foreground" />
+                            <ListMusic className="w-10 h-10 text-muted-foreground" />
                           )}
                         </div>
-                        <div className="p-3">
-                          <p className="font-semibold text-[15px] truncate">{playlist.title}</p>
-                          <p className="text-[13px] text-muted-foreground truncate">{playlist.description || 'Playlist'}</p>
+                        <div className="p-2.5">
+                          <p className="font-semibold text-sm truncate">{playlist.title}</p>
+                          <p className="text-xs text-muted-foreground truncate">{playlist.description || 'Playlist'}</p>
                         </div>
                       </motion.div>
                     ))}
