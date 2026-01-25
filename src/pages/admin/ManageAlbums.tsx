@@ -22,6 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/imageCompression';
+import { getDatabaseError } from '@/lib/errorMessages';
 
 interface Album {
   id: string;
@@ -177,8 +178,7 @@ const ManageAlbums = () => {
       resetForm();
       fetchAlbums();
     } catch (error: any) {
-      console.error('Error saving album:', error);
-      toast.error(error.message || 'Failed to save album');
+      toast.error(getDatabaseError(error));
     } finally {
       setIsSaving(false);
     }
@@ -197,8 +197,7 @@ const ManageAlbums = () => {
       toast.success('Album deleted');
       fetchAlbums();
     } catch (error: any) {
-      console.error('Error deleting album:', error);
-      toast.error(error.message || 'Failed to delete album');
+      toast.error(getDatabaseError(error));
     }
   };
 

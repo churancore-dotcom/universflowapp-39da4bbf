@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { compressImage, getCompressionStats, formatBytes } from '@/lib/imageCompression';
+import { getUploadError } from '@/lib/errorMessages';
 
 const genres = ['Pop', 'Rock', 'Hip Hop', 'R&B', 'Electronic', 'Jazz', 'Classical', 'Country', 'Indie', 'Metal', 'Phonk', 'Lo-Fi', 'Bollywood', 'Punjabi', 'Haryanvi'];
 const moods = ['Happy', 'Sad', 'Energetic', 'Calm', 'Romantic', 'Dark', 'Uplifting', 'Chill', 'Slow Reverb', 'Bass Boosted'];
@@ -574,7 +575,7 @@ const UploadMusic = () => {
       }, 1000);
 
     } catch (error: any) {
-      toast.error(error.message || 'Upload failed');
+      toast.error(getUploadError(error));
       setIsUploading(false);
       setUploadProgress(0);
     }

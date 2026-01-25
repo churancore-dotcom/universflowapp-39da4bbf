@@ -17,6 +17,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { getDatabaseError } from '@/lib/errorMessages';
 
 interface ExportOption {
   id: string;
@@ -76,7 +77,7 @@ const BackupExport = () => {
       toast.success(`Exported ${option.name} successfully`);
       setLastExport(new Date());
     } catch (error: any) {
-      toast.error(`Failed to export ${option.name}: ${error.message}`);
+      toast.error(`Failed to export ${option.name}: ${getDatabaseError(error)}`);
     } finally {
       setExporting(null);
     }
@@ -125,7 +126,7 @@ const BackupExport = () => {
       toast.success(`Full backup created with ${selectedItems.size} data types`);
       setLastExport(new Date());
     } catch (error: any) {
-      toast.error(`Backup failed: ${error.message}`);
+      toast.error(`Backup failed: ${getDatabaseError(error)}`);
     } finally {
       setExporting(null);
     }

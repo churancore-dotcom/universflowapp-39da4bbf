@@ -8,6 +8,7 @@ import { Music, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from 'lucide-reac
 import { toast } from 'sonner';
 import { FadeTransition } from '@/components/PageTransition';
 import { iosSpring, iosBounce } from '@/lib/animations';
+import { getAuthError } from '@/lib/errorMessages';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -27,7 +28,7 @@ const Auth = () => {
       if (isLogin) {
         const { error, isAdmin } = await signIn(email, password);
         if (error) {
-          toast.error(error.message);
+          toast.error(getAuthError(error));
         } else {
           toast.success('Welcome back!');
           navigate(isAdmin ? '/admin' : '/home');
@@ -35,7 +36,7 @@ const Auth = () => {
       } else {
         const { error } = await signUp(email, password);
         if (error) {
-          toast.error(error.message);
+          toast.error(getAuthError(error));
         } else {
           toast.success('Account created successfully!');
           navigate('/home');

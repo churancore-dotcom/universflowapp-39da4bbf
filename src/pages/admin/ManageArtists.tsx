@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { compressImage, formatBytes } from '@/lib/imageCompression';
+import { getDatabaseError } from '@/lib/errorMessages';
 
 interface Artist {
   id: string;
@@ -214,8 +215,7 @@ const ManageArtists = () => {
       resetForm();
       fetchArtists();
     } catch (error: any) {
-      console.error('Error saving artist:', error);
-      toast.error(error.message || 'Failed to save artist');
+      toast.error(getDatabaseError(error));
     } finally {
       setIsSaving(false);
       setIsUploading(false);
@@ -236,8 +236,7 @@ const ManageArtists = () => {
       fetchArtists();
       fetchSongs();
     } catch (error: any) {
-      console.error('Error deleting artist:', error);
-      toast.error(error.message || 'Failed to delete artist');
+      toast.error(getDatabaseError(error));
     }
   };
 
