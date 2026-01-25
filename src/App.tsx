@@ -122,11 +122,12 @@ const PrerollAdWrapper = () => {
   );
 };
 
-const AppRoutes = () => {
+const AppContent = () => {
   const [showSplash, setShowSplash] = useState(true);
 
   return (
     <>
+      <Toaster />
       <AnimatePresence mode="wait">
         {showSplash ? (
           <SplashScreen key="splash" onComplete={() => setShowSplash(false)} />
@@ -135,6 +136,8 @@ const AppRoutes = () => {
         )}
       </AnimatePresence>
       <PrerollAdWrapper />
+      <DownloadQueuePanel />
+      <PWAInstallBanner />
     </>
   );
 };
@@ -147,10 +150,7 @@ const App = () => {
           <PlayerProvider>
             <DownloadProvider>
               <TooltipProvider>
-                <Toaster />
-                <AppRoutes />
-                <DownloadQueuePanel />
-                <PWAInstallBanner />
+                <AppContent />
               </TooltipProvider>
             </DownloadProvider>
           </PlayerProvider>
