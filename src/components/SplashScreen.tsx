@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { iosSpring } from '@/lib/animations';
 
@@ -6,15 +6,38 @@ interface SplashScreenProps {
   onComplete: () => void;
 }
 
+// Detect if running in a simple WebView (AppsGeyser, etc.)
+const isSimpleWebView = () => {
+  try {
+    const ua = navigator.userAgent.toLowerCase();
+    // Detect Android WebView without Chrome branding (typical of AppsGeyser)
+    const isAndroidWebView = ua.includes('wv') || (ua.includes('android') && !ua.includes('chrome'));
+    // Detect if localStorage is blocked (common in restricted WebViews)
+    let storageBlocked = false;
+    try {
+      localStorage.setItem('__test__', '1');
+      localStorage.removeItem('__test__');
+    } catch {
+      storageBlocked = true;
+    }
+    return isAndroidWebView || storageBlocked;
+  } catch {
+    return true; // If detection fails, assume it's a restricted WebView
+  }
+};
+
 const SplashScreen = ({ onComplete }: SplashScreenProps) => {
-  // Auto redirect after 3 seconds (faster for APK)
+  const [isWebView] = useState(isSimpleWebView);
+  
+  // Faster timeout for WebViews (1.5s), normal for browsers (3s)
   useEffect(() => {
+    const timeout = isWebView ? 1500 : 3000;
     const timer = setTimeout(() => {
       onComplete();
-    }, 3000);
+    }, timeout);
     
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, [onComplete, isWebView]);
 
   const handleSkip = () => {
     onComplete();
@@ -87,12 +110,12 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           }}
         />
 
-        {/* Shooting Stars */}
-        {[...Array(6)].map((_, i) => {
-          const startX = Math.random() * 100;
-          const startY = Math.random() * 40;
-          const duration = 1.5 + Math.random() * 1;
-          const delay = i * 0.8 + Math.random() * 2;
+        {/* Shooting Stars - reduced for WebView compatibility */}
+        {!isWebView && [...Array(4)].map((_, i) => {
+          const startX = 20 + i * 20;
+          const startY = 10 + i * 8;
+          const duration = 1.5 + i * 0.2;
+          const delay = i * 0.8;
           
           return (
             <motion.div
@@ -125,57 +148,14 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
                 duration: duration,
                 delay: delay,
                 repeat: Infinity,
-                repeatDelay: 3 + Math.random() * 4,
+                repeatDelay: 4,
                 ease: "easeOut",
               }}
             />
           );
         })}
 
-        {/* Additional smaller shooting stars */}
-        {[...Array(4)].map((_, i) => {
-          const startX = 20 + Math.random() * 60;
-          const startY = Math.random() * 30;
-          const duration = 1 + Math.random() * 0.8;
-          const delay = 2 + i * 1.2 + Math.random() * 1.5;
-          
-          return (
-            <motion.div
-              key={`small-star-${i}`}
-              className="absolute"
-              style={{
-                top: `${startY}%`,
-                left: `${startX}%`,
-                width: '60px',
-                height: '1.5px',
-                background: 'linear-gradient(90deg, transparent, rgba(180,200,255,0.7), rgba(255,255,255,0.9))',
-                borderRadius: '50%',
-                filter: 'blur(0.3px)',
-                boxShadow: '0 0 4px 1px rgba(180,200,255,0.5)',
-              }}
-              initial={{ 
-                x: 0, 
-                y: 0, 
-                opacity: 0,
-                rotate: 40,
-                scale: 0.3,
-              }}
-              animate={{
-                x: [0, 200],
-                y: [0, 150],
-                opacity: [0, 0.8, 0.8, 0],
-                scale: [0.3, 0.8, 0.8, 0.2],
-              }}
-              transition={{
-                duration: duration,
-                delay: delay,
-                repeat: Infinity,
-                repeatDelay: 4 + Math.random() * 5,
-                ease: "easeOut",
-              }}
-            />
-          );
-        })}
+        {/* Additional smaller shooting stars - skip in WebView */}
       </div>
 
       <div className="relative flex flex-col items-center">

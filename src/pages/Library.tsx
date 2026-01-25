@@ -167,15 +167,17 @@ const Library = () => {
       <div className="space-y-1">
         {songs.map((song, index) => {
           const isActive = currentSong?.id === song.id;
+          // Use a stable unique key combining song.id with index to prevent duplicate key errors
+          const stableKey = `${song.id}-${index}`;
           return (
             <motion.div
-              key={song.id}
+              key={stableKey}
               className={`flex items-center gap-3 p-3 rounded-2xl transition-all ${
                 isActive ? 'bg-primary/10' : 'active:bg-white/5'
               }`}
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ ...iosSpring, delay: index * 0.03 }}
+              transition={{ ...iosSpring, delay: Math.min(index * 0.03, 0.3) }}
             >
               <motion.button
                 className="flex-1 flex items-center gap-3 text-left min-w-0"
@@ -201,7 +203,7 @@ const Library = () => {
               <div className="flex items-center gap-1">
                 {isActive ? (
                   <div className="flex items-end gap-[3px] h-4 mr-2">
-                    {[...Array(3)].map((_, i) => (
+                    {[0, 1, 2].map((i) => (
                       <motion.div
                         key={i}
                         className="w-[3px] bg-primary rounded-full"
@@ -272,15 +274,16 @@ const Library = () => {
         <div className="space-y-1">
           {downloads.map((song, index) => {
             const isActive = currentSong?.id === song.id;
+            const stableKey = `download-${song.id}-${index}`;
             return (
               <motion.div
-                key={song.id}
+                key={stableKey}
                 className={`flex items-center gap-4 p-3 rounded-2xl transition-all ${
                   isActive ? 'bg-primary/10' : 'active:bg-white/5'
                 }`}
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ ...iosSpring, delay: index * 0.03 }}
+                transition={{ ...iosSpring, delay: Math.min(index * 0.03, 0.3) }}
               >
                 <motion.button
                   className="flex-1 flex items-center gap-4 text-left"
@@ -309,7 +312,7 @@ const Library = () => {
                 
                 {isActive ? (
                   <div className="flex items-end gap-[3px] h-4 mr-2">
-                    {[...Array(3)].map((_, i) => (
+                    {[0, 1, 2].map((i) => (
                       <motion.div
                         key={i}
                         className="w-[3px] bg-primary rounded-full"

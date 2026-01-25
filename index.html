@@ -42,5 +42,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- WebView fallback: show basic loading if JS fails -->
+    <noscript>
+      <style>
+        body { background: #000; color: #fff; font-family: -apple-system, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        .fallback { text-align: center; padding: 24px; }
+        .fallback h1 { font-size: 24px; margin-bottom: 8px; }
+        .fallback p { opacity: 0.6; font-size: 14px; }
+      </style>
+      <div class="fallback">
+        <h1>Univers Flow</h1>
+        <p>Please enable JavaScript to use this app.</p>
+      </div>
+    </noscript>
   </body>
 </html>

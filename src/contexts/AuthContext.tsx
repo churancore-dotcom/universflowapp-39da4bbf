@@ -95,13 +95,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { error: error as Error };
     }
 
-    // Check if admin
+    // Check if admin and ensure share_code exists for existing users
     if (data.user) {
       const { data: profile } = await supabase
         .from('profiles')
-        .select('is_admin')
+        .select('is_admin, share_code')
         .eq('user_id', data.user.id)
         .single();
+      
+      // Generate share_code for existing users who don't have one
+      if (profile && !profile.share_code) {
+        const newShareCode = Math.random().toString(36).substring(2, 10);
+        await supabase.from('profiles').update({ share_code: newShareCode }).eq('user_id', data.user.id);
+      }
       
       const adminStatus = profile?.is_admin ?? false;
       setIsAdmin(adminStatus);
