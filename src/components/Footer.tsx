@@ -7,7 +7,7 @@ const Footer = () => {
         © {currentYear} UniversFlow. All rights reserved.
       </p>
       <p className="text-xs text-muted-foreground/40 mt-1">
-        Created by SHASHANK YADAV
+        Created by <span className="font-semibold text-primary">SHASHANK YADAV</span>
       </p>
     </footer>
   );
