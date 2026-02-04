@@ -5,6 +5,7 @@ import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { useNavigate } from 'react-router-dom';
 import DownloadButton from './DownloadButton';
+import SaveToDeviceButton from './SaveToDeviceButton';
 import LikeButton from './LikeButton';
 import AddToPlaylistModal from './AddToPlaylistModal';
 import CreatePlaylistModal from './CreatePlaylistModal';
@@ -111,6 +112,7 @@ const SongCard = memo(({ song, index = 0, sectionSongs }: SongCardProps) => {
         <div className="absolute top-2 right-2 z-20 flex flex-col gap-1.5">
           <LikeButton songId={song.id} size="sm" className="bg-black/50 backdrop-blur-md rounded-full w-9 h-9" />
           <DownloadButton song={song} size="sm" />
+          <SaveToDeviceButton song={song} size="sm" />
           <button
             onClick={handleAddToPlaylist}
             className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center text-white/80 active:bg-black/70 transition-colors"

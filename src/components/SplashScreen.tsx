@@ -104,7 +104,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         >
           <h1 className="text-3xl font-bold tracking-tight">
             <span className="gradient-text">Univers</span>
-            <span className="text-white ml-2">Flow</span>
+            <span className="text-white ml-1">Flow</span>
           </h1>
         </motion.div>
 
@@ -116,6 +116,21 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         >
           Premium Music Experience
         </motion.p>
+
+        {/* Developer branding */}
+        <motion.div
+          className="mt-4 text-center"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.8 }}
+        >
+          <p className="text-[10px] text-muted-foreground/50 tracking-wide">
+            Crafted by
+          </p>
+          <p className="text-xs font-semibold text-primary tracking-wide mt-0.5">
+            SHASHANK YADAV
+          </p>
+        </motion.div>
 
         {/* Skip button */}
         <motion.button

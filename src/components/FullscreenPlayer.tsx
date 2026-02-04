@@ -5,6 +5,7 @@ import { usePlayer } from '@/contexts/PlayerContext';
 import { useNavigate } from 'react-router-dom';
 import { Slider } from '@/components/ui/slider';
 import DownloadButton from './DownloadButton';
+import SaveToDeviceButton from './SaveToDeviceButton';
 import LikeButton from './LikeButton';
 import SocialShareModal from './SocialShareModal';
 import AddToPlaylistModal from './AddToPlaylistModal';
@@ -203,6 +204,7 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                 <div className="flex items-center gap-1 flex-shrink-0">
                   <LikeButton songId={currentSong.id} size="sm" />
                   <DownloadButton song={currentSong} size="sm" />
+                  <SaveToDeviceButton song={currentSong} size="sm" />
                 </div>
               </div>
 
