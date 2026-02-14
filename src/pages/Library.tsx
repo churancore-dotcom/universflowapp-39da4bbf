@@ -88,9 +88,23 @@ const Library = () => {
   const SongRow = ({ song, index }: { song: Song; index: number }) => {
     const isActive = currentSong?.id === song.id;
     return (
-      <div className={`flex items-center gap-2.5 p-2 rounded-xl ${isActive ? 'bg-primary/10' : 'active:bg-white/5'}`}>
+      <motion.div
+        className="flex items-center gap-2.5 p-2.5 rounded-xl"
+        initial={{ opacity: 0, x: -10 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: index * 0.03 }}
+        style={{
+          background: isActive ? 'hsl(var(--primary) / 0.08)' : 'transparent',
+        }}
+      >
         <button className="flex-1 flex items-center gap-2.5 text-left min-w-0" onClick={() => handlePlaySong(song)}>
-          <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+          <div
+            className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0"
+            style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '0.5px solid rgba(255,255,255,0.06)',
+            }}
+          >
             {song.cover_url ? (
               <img src={song.cover_url} alt="" className="w-full h-full object-cover" />
             ) : (
@@ -98,7 +112,7 @@ const Library = () => {
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <p className={`font-medium text-sm truncate ${isActive ? 'text-primary' : ''}`}>{song.title}</p>
+            <p className={`font-semibold text-sm truncate ${isActive ? 'text-primary' : 'text-foreground'}`}>{song.title}</p>
             <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
           </div>
         </button>
@@ -116,30 +130,68 @@ const Library = () => {
             </>
           )}
         </div>
-      </div>
+      </motion.div>
     );
   };
 
+  const EmptyState = ({ icon: Icon, text }: { icon: any; text: string }) => (
+    <div className="text-center py-10">
+      <div
+        className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+        style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.06)' }}
+      >
+        <Icon className="w-7 h-7 text-muted-foreground/40" />
+      </div>
+      <p className="text-muted-foreground text-sm">{text}</p>
+    </div>
+  );
+
   return (
     <TabTransition>
-      <div className="h-[100dvh] bg-black flex flex-col overflow-hidden">
-        {/* Header */}
+      <div className="h-[100dvh] bg-background flex flex-col overflow-hidden relative">
+        {/* Ambient background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `
+                radial-gradient(ellipse 70% 40% at 20% 10%, hsl(350 100% 60% / 0.04), transparent),
+                radial-gradient(ellipse 50% 30% at 80% 60%, hsl(260 100% 65% / 0.03), transparent)
+              `,
+            }}
+          />
+        </div>
+
+        {/* Header — glassmorphism */}
         <header
-          className="flex-shrink-0 z-30 px-4 pt-3 pb-2 safe-area-pt"
+          className="flex-shrink-0 z-30 px-4 pt-3 pb-2.5 safe-area-pt"
           style={{
-            background: 'rgba(0, 0, 0, 0.9)',
-            backdropFilter: 'blur(40px)',
-            WebkitBackdropFilter: 'blur(40px)',
-            borderBottom: '0.5px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            borderBottom: '0.5px solid rgba(255, 255, 255, 0.06)',
           }}
         >
-          <h1 className="text-xl font-bold">Your Library</h1>
+          <motion.h1
+            className="text-2xl font-bold tracking-tight"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            Your Library
+          </motion.h1>
         </header>
 
-        <main className="flex-1 overflow-hidden px-3 pt-2 flex flex-col">
+        <main className="flex-1 overflow-hidden px-3 pt-2.5 flex flex-col relative z-10">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-            {/* Tabs */}
-            <TabsList className="w-full h-10 p-1 mb-2 rounded-xl grid grid-cols-4 flex-shrink-0" style={{ background: 'rgba(118, 118, 128, 0.12)' }}>
+            {/* Tabs — glassmorphism */}
+            <TabsList
+              className="w-full h-11 p-1 mb-3 rounded-xl grid grid-cols-4 flex-shrink-0"
+              style={{
+                background: 'rgba(255, 255, 255, 0.04)',
+                border: '0.5px solid rgba(255, 255, 255, 0.06)',
+              }}
+            >
               {[
                 { value: 'liked', icon: Heart, label: 'Liked' },
                 { value: 'artists', icon: User, label: 'Artists' },
@@ -151,7 +203,7 @@ const Library = () => {
                   <TabsTrigger
                     key={tab.value}
                     value={tab.value}
-                    className="h-full rounded-lg gap-1 text-[10px] font-semibold data-[state=active]:bg-white/15 flex flex-col items-center justify-center py-0.5"
+                    className="h-full rounded-lg gap-1 text-[10px] font-semibold data-[state=active]:bg-primary/15 data-[state=active]:text-primary flex flex-col items-center justify-center py-0.5 transition-all"
                   >
                     <Icon className="w-3.5 h-3.5" />
                     <span>{tab.label}</span>
@@ -160,7 +212,7 @@ const Library = () => {
               })}
             </TabsList>
 
-            {/* Content - scrollable */}
+            {/* Content — scrollable */}
             <div className="flex-1 overflow-y-auto pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
               <TabsContent value="liked" className="mt-0 h-full">
                 {loading ? (
@@ -168,14 +220,9 @@ const Library = () => {
                     <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                   </div>
                 ) : likedSongs.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(118, 118, 128, 0.12)' }}>
-                      <Heart className="w-7 h-7 text-muted-foreground/50" />
-                    </div>
-                    <p className="text-muted-foreground text-sm">No liked songs yet</p>
-                  </div>
+                  <EmptyState icon={Heart} text="No liked songs yet" />
                 ) : (
-                  <div className="space-y-1">
+                  <div className="space-y-0.5">
                     {likedSongs.map((song, i) => <SongRow key={`${song.id}-${i}`} song={song} index={i} />)}
                   </div>
                 )}
@@ -187,21 +234,29 @@ const Library = () => {
                     <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                   </div>
                 ) : artists.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(118, 118, 128, 0.12)' }}>
-                      <User className="w-7 h-7 text-muted-foreground/50" />
-                    </div>
-                    <p className="text-muted-foreground text-sm">No artists yet</p>
-                  </div>
+                  <EmptyState icon={User} text="No artists yet" />
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
-                    {artists.map((artist) => (
-                      <button
+                    {artists.map((artist, i) => (
+                      <motion.button
                         key={artist.id}
-                        className="flex flex-col items-center p-2 rounded-xl active:bg-white/5"
+                        className="flex flex-col items-center p-3 rounded-2xl active:scale-95 transition-transform"
                         onClick={() => artist.id && navigate(`/artist/${artist.id}`)}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: i * 0.05 }}
+                        style={{
+                          background: 'rgba(255,255,255,0.03)',
+                          border: '0.5px solid rgba(255,255,255,0.06)',
+                        }}
                       >
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center overflow-hidden mb-2">
+                        <div
+                          className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden mb-2"
+                          style={{
+                            background: 'linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.2))',
+                            border: '1.5px solid rgba(255,255,255,0.08)',
+                          }}
+                        >
                           {artist.photoUrl ? (
                             <img src={artist.photoUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -209,7 +264,7 @@ const Library = () => {
                           )}
                         </div>
                         <p className="text-xs font-medium text-center truncate w-full">{artist.name}</p>
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                 )}
@@ -217,42 +272,58 @@ const Library = () => {
 
               <TabsContent value="downloads" className="mt-0">
                 {downloads.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(118, 118, 128, 0.12)' }}>
-                      <CloudOff className="w-7 h-7 text-muted-foreground/50" />
-                    </div>
-                    <p className="text-muted-foreground text-sm">No downloads yet</p>
-                  </div>
+                  <EmptyState icon={CloudOff} text="No downloads yet" />
                 ) : (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: 'rgba(118, 118, 128, 0.12)' }}>
+                  <div className="space-y-2.5">
+                    <div
+                      className="flex items-center justify-between p-3.5 rounded-xl"
+                      style={{
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '0.5px solid rgba(255,255,255,0.06)',
+                      }}
+                    >
                       <div>
-                        <p className="text-xs font-medium">{downloads.length} songs</p>
+                        <p className="text-xs font-semibold">{downloads.length} songs</p>
                         <p className="text-[10px] text-muted-foreground">{formatBytes(totalStorageUsed)}</p>
                       </div>
-                      <button className="px-3 py-1.5 rounded-lg text-xs font-medium text-destructive bg-destructive/10" onClick={clearAllDownloads}>
-                        Clear
+                      <button
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium text-destructive"
+                        style={{ background: 'hsl(var(--destructive) / 0.1)' }}
+                        onClick={clearAllDownloads}
+                      >
+                        Clear All
                       </button>
                     </div>
-                    <div className="space-y-1">
+                    <div className="space-y-0.5">
                       {downloads.map((song, i) => (
-                        <div key={`dl-${song.id}-${i}`} className={`flex items-center gap-2.5 p-2 rounded-xl ${currentSong?.id === song.id ? 'bg-primary/10' : 'active:bg-white/5'}`}>
+                        <motion.div
+                          key={`dl-${song.id}-${i}`}
+                          className="flex items-center gap-2.5 p-2.5 rounded-xl"
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.03 }}
+                          style={{
+                            background: currentSong?.id === song.id ? 'hsl(var(--primary) / 0.08)' : 'transparent',
+                          }}
+                        >
                           <button className="flex-1 flex items-center gap-2.5 text-left" onClick={() => handlePlaySong(song)}>
-                            <div className="relative w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center overflow-hidden">
+                            <div className="relative w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden"
+                              style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.06)' }}
+                            >
                               {song.cover_url ? <img src={song.cover_url} alt="" className="w-full h-full object-cover" /> : <Music className="w-4 h-4 text-muted-foreground" />}
-                              <div className="absolute bottom-0.5 right-0.5 w-3 h-3 rounded-full bg-primary flex items-center justify-center">
+                              <div className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center">
                                 <CloudOff className="w-2 h-2 text-primary-foreground" />
                               </div>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className={`font-medium text-sm truncate ${currentSong?.id === song.id ? 'text-primary' : ''}`}>{song.title}</p>
+                              <p className={`font-semibold text-sm truncate ${currentSong?.id === song.id ? 'text-primary' : 'text-foreground'}`}>{song.title}</p>
                               <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
                             </div>
                           </button>
-                          <button className="p-1.5 text-muted-foreground" onClick={() => removeSong(song.id)}>
+                          <button className="p-2 text-muted-foreground active:scale-90 transition-transform" onClick={() => removeSong(song.id)}>
                             <Trash2 className="w-4 h-4" />
                           </button>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   </div>
@@ -260,36 +331,52 @@ const Library = () => {
               </TabsContent>
 
               <TabsContent value="playlists" className="mt-0">
-                <button
-                  className="w-full flex items-center gap-3 p-3 rounded-xl mb-2"
-                  style={{ background: 'rgba(118, 118, 128, 0.12)' }}
+                <motion.button
+                  className="w-full flex items-center gap-3 p-3.5 rounded-xl mb-3"
+                  style={{
+                    background: 'rgba(255,255,255,0.03)',
+                    border: '0.5px solid rgba(255,255,255,0.06)',
+                  }}
                   onClick={() => setShowCreatePlaylist(true)}
+                  whileTap={{ scale: 0.97 }}
                 >
-                  <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
+                  <div
+                    className="w-11 h-11 rounded-xl flex items-center justify-center"
+                    style={{ background: 'hsl(var(--primary) / 0.15)' }}
+                  >
                     <Plus className="w-5 h-5 text-primary" />
                   </div>
-                  <span className="text-sm font-medium">Create Playlist</span>
-                </button>
+                  <span className="text-sm font-semibold">Create Playlist</span>
+                </motion.button>
                 {playlists.length === 0 ? (
                   <div className="text-center py-6">
                     <p className="text-muted-foreground text-xs">No playlists yet</p>
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    {playlists.map((playlist) => (
-                      <button
+                  <div className="space-y-0.5">
+                    {playlists.map((playlist, i) => (
+                      <motion.button
                         key={playlist.id}
-                        className="w-full flex items-center gap-2.5 p-2 rounded-xl active:bg-white/5 text-left"
+                        className="w-full flex items-center gap-2.5 p-2.5 rounded-xl text-left active:scale-[0.98] transition-transform"
                         onClick={() => navigate(`/playlist/${playlist.id}`)}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
                       >
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center overflow-hidden">
+                        <div
+                          className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden"
+                          style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '0.5px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
                           {playlist.cover_url ? <img src={playlist.cover_url} alt="" className="w-full h-full object-cover" /> : <ListMusic className="w-4 h-4 text-muted-foreground" />}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm truncate">{playlist.title}</p>
+                          <p className="font-semibold text-sm truncate">{playlist.title}</p>
                           <p className="text-xs text-muted-foreground">Playlist</p>
                         </div>
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                 )}

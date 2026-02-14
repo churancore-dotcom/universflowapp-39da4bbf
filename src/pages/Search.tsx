@@ -148,34 +148,60 @@ const Search = () => {
 
   return (
     <TabTransition>
-      <div className="h-[100dvh] bg-background flex flex-col overflow-hidden">
-        {/* Header */}
+      <div className="h-[100dvh] bg-background flex flex-col overflow-hidden relative">
+        {/* Ambient background */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `
+                radial-gradient(ellipse 80% 50% at 50% 0%, hsl(260 100% 60% / 0.05), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 20%, hsl(330 100% 65% / 0.04), transparent)
+              `,
+            }}
+          />
+        </div>
+
+        {/* Header — glassmorphism */}
         <header
-          className="flex-shrink-0 z-30 px-4 pt-3 pb-2 safe-area-pt"
+          className="flex-shrink-0 z-30 px-4 pt-3 pb-3 safe-area-pt"
           style={{
-            background: 'rgba(0, 0, 0, 0.85)',
-            backdropFilter: 'blur(40px)',
-            WebkitBackdropFilter: 'blur(40px)',
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            borderBottom: '0.5px solid rgba(255, 255, 255, 0.06)',
           }}
         >
-          <h1 className="text-xl font-bold mb-2">Search</h1>
+          <motion.h1
+            className="text-2xl font-bold mb-3 tracking-tight"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            Search
+          </motion.h1>
           
-          {/* Search bar */}
+          {/* Search bar — glass style */}
           <div className="relative">
-            <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               placeholder="Artists, songs, or albums"
-              className="pl-9 pr-8 h-10 text-sm rounded-xl border-0"
-              style={{ background: 'rgba(118, 118, 128, 0.24)' }}
+              className="pl-10 pr-8 h-11 text-sm rounded-xl border-0"
+              style={{
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: isFocused ? '1px solid hsl(var(--primary) / 0.4)' : '1px solid rgba(255,255,255,0.06)',
+                transition: 'border-color 0.2s',
+              }}
             />
             {query && (
               <button
                 onClick={() => setQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full bg-white/20"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.15)' }}
               >
                 <X className="w-3 h-3" />
               </button>
@@ -184,10 +210,20 @@ const Search = () => {
 
           {/* Active Filter */}
           {activeFilter && (
-            <div className="mt-2 flex items-center gap-2">
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full ${
-                activeFilter.type === 'genre' ? 'bg-primary/20' : 'bg-accent/20'
-              }`}>
+            <motion.div
+              className="mt-2.5 flex items-center gap-2"
+              initial={{ opacity: 0, y: -5 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+                style={{
+                  background: activeFilter.type === 'genre'
+                    ? 'hsl(var(--primary) / 0.15)'
+                    : 'hsl(var(--accent) / 0.15)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}
+              >
                 {activeFilter.type === 'genre' ? (
                   <Tag className="w-3 h-3 text-primary" />
                 ) : (
@@ -198,57 +234,72 @@ const Search = () => {
                   <X className="w-3 h-3" />
                 </button>
               </div>
-            </div>
+            </motion.div>
           )}
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto px-4 pt-3 pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
+        <main className="flex-1 overflow-y-auto px-4 pt-4 pb-32 relative z-10" style={{ WebkitOverflowScrolling: 'touch' }}>
           <AnimatePresence mode="wait">
             {!query && !activeFilter && (
               <motion.div
                 key="browse"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
               >
                 {/* Moods */}
-                <h2 className="text-sm font-bold mb-2 flex items-center gap-1.5">
+                <h2 className="text-sm font-bold mb-2.5 flex items-center gap-1.5">
                   <Sparkles className="w-4 h-4 text-accent" />
                   Moods
                 </h2>
-                <div className="flex gap-2 overflow-x-auto pb-3 -mx-4 px-4 hide-scrollbar">
-                  {moods.map((mood) => (
-                    <button
+                <div className="flex gap-2.5 overflow-x-auto pb-4 -mx-4 px-4 hide-scrollbar">
+                  {moods.map((mood, i) => (
+                    <motion.button
                       key={mood.name}
-                      className={`flex-shrink-0 w-20 h-14 rounded-xl overflow-hidden relative bg-gradient-to-br ${mood.color}`}
+                      className={`flex-shrink-0 w-[85px] h-16 rounded-2xl overflow-hidden relative bg-gradient-to-br ${mood.color}`}
                       onClick={() => searchByMood(mood.name)}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.05 }}
+                      whileTap={{ scale: 0.93 }}
+                      style={{
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+                      }}
                     >
                       <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-lg mb-0.5">{mood.icon}</span>
-                        <span className="text-[10px] font-bold text-white">{mood.name}</span>
+                        <span className="text-xl mb-0.5">{mood.icon}</span>
+                        <span className="text-[10px] font-bold text-primary-foreground">{mood.name}</span>
                       </div>
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
 
                 {/* Genres */}
-                <h2 className="text-sm font-bold mb-2 mt-3 flex items-center gap-1.5">
+                <h2 className="text-sm font-bold mb-2.5 mt-1 flex items-center gap-1.5">
                   <Tag className="w-4 h-4 text-primary" />
                   Genres
                 </h2>
-                <div className="grid grid-cols-2 gap-2">
-                  {genres.map((genre) => (
-                    <button
+                <div className="grid grid-cols-2 gap-2.5">
+                  {genres.map((genre, i) => (
+                    <motion.button
                       key={genre.name}
-                      className={`relative h-16 rounded-xl overflow-hidden bg-gradient-to-br ${genre.color}`}
+                      className={`relative h-20 rounded-2xl overflow-hidden bg-gradient-to-br ${genre.color}`}
                       onClick={() => searchByGenre(genre.name)}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05 + 0.1 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+                      }}
                     >
-                      <span className="absolute top-2 right-2 text-lg">{genre.icon}</span>
-                      <span className="absolute bottom-2 left-3 text-sm font-bold text-white">
+                      <span className="absolute top-2.5 right-2.5 text-xl">{genre.icon}</span>
+                      <span className="absolute bottom-2.5 left-3 text-sm font-bold text-primary-foreground">
                         {genre.name}
                       </span>
-                    </button>
+                    </motion.button>
                   ))}
                 </div>
               </motion.div>
@@ -261,24 +312,38 @@ const Search = () => {
               <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
             </div>
           ) : results.length > 0 ? (
-            <div>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2 }}
+            >
               <h2 className="text-sm font-bold mb-2">{results.length} results</h2>
-              <div className="space-y-1">
-                {results.map((song) => {
+              <div className="space-y-0.5">
+                {results.map((song, i) => {
                   const isActive = currentSong?.id === song.id;
                   const offlineUrl = getDownloadedUrl(song.id);
                   return (
-                    <div
+                    <motion.div
                       key={song.id}
-                      className={`flex items-center gap-2.5 p-2 rounded-xl ${
-                        isActive ? 'bg-primary/10' : 'active:bg-white/5'
-                      }`}
+                      className="flex items-center gap-2.5 p-2.5 rounded-xl"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.03 }}
+                      style={{
+                        background: isActive ? 'hsl(var(--primary) / 0.08)' : 'transparent',
+                      }}
                     >
                       <button
                         className="flex-1 flex items-center gap-2.5 text-left min-w-0"
                         onClick={() => playSong(song, offlineUrl, results)}
                       >
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/30 to-accent/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+                        <div
+                          className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden flex-shrink-0"
+                          style={{
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '0.5px solid rgba(255,255,255,0.06)',
+                          }}
+                        >
                           {song.cover_url ? (
                             <img src={song.cover_url} alt="" className="w-full h-full object-cover" />
                           ) : (
@@ -286,7 +351,7 @@ const Search = () => {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`font-medium text-sm truncate ${isActive ? 'text-primary' : ''}`}>
+                          <p className={`font-semibold text-sm truncate ${isActive ? 'text-primary' : 'text-foreground'}`}>
                             {song.title}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">{song.artist}</p>
@@ -296,12 +361,12 @@ const Search = () => {
                       <div className="flex items-center gap-0.5">
                         {isActive && isPlaying ? (
                           <div className="flex items-end gap-[2px] h-3 mr-1.5">
-                            {[...Array(3)].map((_, i) => (
+                            {[...Array(3)].map((_, j) => (
                               <motion.div
-                                key={i}
+                                key={j}
                                 className="w-[2px] bg-primary rounded-full"
                                 animate={{ height: [4, 10, 4] }}
-                                transition={{ duration: 0.5, repeat: Infinity, delay: i * 0.12 }}
+                                transition={{ duration: 0.5, repeat: Infinity, delay: j * 0.12 }}
                               />
                             ))}
                           </div>
@@ -312,14 +377,17 @@ const Search = () => {
                           </>
                         )}
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
-            </div>
+            </motion.div>
           ) : (query.length > 1 || activeFilter) && !searching ? (
             <div className="text-center py-8">
-              <div className="w-14 h-14 rounded-2xl mx-auto mb-3 flex items-center justify-center" style={{ background: 'rgba(118, 118, 128, 0.12)' }}>
+              <div
+                className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.06)' }}
+              >
                 <Music className="w-7 h-7 text-muted-foreground/50" />
               </div>
               <p className="text-muted-foreground text-sm">No results found</p>

@@ -8,6 +8,7 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { PlayerProvider, usePlayer } from "./contexts/PlayerContext";
 import { DownloadProvider } from "./contexts/DownloadContext";
 import SplashScreen from "./components/SplashScreen";
+import Onboarding from "./components/Onboarding";
 import OfflinePlayerShell from "./components/OfflinePlayerShell";
 import MobileShell from "./components/MobileShell";
 import DownloadQueuePanel from "./components/DownloadQueuePanel";
@@ -152,6 +153,22 @@ const PrerollAdWrapper = () => {
 
 const AppContent = () => {
   const [showSplash, setShowSplash] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+
+  const handleSplashComplete = () => {
+    const hasSeenOnboarding = localStorage.getItem('uf_onboarding_done');
+    if (hasSeenOnboarding) {
+      setShowSplash(false);
+    } else {
+      setShowSplash(false);
+      setShowOnboarding(true);
+    }
+  };
+
+  const handleOnboardingComplete = () => {
+    localStorage.setItem('uf_onboarding_done', '1');
+    setShowOnboarding(false);
+  };
 
   return (
     <MobileShell>
@@ -160,7 +177,9 @@ const AppContent = () => {
       <Toaster />
       <AnimatePresence mode="wait">
         {showSplash ? (
-          <SplashScreen key="splash" onComplete={() => setShowSplash(false)} />
+          <SplashScreen key="splash" onComplete={handleSplashComplete} />
+        ) : showOnboarding ? (
+          <Onboarding key="onboarding" onComplete={handleOnboardingComplete} />
         ) : (
           <AnimatedRoutes key="routes" />
         )}
