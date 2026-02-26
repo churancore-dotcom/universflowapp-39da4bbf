@@ -21,6 +21,7 @@ import { Music, Lock, ListMusic, Sliders, Headphones } from 'lucide-react';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import appLogo from '@/assets/app-logo.png';
+import { HomeSkeleton } from '@/components/PageSkeletons';
 
 // Simple empty state
 const EmptyState = memo(() => (
@@ -205,8 +206,8 @@ const Home = () => {
           className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-4 pb-32 relative z-10"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
-          {loading ? (
-            <LoadingSkeleton />
+        {loading ? (
+            <HomeSkeleton />
           ) : songs.length === 0 ? (
             <EmptyState />
           ) : (

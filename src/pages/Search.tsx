@@ -12,6 +12,7 @@ import LikeButton from '@/components/LikeButton';
 import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
 import { Input } from '@/components/ui/input';
+import { SearchSkeleton } from '@/components/PageSkeletons';
 
 const genres = [
   { name: 'Pop', color: 'from-pink-500 to-rose-500', icon: '🎤' },
@@ -308,9 +309,7 @@ const Search = () => {
 
           {/* Results */}
           {searching ? (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-            </div>
+            <SearchSkeleton />
           ) : results.length > 0 ? (
             <motion.div
               initial={{ opacity: 0 }}

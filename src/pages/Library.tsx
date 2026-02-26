@@ -14,6 +14,7 @@ import LikeButton from '@/components/LikeButton';
 import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { LibrarySkeleton, LibraryArtistsSkeleton } from '@/components/PageSkeletons';
 
 const formatBytes = (bytes: number) => {
   if (bytes === 0) return '0 B';
@@ -216,9 +217,7 @@ const Library = () => {
             <div className="flex-1 overflow-y-auto pb-32" style={{ WebkitOverflowScrolling: 'touch' }}>
               <TabsContent value="liked" className="mt-0 h-full">
                 {loading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                  </div>
+                  <LibrarySkeleton />
                 ) : likedSongs.length === 0 ? (
                   <EmptyState icon={Heart} text="No liked songs yet" />
                 ) : (
@@ -230,9 +229,7 @@ const Library = () => {
 
               <TabsContent value="artists" className="mt-0">
                 {loading ? (
-                  <div className="flex justify-center py-8">
-                    <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-                  </div>
+                  <LibraryArtistsSkeleton />
                 ) : artists.length === 0 ? (
                   <EmptyState icon={User} text="No artists yet" />
                 ) : (
