@@ -10,6 +10,7 @@ import { DownloadProvider } from "./contexts/DownloadContext";
 import SplashScreen from "./components/SplashScreen";
 import Onboarding from "./components/Onboarding";
 import MobileShell from "./components/MobileShell";
+import { NavDirectionProvider } from "./components/PageTransition";
 import SEOHead from "./components/SEOHead";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -95,6 +96,7 @@ const AnimatedRoutes = () => {
   const { user, isOffline } = useAuth();
 
   return (
+    <NavDirectionProvider>
     <Suspense fallback={<LazyFallback />}>
       <AnimatePresence mode="wait" initial={false}>
         <Routes location={location} key={location.pathname}>
@@ -151,6 +153,7 @@ const AnimatedRoutes = () => {
         </Routes>
       </AnimatePresence>
     </Suspense>
+    </NavDirectionProvider>
   );
 };
 
