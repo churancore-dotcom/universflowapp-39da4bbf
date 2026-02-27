@@ -25,40 +25,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
-
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (event === 'SIGNED_IN' && session?.user) {
-          setTimeout(() => checkAdminStatus(session.user.id), 0);
-        } else if (event === 'SIGNED_OUT') {
-          setIsAdmin(false);
-        }
-      }
-    );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        checkAdminStatus(session.user.id);
-      }
-      setIsLoading(false);
-    }).catch(() => {
-      setIsLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
   const checkAdminStatus = async (userId: string) => {
@@ -70,15 +44,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .eq('role', 'admin')
         .maybeSingle();
 
-      setIsAdmin(!!data);
+      const isUserAdmin = !!data;
+      setIsAdmin(isUserAdmin);
+      return isUserAdmin;
     } catch {
       setIsAdmin(false);
+      return false;
     }
-  };
-
-  const signUp = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({ email, password });
-    return { error: error as Error | null };
   };
 
   const ensureShareCode = async (userId: string) => {
@@ -94,103 +66,106 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await supabase.from('profiles').update({ share_code: code }).eq('user_id', userId);
       }
     } catch {
-      // non-blocking
+      // Non-blocking
     }
   };
 
-  const resolveAdminStatus = async (userId: string) => {
-    try {
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', userId)
-        .eq('role', 'admin')
-        .maybeSingle();
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
 
-      const adminStatus = !!roleData;
-      setIsAdmin(adminStatus);
-      return adminStatus;
-    } catch {
-      setIsAdmin(false);
-      return false;
-    }
-  };
+      if ((event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') && nextSession?.user) {
+        setTimeout(() => {
+          checkAdminStatus(nextSession.user.id);
+          ensureShareCode(nextSession.user.id);
+        }, 0);
+      }
 
-  const signInViaXhr = (email: string, password: string) => {
-    return new Promise<{ access_token: string; refresh_token: string; user?: User }>((resolve, reject) => {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/token?grant_type=password`;
-      const apikey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', url, true);
-      xhr.timeout = 12000;
-      xhr.setRequestHeader('Content-Type', 'application/json;charset=UTF-8');
-      xhr.setRequestHeader('apikey', apikey);
-      xhr.setRequestHeader('authorization', `Bearer ${apikey}`);
-
-      xhr.onload = () => {
-        try {
-          const payload = xhr.responseText ? JSON.parse(xhr.responseText) : {};
-          if (xhr.status >= 200 && xhr.status < 300 && payload?.access_token && payload?.refresh_token) {
-            resolve(payload);
-            return;
-          }
-          const message = payload?.msg || payload?.error_description || payload?.error || 'Sign in failed';
-          reject(new Error(message));
-        } catch {
-          reject(new Error('Sign in failed'));
-        }
-      };
-
-      xhr.onerror = () => reject(new Error('Network error while signing in'));
-      xhr.ontimeout = () => reject(new Error('Sign in request timed out'));
-      xhr.send(JSON.stringify({ email, password, gotrue_meta_security: {} }));
+      if (event === 'SIGNED_OUT') {
+        setIsAdmin(false);
+      }
     });
+
+    const timeoutId = setTimeout(() => setIsLoading(false), 5000);
+
+    supabase.auth.getSession()
+      .then(async ({ data: { session: existingSession } }) => {
+        clearTimeout(timeoutId);
+        setSession(existingSession);
+        setUser(existingSession?.user ?? null);
+
+        if (existingSession?.user) {
+          await checkAdminStatus(existingSession.user.id);
+        }
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const signUp = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({ email, password });
+    return { error: error as Error | null };
   };
 
   const signIn = async (email: string, password: string) => {
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (!navigator.onLine) {
+      return { error: new Error('Connection failed. Please check your internet connection and try again.') };
+    }
 
-      if (error) {
-        const isNetworkError =
-          error.message?.includes('Failed to fetch') ||
-          error.message?.includes('Network error') ||
-          (error as any)?.status === 0;
+    const maxRetries = 2;
+    let lastError: Error | null = null;
 
-        if (!isNetworkError) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) {
+          const isNetworkError =
+            error.message?.includes('Failed to fetch') ||
+            error.message?.toLowerCase().includes('network') ||
+            (error as any)?.status === 0;
+
+          if (isNetworkError && attempt < maxRetries) {
+            lastError = error as Error;
+            await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+            continue;
+          }
+
           return { error: error as Error };
         }
 
-        const fallback = await signInViaXhr(email, password);
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: fallback.access_token,
-          refresh_token: fallback.refresh_token,
-        });
-
-        if (sessionError) return { error: sessionError as Error };
-
-        const userId = fallback.user?.id;
-        if (userId) {
-          ensureShareCode(userId);
-          const adminStatus = await resolveAdminStatus(userId);
-          return { error: null, isAdmin: adminStatus };
+        if (data.user) {
+          ensureShareCode(data.user.id);
+          const isUserAdmin = await checkAdminStatus(data.user.id);
+          return { error: null, isAdmin: isUserAdmin };
         }
 
         return { error: null, isAdmin: false };
-      }
+      } catch (err) {
+        const asError = err instanceof Error ? err : new Error('Login failed');
+        const isNetworkError = asError.message.includes('Failed to fetch') || asError.message.toLowerCase().includes('network');
 
-      if (data.user) {
-        ensureShareCode(data.user.id);
-        const adminStatus = await resolveAdminStatus(data.user.id);
-        return { error: null, isAdmin: adminStatus };
-      }
+        if (isNetworkError && attempt < maxRetries) {
+          lastError = asError;
+          await new Promise((resolve) => setTimeout(resolve, 800 * (attempt + 1)));
+          continue;
+        }
 
-      return { error: null, isAdmin: false };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed';
-      return { error: new Error(message) };
+        return { error: asError };
+      }
     }
+
+    return { error: lastError || new Error('Connection failed. Please try again.') };
   };
 
   const signOut = async () => {
