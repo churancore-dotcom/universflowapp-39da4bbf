@@ -103,7 +103,7 @@ const Onboarding = ({ onComplete }: OnboardingProps) => {
             initial="enter"
             animate="center"
             exit="exit"
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
             className="flex flex-col items-center text-center w-full"
             drag="x"
             dragConstraints={{ left: 0, right: 0 }}

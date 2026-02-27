@@ -10,7 +10,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       onComplete();
-    }, 2400);
+    }, 1200);
     return () => clearTimeout(timer);
   }, [onComplete]);
 
@@ -19,7 +19,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
       className="fixed inset-0 bg-black flex items-center justify-center z-50 overflow-hidden"
       initial={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.25 }}
     >
       {/* Static gradient background — no blur filters */}
       <div
