@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { useSongCache } from '@/hooks/useSongCache';
+import { MOCK_SONGS } from '@/lib/mockData';
 import SongCard from '@/components/SongCard';
 import HorizontalSection from '@/components/HorizontalSection';
 import AllSongsSection from '@/components/AllSongsSection';
@@ -92,36 +93,62 @@ const Home = () => {
   }, []);
 
   const fetchSongs = useCallback(async () => {
-    const { data } = await supabase
-      .from('songs')
-      .select('*, artists(id, name, photo_url)')
-      .eq('is_visible', true)
-      .order('created_at', { ascending: false })
-      .limit(200); // Cap at 200 songs to prevent massive payloads
+    try {
+      const { data, error } = await supabase
+        .from('songs')
+        .select('*, artists(id, name, photo_url)')
+        .eq('is_visible', true)
+        .order('created_at', { ascending: false })
+        .limit(200);
 
-    if (data) {
-      const mappedSongs = data.map(s => {
-        const artistData = s.artists as { id: string; name: string; photo_url: string | null } | null;
-        return {
-          id: s.id,
-          title: s.title,
-          artist: s.artist,
-          album: s.album || undefined,
-          cover_url: s.cover_url || undefined,
-          audio_url: s.audio_url,
-          duration: s.duration || undefined,
-          artist_id: artistData?.id || s.artist_id || undefined,
-          artist_photo_url: artistData?.photo_url || undefined,
-          show_in_new_releases: (s as any).show_in_new_releases,
-          show_in_trending: (s as any).show_in_trending,
-          is_premium_only: (s as any).is_premium_only,
-        };
-      });
-      setSongs(mappedSongs);
-      updateCache(mappedSongs);
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const mappedSongs = data.map(s => {
+          const artistData = s.artists as { id: string; name: string; photo_url: string | null } | null;
+          return {
+            id: s.id,
+            title: s.title,
+            artist: s.artist,
+            album: s.album || undefined,
+            cover_url: s.cover_url || undefined,
+            audio_url: s.audio_url,
+            duration: s.duration || undefined,
+            artist_id: artistData?.id || s.artist_id || undefined,
+            artist_photo_url: artistData?.photo_url || undefined,
+            show_in_new_releases: (s as any).show_in_new_releases,
+            show_in_trending: (s as any).show_in_trending,
+            is_premium_only: (s as any).is_premium_only,
+          };
+        });
+        setSongs(mappedSongs);
+        updateCache(mappedSongs);
+      } else {
+        // No data returned — use mock
+        useMockFallback();
+      }
+    } catch {
+      // Backend unreachable — use mock data
+      useMockFallback();
     }
     setLoading(false);
   }, [updateCache]);
+
+  const useMockFallback = useCallback(() => {
+    const mapped = MOCK_SONGS.map(s => ({
+      id: s.id,
+      title: s.title,
+      artist: s.artist,
+      album: s.album,
+      cover_url: s.cover_url,
+      audio_url: s.audio_url,
+      duration: s.duration,
+      show_in_new_releases: s.show_in_new_releases,
+      show_in_trending: s.show_in_trending,
+      is_premium_only: s.is_premium_only,
+    }));
+    setSongs(mapped);
+  }, []);
 
   const greeting = useCallback(() => {
     const hour = new Date().getHours();

@@ -4,6 +4,7 @@ import { Music, Users, PlayCircle, TrendingUp, Upload, Disc, Clock, Download, Ac
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { MOCK_STATS, MOCK_PLAY_DATA, MOCK_GENRE_DATA, MOCK_SONGS } from '@/lib/mockData';
 
 interface Stats {
   totalSongs: number;
@@ -82,87 +83,102 @@ const AdminDashboard = () => {
   }, []);
 
   const fetchStats = async () => {
-    const [songsRes, usersRes, albumsRes] = await Promise.all([
-      supabase.from('songs').select('id, play_count, download_count, file_size, cover_size'),
-      supabase.from('profiles').select('id'),
-      supabase.from('albums').select('id'),
-    ]);
+    try {
+      const [songsRes, usersRes, albumsRes] = await Promise.all([
+        supabase.from('songs').select('id, play_count, download_count, file_size, cover_size'),
+        supabase.from('profiles').select('id'),
+        supabase.from('albums').select('id'),
+      ]);
 
-    const songs = songsRes.data || [];
-    const totalPlays = songs.reduce((acc, s) => acc + (s.play_count || 0), 0);
-    const totalDownloads = songs.reduce((acc, s) => acc + (s.download_count || 0), 0);
-    const storageUsed = songs.reduce((acc, s) => acc + (s.file_size || 0) + (s.cover_size || 0), 0);
+      if (songsRes.error || usersRes.error) throw new Error('fetch failed');
 
-    setStats({
-      totalSongs: songs.length,
-      totalUsers: usersRes.data?.length || 0,
-      totalPlays,
-      totalAlbums: albumsRes.data?.length || 0,
-      totalDownloads,
-      storageUsed,
-    });
+      const songs = songsRes.data || [];
+      const totalPlays = songs.reduce((acc, s) => acc + (s.play_count || 0), 0);
+      const totalDownloads = songs.reduce((acc, s) => acc + (s.download_count || 0), 0);
+      const storageUsed = songs.reduce((acc, s) => acc + (s.file_size || 0) + (s.cover_size || 0), 0);
+
+      setStats({
+        totalSongs: songs.length,
+        totalUsers: usersRes.data?.length || 0,
+        totalPlays,
+        totalAlbums: albumsRes.data?.length || 0,
+        totalDownloads,
+        storageUsed,
+      });
+    } catch {
+      setStats(MOCK_STATS);
+    }
     setLoading(false);
   };
 
   const fetchRecentPlaysChart = async () => {
-    // Get actual play data from recently_played for last 7 days
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
+    try {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+      sevenDaysAgo.setHours(0, 0, 0, 0);
 
-    const { data: recentPlays } = await supabase
-      .from('recently_played')
-      .select('played_at')
-      .gte('played_at', sevenDaysAgo.toISOString())
-      .order('played_at', { ascending: true });
+      const { data: recentPlays, error } = await supabase
+        .from('recently_played')
+        .select('played_at')
+        .gte('played_at', sevenDaysAgo.toISOString())
+        .order('played_at', { ascending: true });
 
-    // Group by day
-    const dayMap: Record<string, number> = {};
-    const days: string[] = [];
-    for (let i = 0; i < 7; i++) {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      const key = d.toISOString().split('T')[0];
-      const label = d.toLocaleDateString('en-US', { weekday: 'short' });
-      dayMap[key] = 0;
-      days.push(key);
+      if (error) throw error;
+
+      const dayMap: Record<string, number> = {};
+      const days: string[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - (6 - i));
+        const key = d.toISOString().split('T')[0];
+        dayMap[key] = 0;
+        days.push(key);
+      }
+
+      (recentPlays || []).forEach(rp => {
+        const key = rp.played_at.split('T')[0];
+        if (dayMap[key] !== undefined) dayMap[key]++;
+      });
+
+      const chartData = days.map(key => ({
+        date: new Date(key).toLocaleDateString('en-US', { weekday: 'short' }),
+        plays: dayMap[key],
+      }));
+
+      setPlayData(chartData);
+    } catch {
+      setPlayData(MOCK_PLAY_DATA);
     }
-
-    (recentPlays || []).forEach(rp => {
-      const key = rp.played_at.split('T')[0];
-      if (dayMap[key] !== undefined) dayMap[key]++;
-    });
-
-    const chartData = days.map(key => ({
-      date: new Date(key).toLocaleDateString('en-US', { weekday: 'short' }),
-      plays: dayMap[key],
-    }));
-
-    setPlayData(chartData);
   };
 
   const fetchChartData = async () => {
-    const { data: songs } = await supabase
-      .from('songs')
-      .select('genre, play_count, id, title, artist, cover_url')
-      .order('play_count', { ascending: false });
+    try {
+      const { data: songs, error } = await supabase
+        .from('songs')
+        .select('genre, play_count, id, title, artist, cover_url')
+        .order('play_count', { ascending: false });
 
-    if (songs) {
-      // Genre distribution
-      const genreCounts: Record<string, number> = {};
-      songs.forEach(song => {
-        const genre = song.genre || 'Unknown';
-        genreCounts[genre] = (genreCounts[genre] || 0) + 1;
-      });
-      
-      setGenreData(
-        Object.entries(genreCounts)
-          .map(([name, value]) => ({ name, value }))
-          .sort((a, b) => b.value - a.value)
-          .slice(0, 6)
-      );
+      if (error) throw error;
 
-      setTopSongs(songs.slice(0, 5));
+      if (songs) {
+        const genreCounts: Record<string, number> = {};
+        songs.forEach(song => {
+          const genre = song.genre || 'Unknown';
+          genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+        });
+        
+        setGenreData(
+          Object.entries(genreCounts)
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value)
+            .slice(0, 6)
+        );
+
+        setTopSongs(songs.slice(0, 5));
+      }
+    } catch {
+      setGenreData(MOCK_GENRE_DATA);
+      setTopSongs(MOCK_SONGS.slice(0, 5));
     }
   };
 

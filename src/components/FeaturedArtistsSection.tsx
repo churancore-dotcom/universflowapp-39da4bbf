@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { User, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import { MOCK_ARTISTS } from '@/lib/mockData';
 
 interface Artist {
   id: string;
@@ -78,26 +79,33 @@ const FeaturedArtistsSection = () => {
 
   useEffect(() => {
     const fetchArtists = async () => {
-      const [artistsRes, songCountsRes] = await Promise.all([
-        supabase.from('artists').select('id, name, photo_url, genre'),
-        supabase.from('songs').select('artist_id').eq('is_visible', true).not('artist_id', 'is', null),
-      ]);
+      try {
+        const [artistsRes, songCountsRes] = await Promise.all([
+          supabase.from('artists').select('id, name, photo_url, genre'),
+          supabase.from('songs').select('artist_id').eq('is_visible', true).not('artist_id', 'is', null),
+        ]);
 
-      if (artistsRes.data && songCountsRes.data) {
-        const countMap = new Map<string, number>();
-        for (const song of songCountsRes.data) {
-          if (song.artist_id) {
-            countMap.set(song.artist_id, (countMap.get(song.artist_id) || 0) + 1);
+        if (artistsRes.error || songCountsRes.error) throw new Error('fetch failed');
+
+        if (artistsRes.data && songCountsRes.data) {
+          const countMap = new Map<string, number>();
+          for (const song of songCountsRes.data) {
+            if (song.artist_id) {
+              countMap.set(song.artist_id, (countMap.get(song.artist_id) || 0) + 1);
+            }
           }
+
+          const sorted = artistsRes.data
+            .map(a => ({ ...a, song_count: countMap.get(a.id) || 0 }))
+            .filter(a => a.song_count > 0)
+            .sort((a, b) => b.song_count - a.song_count)
+            .slice(0, 12);
+
+          setArtists(sorted);
         }
-
-        const sorted = artistsRes.data
-          .map(a => ({ ...a, song_count: countMap.get(a.id) || 0 }))
-          .filter(a => a.song_count > 0)
-          .sort((a, b) => b.song_count - a.song_count)
-          .slice(0, 12);
-
-        setArtists(sorted);
+      } catch {
+        // Fallback to mock artists
+        setArtists(MOCK_ARTISTS.map(a => ({ ...a, song_count: 3 })));
       }
       setLoading(false);
     };
