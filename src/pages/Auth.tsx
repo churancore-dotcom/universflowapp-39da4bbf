@@ -32,7 +32,13 @@ const Auth = () => {
       if (isLogin) {
         const { error, isAdmin } = await signIn(email, password);
         if (error) {
-          toast.error(error.message);
+          // Detect network/connection errors vs auth errors
+          const msg = error.message?.toLowerCase() || '';
+          if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('connection')) {
+            toast.error('Server unreachable. Try switching to mobile data or change your DNS to 8.8.8.8', { duration: 6000 });
+          } else {
+            toast.error(error.message);
+          }
         } else {
           toast.success('Welcome back!');
           navigate(isAdmin ? '/admin' : '/home');
@@ -40,14 +46,19 @@ const Auth = () => {
       } else {
         const { error } = await signUp(email, password);
         if (error) {
-          toast.error(error.message);
+          const msg = error.message?.toLowerCase() || '';
+          if (msg.includes('failed to fetch') || msg.includes('network') || msg.includes('connection')) {
+            toast.error('Server unreachable. Try switching to mobile data or change your DNS to 8.8.8.8', { duration: 6000 });
+          } else {
+            toast.error(error.message);
+          }
         } else {
           toast.success('Account created successfully!');
           navigate('/home');
         }
       }
     } catch {
-      toast.error('Something went wrong. Please try again.');
+      toast.error('Connection failed. Try mobile data or change DNS to 8.8.8.8', { duration: 6000 });
     } finally {
       setLoading(false);
     }

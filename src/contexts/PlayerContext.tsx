@@ -70,14 +70,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [pendingSong, setPendingSong] = useState<{ song: Song; offlineUrl?: string | null; songsQueue?: Song[] } | null>(null);
   const [songsPlayedSinceAd, setSongsPlayedSinceAd] = useState(0);
   const [isPremiumUser, setIsPremiumUser] = useState(false);
-  const AD_FREQUENCY = 3; // Show ad every 3 songs
+  const AD_FREQUENCY = 3;
   
-  // Single audio element - simpler approach
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const nextAudioRef = useRef<HTMLAudioElement | null>(null);
   const crossfadeIntervalRef = useRef<number | null>(null);
   const isCrossfading = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
+  // Track if we were playing before going to background
+  const wasPlayingBeforeHidden = useRef(false);
+  // Track retry attempts for failed audio
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 2;
 
   // Check premium status on mount
   useEffect(() => {
@@ -108,7 +112,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     checkStatus();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       checkStatus();
     });
@@ -137,17 +140,28 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     nextAudio.setAttribute('webkit-playsinline', 'true');
     nextAudioRef.current = nextAudio;
 
-    // Resume audio when app returns to foreground (prevents interruption)
+    // FIX: Proper background/foreground handling
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && audioRef.current && !audioRef.current.paused === false) {
-        // If audio was playing before going to background, try to resume
+      if (document.visibilityState === 'hidden') {
+        // Going to background - remember if we were playing
+        wasPlayingBeforeHidden.current = !!(audioRef.current && !audioRef.current.paused);
+      } else if (document.visibilityState === 'visible') {
+        // Returning to foreground - resume if we were playing
+        if (wasPlayingBeforeHidden.current && audioRef.current && audioRef.current.src && audioRef.current.paused) {
+          audioRef.current.play().catch(() => {
+            // If play fails, update state to reflect paused
+            setIsPlaying(false);
+          });
+        }
       }
     };
     
     const handleFocus = () => {
-      if (audioRef.current && audioRef.current.src && audioRef.current.paused && audioRef.current.currentTime > 0) {
-        // Audio was interrupted, try to resume
-        audioRef.current.play().catch(() => {});
+      // Resume audio that was interrupted (e.g., by phone call)
+      if (wasPlayingBeforeHidden.current && audioRef.current && audioRef.current.src && audioRef.current.paused && audioRef.current.currentTime > 0) {
+        audioRef.current.play().catch(() => {
+          setIsPlaying(false);
+        });
       }
     };
 
@@ -177,7 +191,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [volume]);
 
-  // Progress update loop using requestAnimationFrame for smooth updates
+  // Progress update loop using requestAnimationFrame
   useEffect(() => {
     const updateProgress = () => {
       if (audioRef.current && !audioRef.current.paused && !isCrossfading.current) {
@@ -197,14 +211,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, [isPlaying]);
 
-  // Get next song index - supports shuffle properly by tracking played songs
+  // Smart shuffle with history tracking
   const shuffleHistoryRef = useRef<Set<number>>(new Set());
   
   const getNextIndex = useCallback((currentIdx: number, queueLength: number, isShuffle: boolean, repeatMode: 'off' | 'all' | 'one'): number | null => {
     if (queueLength === 0) return null;
     
     if (isShuffle) {
-      // Smart shuffle: avoid repeating until all songs played
       if (shuffleHistoryRef.current.size >= queueLength) {
         shuffleHistoryRef.current.clear();
       }
@@ -214,7 +227,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         .filter(i => !shuffleHistoryRef.current.has(i));
       
       if (available.length === 0) {
-        // All played, start fresh
         shuffleHistoryRef.current.clear();
         return Math.floor(Math.random() * queueLength);
       }
@@ -224,12 +236,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     const nextIdx = (currentIdx + 1) % queueLength;
     if (nextIdx === 0 && repeatMode === 'off') {
-      return null; // End of queue
+      return null;
     }
     return nextIdx;
   }, []);
 
-  // Play a song at specific index - synchronous for gapless playback
+  // Play a song at specific index
   const playSongAtIndex = useCallback((index: number, songQueue: Song[]) => {
     const song = songQueue[index];
     if (!song || !audioRef.current) return;
@@ -240,34 +252,34 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       crossfadeIntervalRef.current = null;
     }
     isCrossfading.current = false;
+    retryCountRef.current = 0;
     
     if (nextAudioRef.current) {
       nextAudioRef.current.pause();
       nextAudioRef.current.src = '';
     }
 
-    // Update state first
     setCurrentSong(song);
     setCurrentIndex(index);
     setProgress(0);
-    setIsPlaying(true); // Set playing immediately to prevent UI flicker
+    setIsPlaying(true);
+    wasPlayingBeforeHidden.current = true;
     
-    // Set source and play immediately
     audioRef.current.src = song.audio_url;
     audioRef.current.volume = volume;
     audioRef.current.currentTime = 0;
     
-    // Use load() + play() for faster start
     audioRef.current.load();
     const playPromise = audioRef.current.play();
     if (playPromise) {
       playPromise.catch(err => {
         console.warn('Playback failed:', err.message);
         setIsPlaying(false);
+        wasPlayingBeforeHidden.current = false;
       });
     }
     
-    // Preload next song for gapless playback
+    // Preload next song
     const nextIdx = (index + 1) % songQueue.length;
     if (nextIdx !== index && nextAudioRef.current) {
       const nextSong = songQueue[nextIdx];
@@ -279,7 +291,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [volume]);
 
-  // Handle song end and crossfade
+  // Handle song end, errors, and stalls
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -295,10 +307,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      // Move to next song immediately - no async operations
       let nextIdx = getNextIndex(currentIndex, queue.length, shuffle, repeat);
       
-      // If repeat is 'all' and we hit the end, loop back
       if (nextIdx === null && repeat === 'all') {
         nextIdx = 0;
       }
@@ -306,7 +316,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (nextIdx !== null && queue.length > 0) {
         const nextSong = queue[nextIdx];
         
-        // Check premium and show end-of-song ad for non-premium
         if (!isPremiumUser && songsPlayedSinceAd >= AD_FREQUENCY - 1) {
           setPendingSong({ song: nextSong, offlineUrl: null, songsQueue: queue });
           setAdType('end');
@@ -316,17 +325,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         
         setSongsPlayedSinceAd(prev => prev + 1);
-        // Play next song immediately without any async delay
         playSongAtIndex(nextIdx, queue);
       } else if (repeat === 'off' && queue.length > 0) {
-        // Stop at end of queue when repeat is off
         setIsPlaying(false);
+        wasPlayingBeforeHidden.current = false;
         setProgress(0);
       }
     };
 
     const handlePlay = () => {
       setIsPlaying(true);
+      wasPlayingBeforeHidden.current = true;
     };
 
     const handlePause = () => {
@@ -335,8 +344,63 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     };
 
+    // FIX: Handle audio loading errors - auto-skip to next song
+    const handleError = () => {
+      console.warn('Audio error on:', audio.src?.substring(0, 80));
+      
+      if (retryCountRef.current < MAX_RETRIES) {
+        // Retry loading the same song
+        retryCountRef.current++;
+        console.log(`Retrying playback (attempt ${retryCountRef.current})...`);
+        setTimeout(() => {
+          if (audio.src) {
+            audio.load();
+            audio.play().catch(() => {
+              // If retry fails, skip to next
+              if (queue.length > 1) {
+                const nextIdx = getNextIndex(currentIndex, queue.length, shuffle, repeat);
+                if (nextIdx !== null) {
+                  playSongAtIndex(nextIdx, queue);
+                }
+              } else {
+                setIsPlaying(false);
+                wasPlayingBeforeHidden.current = false;
+              }
+            });
+          }
+        }, 1000);
+      } else {
+        // Max retries reached, skip to next song
+        retryCountRef.current = 0;
+        if (queue.length > 1) {
+          const nextIdx = getNextIndex(currentIndex, queue.length, shuffle, repeat);
+          if (nextIdx !== null) {
+            console.log('Skipping broken track, moving to next...');
+            playSongAtIndex(nextIdx, queue);
+          }
+        } else {
+          setIsPlaying(false);
+          wasPlayingBeforeHidden.current = false;
+        }
+      }
+    };
+
+    // FIX: Handle stalled/waiting - audio buffering issues
+    const handleStalled = () => {
+      console.warn('Audio stalled, attempting recovery...');
+      // Try to restart playback after a brief pause
+      if (!audio.paused && audio.currentTime > 0) {
+        const currentTime = audio.currentTime;
+        setTimeout(() => {
+          if (audio.paused || audio.readyState < 3) {
+            audio.currentTime = currentTime;
+            audio.play().catch(() => {});
+          }
+        }, 2000);
+      }
+    };
+
     const handleTimeUpdate = () => {
-      // Crossfade logic
       if (crossfade && queue.length > 1 && audio.duration && !isCrossfading.current) {
         const timeLeft = audio.duration - audio.currentTime;
         if (timeLeft <= crossfadeDuration && timeLeft > 0) {
@@ -350,6 +414,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     audio.addEventListener('play', handlePlay);
     audio.addEventListener('pause', handlePause);
     audio.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('error', handleError);
+    audio.addEventListener('stalled', handleStalled);
 
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
@@ -357,6 +423,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       audio.removeEventListener('play', handlePlay);
       audio.removeEventListener('pause', handlePause);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
+      audio.removeEventListener('error', handleError);
+      audio.removeEventListener('stalled', handleStalled);
     };
   }, [currentIndex, queue, shuffle, repeat, crossfade, crossfadeDuration, getNextIndex, playSongAtIndex, isPremiumUser, songsPlayedSinceAd]);
 
@@ -373,7 +441,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     isCrossfading.current = true;
 
-    // Prepare next audio
     nextAudioRef.current.src = nextSong.audio_url;
     nextAudioRef.current.volume = 0;
     nextAudioRef.current.currentTime = 0;
@@ -404,7 +471,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           crossfadeIntervalRef.current = null;
         }
 
-        // Stop old audio
         if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current.src = '';
@@ -416,7 +482,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         nextAudioRef.current = temp;
         setAudioElement(audioRef.current);
 
-        // Update state
         setCurrentSong(nextSong);
         setCurrentIndex(nextIdx);
         setProgress(0);
@@ -436,34 +501,32 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       crossfadeIntervalRef.current = null;
     }
     isCrossfading.current = false;
+    retryCountRef.current = 0;
 
-    // Update state immediately to prevent UI flicker
     setCurrentSong(song);
     setProgress(0);
     setIsPlaying(true);
+    wasPlayingBeforeHidden.current = true;
     
-    // Set audio source - use offline URL if available
     audioRef.current.src = offlineUrl || song.audio_url;
     audioRef.current.volume = volume;
     audioRef.current.currentTime = 0;
 
-    // Load and play immediately
     audioRef.current.load();
     const playPromise = audioRef.current.play();
     if (playPromise) {
       playPromise.catch(err => {
         console.warn('Playback failed:', err?.message);
         setIsPlaying(false);
+        wasPlayingBeforeHidden.current = false;
       });
     }
 
-    // If a queue is provided, use it
     if (songsQueue && songsQueue.length > 0) {
       setQueueState(songsQueue);
       const songIndex = songsQueue.findIndex(s => s.id === song.id);
       setCurrentIndex(songIndex >= 0 ? songIndex : 0);
     } else {
-      // Update queue - add song if not exists
       const existingIndex = queue.findIndex(s => s.id === song.id);
       if (existingIndex === -1) {
         setQueueState(prev => [...prev, song]);
@@ -473,7 +536,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
 
-    // Track recently played (fire and forget - no await)
+    // Track recently played (fire and forget)
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         supabase.from('recently_played').insert({
@@ -484,7 +547,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }).catch(() => {});
   }, [volume, queue]);
 
-  // Check premium status from database
   const checkPremiumStatus = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -514,13 +576,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const playSong = useCallback((song: Song, offlineUrl?: string | null, songsQueue?: Song[]) => {
-    // Use cached premium status - don't await async call which causes pause
-    // Only show ads to non-premium users
     if (!isPremiumUser) {
       const shouldShowAd = songsPlayedSinceAd >= AD_FREQUENCY - 1;
       
       if (shouldShowAd) {
-        // Store pending song and show ad
         setPendingSong({ song, offlineUrl, songsQueue });
         setAdType('start');
         setShowPrerollAd(true);
@@ -529,7 +588,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
     }
     
-    // Play directly (premium or not ad time yet)
     setSongsPlayedSinceAd(prev => prev + 1);
     playActualSong(song, offlineUrl, songsQueue);
   }, [songsPlayedSinceAd, playActualSong, isPremiumUser]);
@@ -548,12 +606,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (audioRef.current.paused) {
       audioRef.current.play().then(() => {
         setIsPlaying(true);
+        wasPlayingBeforeHidden.current = true;
       }).catch(err => {
         console.warn('Play failed:', err.message);
       });
     } else {
       audioRef.current.pause();
       setIsPlaying(false);
+      wasPlayingBeforeHidden.current = false;
     }
   }, [currentSong]);
 
@@ -561,6 +621,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (audioRef.current) {
       audioRef.current.pause();
       setIsPlaying(false);
+      wasPlayingBeforeHidden.current = false;
     }
   }, []);
 
@@ -568,6 +629,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (audioRef.current && currentSong) {
       audioRef.current.play().then(() => {
         setIsPlaying(true);
+        wasPlayingBeforeHidden.current = true;
       }).catch(console.warn);
     }
   }, [currentSong]);
@@ -578,6 +640,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       crossfadeIntervalRef.current = null;
     }
     isCrossfading.current = false;
+    wasPlayingBeforeHidden.current = false;
 
     if (audioRef.current) {
       audioRef.current.pause();
@@ -601,7 +664,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const nextSong = useCallback(() => {
     if (queue.length === 0) return;
 
-    // Cancel crossfade
     if (crossfadeIntervalRef.current) {
       clearInterval(crossfadeIntervalRef.current);
       crossfadeIntervalRef.current = null;
@@ -617,7 +679,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (nextIdx !== null) {
       playSongAtIndex(nextIdx, queue);
     } else {
-      // Loop back to start even if repeat is off when manually pressing next
       playSongAtIndex(0, queue);
     }
   }, [queue, currentIndex, shuffle, repeat, getNextIndex, playSongAtIndex]);
@@ -625,7 +686,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const prevSong = useCallback(() => {
     if (!audioRef.current || queue.length === 0) return;
 
-    // Cancel crossfade
     if (crossfadeIntervalRef.current) {
       clearInterval(crossfadeIntervalRef.current);
       crossfadeIntervalRef.current = null;
@@ -637,12 +697,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       nextAudioRef.current.src = '';
     }
 
-    // If more than 3 seconds in, restart current song
     if (audioRef.current.currentTime > 3) {
       audioRef.current.currentTime = 0;
       setProgress(0);
     } else {
-      // Go to previous song
       const prevIdx = currentIndex === 0 ? queue.length - 1 : currentIndex - 1;
       playSongAtIndex(prevIdx, queue);
     }
@@ -671,7 +729,6 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const toggleShuffle = useCallback(() => {
     setShuffle(prev => {
       const newVal = !prev;
-      // Clear shuffle history when toggling
       if (newVal) {
         shuffleHistoryRef.current.clear();
       }
@@ -683,8 +740,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setRepeat(prev => {
       const modes: ('off' | 'all' | 'one')[] = ['off', 'all', 'one'];
       const idx = modes.indexOf(prev);
-      const newMode = modes[(idx + 1) % modes.length];
-      return newMode;
+      return modes[(idx + 1) % modes.length];
     });
   }, []);
 
@@ -696,8 +752,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCrossfadeDurationState(Math.max(1, Math.min(12, seconds)));
   }, []);
 
-  // Media Session API for lock screen / notification controls
-  // These callbacks must be stable refs to avoid hook count issues
+  // Media Session API
   const mediaSessionCallbacks = React.useMemo(() => ({
     onPlay: () => {
       if (audioRef.current && currentSong) {
