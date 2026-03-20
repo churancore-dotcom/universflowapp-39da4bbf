@@ -59,6 +59,7 @@ const navItems = [
   { icon: BarChart3, label: 'Backup', path: '/admin/backup' },
   { icon: Settings, label: 'Settings', path: '/admin/settings' },
   { icon: Globe, label: 'Jamendo Library', path: '/admin/jamendo' },
+  { icon: Music, label: 'Deezer Import', path: '/admin/deezer' },
 ];
 
 const AdminLayout = () => {

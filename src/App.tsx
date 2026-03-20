@@ -158,6 +158,7 @@ const AnimatedRoutes = forwardRef<HTMLDivElement>((_props, ref) => {
             <Route path="ab-testing" element={<ABTesting />} />
             <Route path="security" element={<SecurityCenter />} />
             <Route path="jamendo" element={<JamendoBrowse />} />
+            <Route path="deezer" element={<DeezerImport />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
