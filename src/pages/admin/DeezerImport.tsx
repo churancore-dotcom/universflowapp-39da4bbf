@@ -107,7 +107,7 @@ const DeezerImport = () => {
     setImportStates(prev => ({ ...prev, [track.deezer_id]: { status: 'extracting' } }));
 
     try {
-      // Step 1: Resolve a YouTube video server-side (avoids client CORS/rate-limit issues)
+      // Step 1: Resolve a YouTube video (server-side first, client fallback)
       const ytQuery = `${track.title} ${track.artist} official audio`;
       let videoId = '';
       let audioUrl = '';
@@ -117,12 +117,39 @@ const DeezerImport = () => {
         body: { action: 'youtube_search', query: ytQuery },
       });
 
-      if (ytError || !ytData?.videoId) {
-        throw new Error(ytData?.error || ytError?.message || 'Could not find song on YouTube');
+      if (!ytError && ytData?.videoId) {
+        videoId = ytData.videoId;
+        thumbnail = ytData.thumbnail || '';
       }
 
-      videoId = ytData.videoId;
-      thumbnail = ytData.thumbnail || '';
+      if (!videoId) {
+        const invidiousInstances = [
+          'https://inv.nadeko.net',
+          'https://invidious.privacyredirect.com',
+          'https://invidious.perennialte.ch',
+        ];
+
+        for (const instance of invidiousInstances) {
+          try {
+            const searchResponse = await fetch(`${instance}/api/v1/search?q=${encodeURIComponent(ytQuery)}&type=video`);
+            if (!searchResponse.ok) continue;
+
+            const searchResults = await searchResponse.json();
+            if (searchResults && searchResults.length > 0) {
+              videoId = searchResults[0].videoId;
+              thumbnail = searchResults[0].videoThumbnails?.find((t: any) => t.quality === 'maxresdefault')?.url
+                || searchResults[0].videoThumbnails?.[0]?.url || '';
+              break;
+            }
+          } catch {
+            // try next instance
+          }
+        }
+      }
+
+      if (!videoId) {
+        throw new Error('Could not find song on YouTube right now. Try again in a moment.');
+      }
 
       setImportStates(prev => ({ ...prev, [track.deezer_id]: { status: 'importing' } }));
 
