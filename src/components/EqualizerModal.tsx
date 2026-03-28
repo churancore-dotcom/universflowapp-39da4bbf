@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, RotateCcw, Volume2, Zap, Waves, Music2 } from 'lucide-react';
+import { X, Sparkles, RotateCcw, Volume2, Zap, Waves, Music2, Headphones, Radio } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { iosSpring } from '@/lib/animations';
 import { usePlayer } from '@/contexts/PlayerContext';
@@ -29,20 +29,25 @@ interface Preset {
 }
 
 const presets: Preset[] = [
-  { name: 'Flat', icon: <Music2 className="w-4 h-4" />, bands: [0, 0, 0, 0, 0, 0], bassBoost: 0, reverb: 0, spatialAudio: false },
-  { name: 'Bass Boost', icon: <Zap className="w-4 h-4" />, bands: [6, 5, 3, 0, -1, -2], bassBoost: 50, reverb: 0, spatialAudio: false },
-  { name: 'Treble Boost', icon: <Sparkles className="w-4 h-4" />, bands: [-2, -1, 0, 2, 4, 5], bassBoost: 0, reverb: 0, spatialAudio: false },
-  { name: 'Vocal', icon: <Volume2 className="w-4 h-4" />, bands: [-2, 0, 3, 4, 2, 0], bassBoost: 0, reverb: 20, spatialAudio: false },
-  { name: '3D Audio', icon: <Waves className="w-4 h-4" />, bands: [0, 0, 0, 0, 0, 0], bassBoost: 20, reverb: 40, spatialAudio: true },
+  { name: 'Flat', icon: <Music2 className="w-4 h-4" />, bands: [0, 0, 0, 0, 0, 0, 0, 0], bassBoost: 0, reverb: 0, spatialAudio: false },
+  { name: 'Bass Boost', icon: <Zap className="w-4 h-4" />, bands: [8, 6, 4, 1, 0, -1, -2, -2], bassBoost: 60, reverb: 0, spatialAudio: false },
+  { name: 'Treble Boost', icon: <Sparkles className="w-4 h-4" />, bands: [-2, -1, 0, 1, 3, 5, 6, 7], bassBoost: 0, reverb: 0, spatialAudio: false },
+  { name: 'Vocal', icon: <Volume2 className="w-4 h-4" />, bands: [-3, -1, 1, 4, 5, 3, 1, 0], bassBoost: 0, reverb: 25, spatialAudio: false },
+  { name: '3D Audio', icon: <Waves className="w-4 h-4" />, bands: [2, 1, 0, 0, 0, 0, 1, 2], bassBoost: 20, reverb: 45, spatialAudio: true },
+  { name: 'Phonk', icon: <Radio className="w-4 h-4" />, bands: [7, 5, 3, 0, -2, 1, 3, 4], bassBoost: 70, reverb: 15, spatialAudio: false },
+  { name: 'Deep Bass', icon: <Headphones className="w-4 h-4" />, bands: [10, 8, 5, 2, 0, -1, -2, -3], bassBoost: 80, reverb: 10, spatialAudio: false },
+  { name: 'Concert', icon: <Sparkles className="w-4 h-4" />, bands: [3, 1, 0, -1, 0, 2, 4, 5], bassBoost: 10, reverb: 60, spatialAudio: true },
 ];
 
 const defaultBands: EQBand[] = [
-  { frequency: 60, gain: 0, label: '60Hz' },
-  { frequency: 230, gain: 0, label: '230Hz' },
-  { frequency: 910, gain: 0, label: '910Hz' },
-  { frequency: 3600, gain: 0, label: '3.6kHz' },
-  { frequency: 14000, gain: 0, label: '14kHz' },
-  { frequency: 20000, gain: 0, label: '20kHz' },
+  { frequency: 32, gain: 0, label: '32Hz' },
+  { frequency: 64, gain: 0, label: '64Hz' },
+  { frequency: 125, gain: 0, label: '125Hz' },
+  { frequency: 500, gain: 0, label: '500Hz' },
+  { frequency: 1000, gain: 0, label: '1kHz' },
+  { frequency: 4000, gain: 0, label: '4kHz' },
+  { frequency: 8000, gain: 0, label: '8kHz' },
+  { frequency: 16000, gain: 0, label: '16kHz' },
 ];
 
 interface FrequencySliderProps {
@@ -53,9 +58,11 @@ interface FrequencySliderProps {
 
 function FrequencySliderComponent({ band, index, onChange }: FrequencySliderProps) {
   return (
-    <div className="flex flex-col items-center gap-3">
-      <span className="text-xs text-muted-foreground font-medium">{band.gain > 0 ? '+' : ''}{band.gain}dB</span>
-      <div className="h-32 flex items-center">
+    <div className="flex flex-col items-center gap-2">
+      <span className="text-[10px] text-muted-foreground font-medium tabular-nums">
+        {band.gain > 0 ? '+' : ''}{band.gain}
+      </span>
+      <div className="h-28 flex items-center">
         <Slider
           orientation="vertical"
           value={[band.gain]}
@@ -66,7 +73,7 @@ function FrequencySliderComponent({ band, index, onChange }: FrequencySliderProp
           className="h-full"
         />
       </div>
-      <span className="text-[11px] text-muted-foreground/70">{band.label}</span>
+      <span className="text-[9px] text-muted-foreground/70">{band.label}</span>
     </div>
   );
 }
@@ -74,56 +81,105 @@ function FrequencySliderComponent({ band, index, onChange }: FrequencySliderProp
 const FrequencySlider = memo(FrequencySliderComponent);
 FrequencySlider.displayName = 'FrequencySlider';
 
+// Persistent audio graph - survives modal open/close
+const audioState = {
+  context: null as AudioContext | null,
+  source: null as MediaElementAudioSourceNode | null,
+  filters: [] as BiquadFilterNode[],
+  gainNode: null as GainNode | null,
+  connectedElement: null as HTMLAudioElement | null,
+};
+
 const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   const { audioElement } = usePlayer();
-  const [bands, setBands] = useState<EQBand[]>(defaultBands);
-  const [bassBoost, setBassBoost] = useState(0);
-  const [reverb, setReverb] = useState(0);
-  const [spatialAudio, setSpatialAudio] = useState(false);
-  const [activePreset, setActivePreset] = useState<string | null>('Flat');
-  const [isConnected, setIsConnected] = useState(false);
+  const [bands, setBands] = useState<EQBand[]>(() => {
+    try {
+      const saved = localStorage.getItem('eq_bands');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return defaultBands;
+  });
+  const [bassBoost, setBassBoost] = useState(() => {
+    try { return Number(localStorage.getItem('eq_bass')) || 0; } catch { return 0; }
+  });
+  const [reverb, setReverb] = useState(() => {
+    try { return Number(localStorage.getItem('eq_reverb')) || 0; } catch { return 0; }
+  });
+  const [spatialAudio, setSpatialAudio] = useState(() => {
+    try { return localStorage.getItem('eq_spatial') === 'true'; } catch { return false; }
+  });
+  const [playbackSpeed, setPlaybackSpeed] = useState(() => {
+    try { return Number(localStorage.getItem('eq_speed')) || 1; } catch { return 1; }
+  });
+  const [activePreset, setActivePreset] = useState<string | null>(() => {
+    try { return localStorage.getItem('eq_preset') || 'Flat'; } catch { return 'Flat'; }
+  });
+  const [isConnected, setIsConnected] = useState(audioState.connectedElement !== null);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<MediaElementAudioSourceNode | null>(null);
-  const eqFiltersRef = useRef<BiquadFilterNode[]>([]);
-  const gainNodeRef = useRef<GainNode | null>(null);
-
-  // Initialize audio context and connect to audio element
+  // Save settings to localStorage
   useEffect(() => {
-    if (!audioElement || isConnected) return;
+    try {
+      localStorage.setItem('eq_bands', JSON.stringify(bands));
+      localStorage.setItem('eq_bass', String(bassBoost));
+      localStorage.setItem('eq_reverb', String(reverb));
+      localStorage.setItem('eq_spatial', String(spatialAudio));
+      localStorage.setItem('eq_speed', String(playbackSpeed));
+      if (activePreset) localStorage.setItem('eq_preset', activePreset);
+    } catch {}
+  }, [bands, bassBoost, reverb, spatialAudio, playbackSpeed, activePreset]);
+
+  // Connect audio graph (only once per audio element)
+  useEffect(() => {
+    if (!audioElement) return;
+    if (audioState.connectedElement === audioElement) {
+      setIsConnected(true);
+      return;
+    }
 
     try {
-      // Create audio context
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) {
-        console.warn('AudioContext not supported');
-        return;
+      if (!AudioContextClass) return;
+
+      // If we had a previous context connected to a different element, we can't
+      // reconnect — MediaElementSource can only be created once per element.
+      // So we create fresh context only if the element changed.
+      if (audioState.context && audioState.connectedElement && audioState.connectedElement !== audioElement) {
+        // Previous context is stale; we'll create a new one
+        try { audioState.context.close(); } catch {}
+        audioState.context = null;
+        audioState.source = null;
+        audioState.filters = [];
+        audioState.gainNode = null;
+        audioState.connectedElement = null;
       }
 
-      const ctx = new AudioContextClass();
-      audioContextRef.current = ctx;
+      const ctx = audioState.context || new AudioContextClass();
+      audioState.context = ctx;
 
-      // Create source from audio element
+      // Resume context if suspended (browser autoplay policy)
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+
       const source = ctx.createMediaElementSource(audioElement);
-      sourceNodeRef.current = source;
+      audioState.source = source;
 
-      // Create EQ filters
-      const filters = defaultBands.map((band) => {
+      // Create 8-band EQ
+      const filters = defaultBands.map((band, i) => {
         const filter = ctx.createBiquadFilter();
-        filter.type = 'peaking';
+        filter.type = i === 0 ? 'lowshelf' : i === defaultBands.length - 1 ? 'highshelf' : 'peaking';
         filter.frequency.value = band.frequency;
-        filter.Q.value = 1;
-        filter.gain.value = band.gain;
+        filter.Q.value = 1.4;
+        filter.gain.value = bands[i]?.gain || 0;
         return filter;
       });
-      eqFiltersRef.current = filters;
+      audioState.filters = filters;
 
-      // Create gain node for bass boost
       const gainNode = ctx.createGain();
       gainNode.gain.value = 1;
-      gainNodeRef.current = gainNode;
+      audioState.gainNode = gainNode;
 
-      // Connect: source -> filters -> gain -> destination
+      // Chain: source -> filters -> gain -> destination
       source.connect(filters[0]);
       for (let i = 0; i < filters.length - 1; i++) {
         filters[i].connect(filters[i + 1]);
@@ -131,44 +187,45 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
       filters[filters.length - 1].connect(gainNode);
       gainNode.connect(ctx.destination);
 
+      audioState.connectedElement = audioElement;
       setIsConnected(true);
-      toast.success('Equalizer connected!');
     } catch (error) {
-      console.error('Failed to initialize equalizer:', error);
+      console.error('Equalizer connect error:', error);
     }
+  }, [audioElement]);
 
-    return () => {
-      // Cleanup on unmount
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        // Don't close context as it would break audio
-      }
-    };
-  }, [audioElement, isConnected]);
-
-  // Apply EQ changes
+  // Apply EQ band changes in real-time
   useEffect(() => {
-    if (!eqFiltersRef.current.length) return;
-
+    if (!audioState.filters.length) return;
     bands.forEach((band, index) => {
-      if (eqFiltersRef.current[index]) {
-        eqFiltersRef.current[index].gain.value = band.gain;
+      if (audioState.filters[index]) {
+        audioState.filters[index].gain.value = band.gain;
       }
     });
   }, [bands]);
 
-  // Apply bass boost
+  // Apply bass boost to low-freq filters
   useEffect(() => {
-    if (!eqFiltersRef.current.length) return;
-
-    // Apply bass boost to low frequency bands
-    const boostAmount = bassBoost / 10; // 0-10 range
-    if (eqFiltersRef.current[0]) {
-      eqFiltersRef.current[0].gain.value = bands[0].gain + boostAmount;
-    }
-    if (eqFiltersRef.current[1]) {
-      eqFiltersRef.current[1].gain.value = bands[1].gain + (boostAmount * 0.5);
-    }
+    if (!audioState.filters.length) return;
+    const boost = bassBoost / 8;
+    if (audioState.filters[0]) audioState.filters[0].gain.value = bands[0].gain + boost;
+    if (audioState.filters[1]) audioState.filters[1].gain.value = bands[1].gain + (boost * 0.7);
+    if (audioState.filters[2]) audioState.filters[2].gain.value = bands[2].gain + (boost * 0.3);
   }, [bassBoost, bands]);
+
+  // Apply playback speed
+  useEffect(() => {
+    if (audioElement) {
+      audioElement.playbackRate = playbackSpeed;
+    }
+  }, [playbackSpeed, audioElement]);
+
+  // Resume audio context on user interaction
+  useEffect(() => {
+    if (isOpen && audioState.context?.state === 'suspended') {
+      audioState.context.resume();
+    }
+  }, [isOpen]);
 
   const handleBandChange = useCallback((index: number, value: number) => {
     setBands(prev => prev.map((b, i) => i === index ? { ...b, gain: value } : b));
@@ -176,7 +233,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   }, []);
 
   const handlePresetSelect = useCallback((preset: Preset) => {
-    setBands(prev => prev.map((b, i) => ({ ...b, gain: preset.bands[i] })));
+    setBands(prev => prev.map((b, i) => ({ ...b, gain: preset.bands[i] ?? 0 })));
     setBassBoost(preset.bassBoost);
     setReverb(preset.reverb);
     setSpatialAudio(preset.spatialAudio);
@@ -189,9 +246,11 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
     setBassBoost(0);
     setReverb(0);
     setSpatialAudio(false);
+    setPlaybackSpeed(1);
     setActivePreset('Flat');
+    if (audioElement) audioElement.playbackRate = 1;
     toast.success('Equalizer reset');
-  }, []);
+  }, [audioElement]);
 
   if (!isOpen) return null;
 
@@ -203,7 +262,6 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
-        {/* Backdrop */}
         <motion.div
           className="absolute inset-0 bg-black/60 backdrop-blur-xl"
           initial={{ opacity: 0 }}
@@ -212,7 +270,6 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
           onClick={onClose}
         />
 
-        {/* Modal */}
         <motion.div
           className="relative w-full max-w-lg mx-4 mb-4 rounded-3xl overflow-hidden"
           style={{
@@ -233,7 +290,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
               <div>
                 <h2 className="text-lg font-semibold">Equalizer</h2>
                 <p className="text-xs text-muted-foreground">
-                  {isConnected ? 'Connected' : 'Play a song to connect'}
+                  {isConnected ? '● Connected' : 'Play a song to connect'}
                 </p>
               </div>
             </div>
@@ -241,7 +298,6 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
               <motion.button
                 onClick={handleReset}
                 className="w-10 h-10 rounded-full flex items-center justify-center glass"
-                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <RotateCcw className="w-4 h-4 text-muted-foreground" />
@@ -249,7 +305,6 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
               <motion.button
                 onClick={onClose}
                 className="w-10 h-10 rounded-full flex items-center justify-center glass"
-                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <X className="w-5 h-5" />
@@ -257,35 +312,34 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
             </div>
           </div>
 
-          <div className="p-5 space-y-6 max-h-[70vh] overflow-y-auto">
+          <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
             {/* Presets */}
             <div>
               <h3 className="text-sm font-medium text-muted-foreground mb-3">Presets</h3>
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+              <div className="grid grid-cols-4 gap-2">
                 {presets.map((preset) => (
                   <motion.button
                     key={preset.name}
                     onClick={() => handlePresetSelect(preset)}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded-full whitespace-nowrap transition-all ${
+                    className={`flex flex-col items-center gap-1.5 px-2 py-2.5 rounded-xl transition-all ${
                       activePreset === preset.name
                         ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white'
                         : 'glass text-muted-foreground hover:text-foreground'
                     }`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     {preset.icon}
-                    <span className="text-sm font-medium">{preset.name}</span>
+                    <span className="text-[10px] font-medium leading-tight">{preset.name}</span>
                   </motion.button>
                 ))}
               </div>
             </div>
 
-            {/* EQ Bands */}
+            {/* 8-Band EQ */}
             <div>
-              <h3 className="text-sm font-medium text-muted-foreground mb-4">Frequency Bands</h3>
-              <div 
-                className="flex justify-between px-4 py-6 rounded-2xl"
+              <h3 className="text-sm font-medium text-muted-foreground mb-3">8-Band Equalizer</h3>
+              <div
+                className="flex justify-between px-2 py-4 rounded-2xl"
                 style={{
                   background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)',
                   border: '1px solid rgba(255,255,255,0.05)',
@@ -305,7 +359,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
             {/* Effects */}
             <div className="space-y-4">
               <h3 className="text-sm font-medium text-muted-foreground">Effects</h3>
-              
+
               {/* Bass Boost */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -313,17 +367,14 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                     <Zap className="w-4 h-4 text-orange-400" />
                     <span className="text-sm">Bass Boost</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{bassBoost}%</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{bassBoost}%</span>
                 </div>
                 <Slider
                   value={[bassBoost]}
                   min={0}
                   max={100}
                   step={5}
-                  onValueChange={([value]) => {
-                    setBassBoost(value);
-                    setActivePreset(null);
-                  }}
+                  onValueChange={([value]) => { setBassBoost(value); setActivePreset(null); }}
                   className="w-full"
                 />
               </div>
@@ -335,19 +386,41 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                     <Waves className="w-4 h-4 text-cyan-400" />
                     <span className="text-sm">Reverb</span>
                   </div>
-                  <span className="text-xs text-muted-foreground">{reverb}%</span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{reverb}%</span>
                 </div>
                 <Slider
                   value={[reverb]}
                   min={0}
                   max={100}
                   step={5}
-                  onValueChange={([value]) => {
-                    setReverb(value);
-                    setActivePreset(null);
-                  }}
+                  onValueChange={([value]) => { setReverb(value); setActivePreset(null); }}
                   className="w-full"
                 />
+              </div>
+
+              {/* Playback Speed */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Radio className="w-4 h-4 text-emerald-400" />
+                    <span className="text-sm">Playback Speed</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground tabular-nums">{playbackSpeed}x</span>
+                </div>
+                <Slider
+                  value={[playbackSpeed]}
+                  min={0.5}
+                  max={2}
+                  step={0.05}
+                  onValueChange={([value]) => { setPlaybackSpeed(value); }}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground/50 px-1">
+                  <span>0.5x</span>
+                  <span>1x</span>
+                  <span>1.5x</span>
+                  <span>2x</span>
+                </div>
               </div>
 
               {/* 3D Spatial Audio Toggle */}
@@ -362,7 +435,6 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                     ? 'bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-500/30'
                     : 'glass'
                 }`}
-                whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
               >
                 <div className="flex items-center gap-3">
