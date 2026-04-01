@@ -27,8 +27,8 @@ class AudioEngine {
   private panRAF: number | null = null;
   private is8DActive = false;
 
-  // State tracking
-  private boundElements = new WeakSet<HTMLAudioElement>();
+  // Track elements we've already called createMediaElementSource on
+  private boundSources = new WeakMap<HTMLAudioElement, MediaElementAudioSourceNode>();
 
   private ensureCtx(): AudioContext {
     if (!this.ctx || this.ctx.state === 'closed') {
@@ -39,50 +39,66 @@ class AudioEngine {
   }
 
   /**
-   * Bind to an audio element. Safe to call repeatedly — no-ops if
-   * already bound to the same element.
+   * Bind to an audio element. Safe to call repeatedly — reuses
+   * existing source if already bound to the same element.
    */
   async bind(audio: HTMLAudioElement): Promise<boolean> {
-    if (this.el === audio && this.src) {
-      await this.resume();
-      return true;
-    }
-
-    // createMediaElementSource can only be called once per element EVER
-    if (this.boundElements.has(audio)) {
-      return false;
-    }
-
     try {
       const ctx = this.ensureCtx();
-      await ctx.resume();
 
-      const wasPlaying = !audio.paused;
+      // Resume first — critical for mobile browsers
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
+      }
 
-      // Disconnect old source (but keep same context)
+      // Already fully wired to this element
+      if (this.el === audio && this.src && this.masterGain) {
+        return true;
+      }
+
+      // Disconnect old graph (but keep context)
       this.disconnectGraph();
 
-      this.src = ctx.createMediaElementSource(audio);
-      this.boundElements.add(audio);
-      this.el = audio;
-
-      this.buildGraph(ctx);
-
-      if (wasPlaying && audio.paused) {
-        audio.play().catch(() => {});
+      // Reuse existing source if we already created one for this element
+      const existingSource = this.boundSources.get(audio);
+      if (existingSource) {
+        this.src = existingSource;
+      } else {
+        // createMediaElementSource can only be called ONCE per element
+        this.src = ctx.createMediaElementSource(audio);
+        this.boundSources.set(audio, this.src);
       }
+
+      this.el = audio;
+      this.buildGraph(ctx);
 
       return true;
     } catch (err) {
       console.error('AudioEngine bind failed:', err);
+      // Fallback: ensure audio still plays directly
+      try {
+        audio.play().catch(() => {});
+      } catch {}
       return false;
     }
   }
 
   private disconnectGraph() {
-    [this.src, ...this.filters, this.panner, this.convolver,
+    // Disconnect everything except src (we may reuse it)
+    [...this.filters, this.panner, this.convolver,
      this.wetGain, this.dryGain, this.masterGain, this.analyserNode
     ].forEach(n => { try { n?.disconnect(); } catch {} });
+
+    // Disconnect src last
+    try { this.src?.disconnect(); } catch {}
+
+    this.filters = [];
+    this.analyserNode = null;
+    this.masterGain = null;
+    this.panner = null;
+    this.convolver = null;
+    this.wetGain = null;
+    this.dryGain = null;
   }
 
   private buildGraph(ctx: AudioContext) {
@@ -140,10 +156,36 @@ class AudioEngine {
     this.dryGain.connect(this.masterGain);
     this.wetGain.connect(this.masterGain);
     this.masterGain.connect(ctx.destination);
+
+    // Restore persisted EQ settings
+    this.restoreSettings();
+  }
+
+  private restoreSettings() {
+    try {
+      const bandsStr = localStorage.getItem('eq_bands');
+      if (bandsStr) {
+        const bands = JSON.parse(bandsStr);
+        if (Array.isArray(bands)) {
+          const gains = bands.map((b: any) => b.gain ?? 0);
+          this.setBands(gains);
+        }
+      }
+      const bass = Number(localStorage.getItem('eq_bass')) || 0;
+      if (bass > 0) {
+        const bandsData = JSON.parse(localStorage.getItem('eq_bands') || '[]');
+        const gains = bandsData.map((b: any) => b.gain ?? 0);
+        this.setBassBoost(bass, gains);
+      }
+      const reverb = Number(localStorage.getItem('eq_reverb')) || 0;
+      if (reverb > 0) this.setReverb(reverb);
+      const spatial = localStorage.getItem('eq_spatial') === 'true';
+      if (spatial) this.set8D(true);
+    } catch {}
   }
 
   get connected(): boolean {
-    return this.el !== null && this.src !== null;
+    return this.el !== null && this.src !== null && this.masterGain !== null;
   }
 
   /** Expose analyser for the visualizer hook */
