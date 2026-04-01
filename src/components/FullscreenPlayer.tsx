@@ -12,7 +12,6 @@ import AddToPlaylistModal from './AddToPlaylistModal';
 import CreatePlaylistModal from './CreatePlaylistModal';
 import SongReactions from './SongReactions';
 import SongSuggestions from './SongSuggestions';
-import { useEffect, useState as useStateHook } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import type { Song } from '@/contexts/PlayerContext';
 
