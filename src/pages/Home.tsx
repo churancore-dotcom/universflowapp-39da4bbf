@@ -54,6 +54,7 @@ const LoadingSkeleton = memo(() => (
 LoadingSkeleton.displayName = 'LoadingSkeleton';
 
 const Home = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { currentSong } = usePlayer();
   const { cachedSongs, updateCache } = useSongCache();
