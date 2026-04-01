@@ -1,115 +1,64 @@
 /**
- * Singleton audio engine — owns the AudioContext and the single
- * MediaElementAudioSourceNode. Both the EQ modal and the visualizer
- * tap into this one graph so `createMediaElementSource` is only
- * ever called once per HTMLAudioElement.
+ * Singleton audio engine — owns the AudioContext and routes audio
+ * through EQ filters, reverb, 8D panner, and analyser.
+ * 
+ * CRITICAL: createMediaElementSource() can only be called ONCE per
+ * HTMLAudioElement. We cache sources in a WeakMap to handle element reuse.
  */
 
 const FREQUENCIES = [32, 64, 125, 500, 1000, 4000, 8000, 16000];
 
 class AudioEngine {
   private ctx: AudioContext | null = null;
-  private src: MediaElementAudioSourceNode | null = null;
   private el: HTMLAudioElement | null = null;
 
-  // EQ nodes
+  // Persistent graph nodes (created once per context)
+  private inputGain: GainNode | null = null;
   private filters: BiquadFilterNode[] = [];
   private masterGain: GainNode | null = null;
   private panner: StereoPannerNode | null = null;
   private convolver: ConvolverNode | null = null;
   private wetGain: GainNode | null = null;
   private dryGain: GainNode | null = null;
-
-  // Visualizer
   private analyserNode: AnalyserNode | null = null;
 
   // 8D
   private panRAF: number | null = null;
   private is8DActive = false;
 
-  // Track elements we've already called createMediaElementSource on
+  // Track sources per element — never create twice
   private boundSources = new WeakMap<HTMLAudioElement, MediaElementAudioSourceNode>();
+  private currentSource: MediaElementAudioSourceNode | null = null;
 
-  private ensureCtx(): AudioContext {
+  private graphBuilt = false;
+
+  private getCtx(): AudioContext {
     if (!this.ctx || this.ctx.state === 'closed') {
       const C = window.AudioContext || (window as any).webkitAudioContext;
       this.ctx = new C();
+      this.graphBuilt = false;
     }
     return this.ctx;
   }
 
   /**
-   * Bind to an audio element. Safe to call repeatedly — reuses
-   * existing source if already bound to the same element.
+   * Build the processing graph ONCE. The graph is:
+   * inputGain → analyser → filters[0..7] → panner → dry/wet → master → destination
+   * 
+   * Sources connect to inputGain. When we switch elements, we only
+   * disconnect/reconnect the source→inputGain link.
    */
-  async bind(audio: HTMLAudioElement): Promise<boolean> {
-    try {
-      const ctx = this.ensureCtx();
+  private ensureGraph() {
+    if (this.graphBuilt) return;
+    const ctx = this.getCtx();
 
-      // Resume first — critical for mobile browsers
-      if (ctx.state === 'suspended') {
-        await ctx.resume().catch(() => {});
-      }
+    this.inputGain = ctx.createGain();
+    this.inputGain.gain.value = 1;
 
-      // Already fully wired to this element
-      if (this.el === audio && this.src && this.masterGain) {
-        return true;
-      }
-
-      // Disconnect old graph (but keep context)
-      this.disconnectGraph();
-
-      // Reuse existing source if we already created one for this element
-      const existingSource = this.boundSources.get(audio);
-      if (existingSource) {
-        this.src = existingSource;
-      } else {
-        // createMediaElementSource can only be called ONCE per element
-        this.src = ctx.createMediaElementSource(audio);
-        this.boundSources.set(audio, this.src);
-      }
-
-      this.el = audio;
-      this.buildGraph(ctx);
-
-      return true;
-    } catch (err) {
-      console.error('AudioEngine bind failed:', err);
-      // Fallback: ensure audio still plays directly
-      try {
-        audio.play().catch(() => {});
-      } catch {}
-      return false;
-    }
-  }
-
-  private disconnectGraph() {
-    // Disconnect everything except src (we may reuse it)
-    [...this.filters, this.panner, this.convolver,
-     this.wetGain, this.dryGain, this.masterGain, this.analyserNode
-    ].forEach(n => { try { n?.disconnect(); } catch {} });
-
-    // Disconnect src last
-    try { this.src?.disconnect(); } catch {}
-
-    this.filters = [];
-    this.analyserNode = null;
-    this.masterGain = null;
-    this.panner = null;
-    this.convolver = null;
-    this.wetGain = null;
-    this.dryGain = null;
-  }
-
-  private buildGraph(ctx: AudioContext) {
-    if (!this.src) return;
-
-    // Analyser (for visualizer)
     this.analyserNode = ctx.createAnalyser();
     this.analyserNode.fftSize = 128;
     this.analyserNode.smoothingTimeConstant = 0.85;
 
-    // EQ filters
     this.filters = FREQUENCIES.map((freq, i) => {
       const f = ctx.createBiquadFilter();
       f.type = i === 0 ? 'lowshelf' : i === FREQUENCIES.length - 1 ? 'highshelf' : 'peaking';
@@ -119,11 +68,10 @@ class AudioEngine {
       return f;
     });
 
-    // Panner for 8D
     this.panner = ctx.createStereoPanner();
     this.panner.pan.value = 0;
 
-    // Reverb
+    // Reverb impulse
     this.convolver = ctx.createConvolver();
     const sr = ctx.sampleRate;
     const len = sr * 2.5;
@@ -143,8 +91,8 @@ class AudioEngine {
     this.masterGain = ctx.createGain();
     this.masterGain.gain.value = 1;
 
-    // Wire: source → analyser → filters → panner → dry/wet → master → destination
-    this.src.connect(this.analyserNode);
+    // Wire the persistent chain
+    this.inputGain.connect(this.analyserNode);
     this.analyserNode.connect(this.filters[0]);
     for (let i = 0; i < this.filters.length - 1; i++) {
       this.filters[i].connect(this.filters[i + 1]);
@@ -157,8 +105,50 @@ class AudioEngine {
     this.wetGain.connect(this.masterGain);
     this.masterGain.connect(ctx.destination);
 
-    // Restore persisted EQ settings
+    this.graphBuilt = true;
     this.restoreSettings();
+  }
+
+  /**
+   * Bind to an audio element. Safe to call repeatedly.
+   * Only reconnects source→inputGain; the rest of the graph stays intact.
+   */
+  async bind(audio: HTMLAudioElement): Promise<boolean> {
+    try {
+      const ctx = this.getCtx();
+      if (ctx.state === 'suspended') {
+        await ctx.resume().catch(() => {});
+      }
+
+      this.ensureGraph();
+
+      // Already bound to this exact element
+      if (this.el === audio && this.currentSource) {
+        return true;
+      }
+
+      // Disconnect previous source from inputGain (don't disconnect the rest)
+      if (this.currentSource) {
+        try { this.currentSource.disconnect(this.inputGain!); } catch {}
+      }
+
+      // Get or create source for this element
+      let source = this.boundSources.get(audio);
+      if (!source) {
+        source = ctx.createMediaElementSource(audio);
+        this.boundSources.set(audio, source);
+      }
+
+      // Connect source → inputGain (rest of chain is already wired)
+      source.connect(this.inputGain!);
+      this.currentSource = source;
+      this.el = audio;
+
+      return true;
+    } catch (err) {
+      console.error('AudioEngine bind failed:', err);
+      return false;
+    }
   }
 
   private restoreSettings() {
@@ -167,15 +157,13 @@ class AudioEngine {
       if (bandsStr) {
         const bands = JSON.parse(bandsStr);
         if (Array.isArray(bands)) {
-          const gains = bands.map((b: any) => b.gain ?? 0);
-          this.setBands(gains);
+          this.setBands(bands.map((b: any) => b.gain ?? 0));
         }
       }
       const bass = Number(localStorage.getItem('eq_bass')) || 0;
       if (bass > 0) {
         const bandsData = JSON.parse(localStorage.getItem('eq_bands') || '[]');
-        const gains = bandsData.map((b: any) => b.gain ?? 0);
-        this.setBassBoost(bass, gains);
+        this.setBassBoost(bass, bandsData.map((b: any) => b.gain ?? 0));
       }
       const reverb = Number(localStorage.getItem('eq_reverb')) || 0;
       if (reverb > 0) this.setReverb(reverb);
@@ -185,10 +173,9 @@ class AudioEngine {
   }
 
   get connected(): boolean {
-    return this.el !== null && this.src !== null && this.masterGain !== null;
+    return this.el !== null && this.currentSource !== null && this.graphBuilt;
   }
 
-  /** Expose analyser for the visualizer hook */
   getAnalyser(): AnalyserNode | null {
     return this.analyserNode;
   }
@@ -245,5 +232,4 @@ class AudioEngine {
   }
 }
 
-// Export singleton
 export const audioEngine = new AudioEngine();
