@@ -26,7 +26,6 @@ interface Preset {
   bands: number[];
   bassBoost: number;
   reverb: number;
-  spatialAudio: boolean;
 }
 
 const presets: Preset[] = [
