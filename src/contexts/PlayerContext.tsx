@@ -514,9 +514,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         nextAudioRef.current = temp;
         setAudioElement(audioRef.current);
 
-        // Rebind audio engine to new element BEFORE it starts playing
+        // Rebind audio engine to new element so EQ applies to crossfaded track
         if (audioRef.current) {
-          audioEngine.bind(audioRef.current).catch(() => {});
+          audioEngine.bind(audioRef.current).then(() => {}).catch(() => {});
         }
 
         setCurrentSong(nextSong);
