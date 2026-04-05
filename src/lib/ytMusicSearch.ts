@@ -1,33 +1,27 @@
 /**
- * YouTube Music search & stream resolver via Piped instances.
+ * YouTube Music search & stream resolver via public Invidious instances.
  * No API key needed — fully open-source pipeline.
  */
-
-const PIPED_INSTANCES = [
-  'https://pipedapi.kavin.rocks',
-  'https://pipedapi.adminforge.de',
-  'https://pipedapi.in.projectsegfau.lt',
-  'https://api.piped.projectsegfau.lt',
-];
 
 const INVIDIOUS_INSTANCES = [
   'https://inv.nadeko.net',
   'https://invidious.nerdvpn.de',
-  'https://invidious.jing.rocks',
+  'https://iv.datura.network',
+  'https://invidious.privacyredirect.com',
+  'https://invidious.protokolla.fi',
 ];
 
 export interface YTMusicResult {
-  id: string;          // prefixed "ytm-{videoId}"
+  id: string;
   videoId: string;
   title: string;
   artist: string;
   cover_url?: string;
-  duration?: number;   // seconds
+  duration?: number;
 }
 
 /** Clean up typical YouTube title junk */
 function cleanTitle(raw: string): { title: string; artist: string } {
-  // Remove common suffixes
   let t = raw
     .replace(/\s*\(Official\s*(Music\s*)?Video\)/gi, '')
     .replace(/\s*\[Official\s*(Music\s*)?Video\]/gi, '')
@@ -41,7 +35,6 @@ function cleanTitle(raw: string): { title: string; artist: string } {
     .replace(/\s*\/\/\s*.*$/, '')
     .trim();
 
-  // Try to split "Artist - Title"
   const dashMatch = t.match(/^(.+?)\s*[-–—]\s+(.+)$/);
   if (dashMatch) {
     return { artist: dashMatch[1].trim(), title: dashMatch[2].trim() };
@@ -49,93 +42,108 @@ function cleanTitle(raw: string): { title: string; artist: string } {
   return { title: t, artist: '' };
 }
 
-/** Search via Piped API (music filter) */
-async function searchPiped(query: string, instance: string): Promise<YTMusicResult[]> {
-  const url = `${instance}/search?q=${encodeURIComponent(query)}&filter=music_songs`;
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(6000),
-  });
-  if (!res.ok) throw new Error(`Piped ${res.status}`);
-  const json = await res.json();
-  const items = json.items || json.content || [];
-  return items.slice(0, 15).map((item: any) => {
-    const videoId = (item.url || '').replace('/watch?v=', '');
-    const { title, artist: parsedArtist } = cleanTitle(item.title || '');
-    return {
-      id: `ytm-${videoId}`,
-      videoId,
-      title,
-      artist: parsedArtist || item.uploaderName || item.uploader || 'Unknown Artist',
-      cover_url: item.thumbnail || item.thumbnailUrl || undefined,
-      duration: item.duration || undefined,
-    };
-  }).filter((r: YTMusicResult) => r.videoId);
+/** Try fetching from an instance with timeout */
+async function fetchWithTimeout(url: string, timeoutMs = 8000): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, {
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /** Search via Invidious API */
 async function searchInvidious(query: string, instance: string): Promise<YTMusicResult[]> {
-  const url = `${instance}/api/v1/search?q=${encodeURIComponent(query)}&type=video&sort_by=relevance`;
-  const res = await fetch(url, {
-    headers: { Accept: 'application/json' },
-    signal: AbortSignal.timeout(6000),
-  });
+  const url = `${instance}/api/v1/search?q=${encodeURIComponent(query + ' music')}&type=video&sort_by=relevance`;
+  const res = await fetchWithTimeout(url);
   if (!res.ok) throw new Error(`Invidious ${res.status}`);
   const items: any[] = await res.json();
-  return items.slice(0, 15).map((item: any) => {
+  return items.slice(0, 20).map((item: any) => {
     const { title, artist: parsedArtist } = cleanTitle(item.title || '');
     const thumb = item.videoThumbnails?.find((t: any) => t.quality === 'medium')?.url
+      || item.videoThumbnails?.find((t: any) => t.quality === 'high')?.url
       || item.videoThumbnails?.[0]?.url;
+    
+    // Fix relative thumbnail URLs
+    const cover_url = thumb?.startsWith('/') ? `${instance}${thumb}` : thumb;
+    
     return {
       id: `ytm-${item.videoId}`,
       videoId: item.videoId,
       title,
       artist: parsedArtist || item.author || 'Unknown Artist',
-      cover_url: thumb,
+      cover_url,
       duration: item.lengthSeconds || undefined,
     };
   }).filter((r: YTMusicResult) => r.videoId);
 }
 
-/** Main search — rotates through instances until one works */
+/** Track which instance worked last so we try it first */
+let lastWorkingInstance = 0;
+
+/** Main search — rotates through Invidious instances until one works */
 export async function searchYTMusic(query: string): Promise<YTMusicResult[]> {
-  // Try Piped first
-  for (const inst of PIPED_INSTANCES) {
-    try {
-      const results = await searchPiped(query, inst);
-      if (results.length > 0) return results;
-    } catch { /* next */ }
+  const instances = [...INVIDIOUS_INSTANCES];
+  // Put last working instance first
+  if (lastWorkingInstance > 0 && lastWorkingInstance < instances.length) {
+    const [best] = instances.splice(lastWorkingInstance, 1);
+    instances.unshift(best);
   }
-  // Fallback to Invidious
-  for (const inst of INVIDIOUS_INSTANCES) {
+
+  for (let i = 0; i < instances.length; i++) {
     try {
-      const results = await searchInvidious(query, inst);
-      if (results.length > 0) return results;
-    } catch { /* next */ }
+      const results = await searchInvidious(query, instances[i]);
+      if (results.length > 0) {
+        lastWorkingInstance = INVIDIOUS_INSTANCES.indexOf(instances[i]);
+        return results;
+      }
+    } catch (err) {
+      console.warn(`Invidious instance ${instances[i]} failed:`, err);
+    }
   }
   return [];
 }
 
 /** Resolve a direct audio stream URL for a video ID */
 export async function resolveStreamUrl(videoId: string): Promise<string | null> {
-  // Try Piped streams endpoint
-  for (const inst of PIPED_INSTANCES) {
+  const instances = [...INVIDIOUS_INSTANCES];
+  if (lastWorkingInstance > 0 && lastWorkingInstance < instances.length) {
+    const [best] = instances.splice(lastWorkingInstance, 1);
+    instances.unshift(best);
+  }
+
+  for (const inst of instances) {
     try {
-      const res = await fetch(`${inst}/streams/${videoId}`, {
-        headers: { Accept: 'application/json' },
-        signal: AbortSignal.timeout(8000),
-      });
+      const res = await fetchWithTimeout(`${inst}/api/v1/videos/${videoId}`);
       if (!res.ok) continue;
       const data = await res.json();
-      // Pick best audio stream
-      const audioStreams = data.audioStreams || [];
-      // Prefer m4a/mp4, then webm
-      const m4a = audioStreams.find((s: any) =>
-        s.mimeType?.includes('audio/mp4') || s.mimeType?.includes('audio/m4a')
+      
+      // Try adaptive formats first (audio only)
+      const adaptiveFormats = data.adaptiveFormats || [];
+      const audioFormats = adaptiveFormats
+        .filter((f: any) => f.type?.startsWith('audio/'))
+        .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0));
+      
+      // Prefer m4a/mp4a, then opus/webm
+      const m4a = audioFormats.find((f: any) => 
+        f.type?.includes('mp4a') || f.type?.includes('audio/mp4')
       );
-      const best = m4a || audioStreams[0];
+      const best = m4a || audioFormats[0];
       if (best?.url) return best.url;
-    } catch { /* next */ }
+
+      // Fallback: format streams (combined audio+video, pick lowest quality)
+      const formatStreams = data.formatStreams || [];
+      if (formatStreams.length > 0) {
+        return formatStreams[0].url;
+      }
+    } catch (err) {
+      console.warn(`Stream resolve failed for ${inst}:`, err);
+    }
   }
   return null;
 }
