@@ -13,7 +13,7 @@ import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
-import { searchYTMusic, resolveStreamUrl, YTMusicResult } from '@/lib/ytMusicSearch';
+import type { YTMusicResult } from '@/lib/ytMusicSearch';
 import { toast } from 'sonner';
 
 const AUDIUS_BASE = 'https://audius-discovery-1.the-standard.io/v1';
@@ -78,7 +78,7 @@ const Search = () => {
       setAudiusResults([]);
       setYtResults([]);
     }
-  }, [query]);
+  }, [query, activeFilter]);
 
   const searchSongs = async () => {
     setSearching(true);
@@ -125,27 +125,41 @@ const Search = () => {
 
   const searchYT = async () => {
     try {
-      const res = await searchYTMusic(query);
-      setYtResults(res);
+      const { data, error } = await supabase.functions.invoke('yt-music-search', {
+        body: { query },
+      });
+
+      if (error || !data?.success) {
+        console.error('YT Music search failed:', error || data?.error);
+        setYtResults([]);
+        return;
+      }
+
+      setYtResults(Array.isArray(data.results) ? data.results : []);
     } catch (err) {
       console.error('YT Music search failed:', err);
+      setYtResults([]);
     }
   };
 
   const handlePlayYT = useCallback(async (track: YTMusicResult) => {
     setResolvingId(track.id);
     try {
-      const streamUrl = await resolveStreamUrl(track.videoId);
-      if (!streamUrl) {
-        toast.error('Could not resolve audio stream. Try another track.');
+      const { data, error } = await supabase.functions.invoke('extract-audio', {
+        body: { url: `https://www.youtube.com/watch?v=${track.videoId}` },
+      });
+
+      if (error || !data?.success || !data?.audioUrl) {
+        toast.error(data?.error || error?.message || 'Could not resolve audio stream. Try another track.');
         return;
       }
+
       const song: Song = {
         id: track.id,
         title: track.title,
         artist: track.artist,
         cover_url: track.cover_url,
-        audio_url: streamUrl,
+        audio_url: data.audioUrl,
         duration: track.duration,
       };
       // Build queue from all YT results
