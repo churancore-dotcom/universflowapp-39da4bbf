@@ -273,7 +273,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
     const ctx = eqState.ctx;
     const now = ctx.currentTime;
     // Bass boost: scale to max +6dB extra on lowest bands (was 3.5 — caused clipping)
-    const boost = (currentBassBoost / 100) * 6;
+    const boost = (currentBassBoost / 100) * 4;
 
     currentBands.forEach((band, i) => {
       if (!eqState.filters[i]) return;
@@ -283,16 +283,15 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
       else if (i === 1) gain += boost * 0.6;
       else if (i === 2) gain += boost * 0.25;
       // Clamp to safe range — the compressor handles the rest
-      const safeGain = Math.max(-12, Math.min(12, gain));
+      const safeGain = Math.max(-8, Math.min(8, gain));
       eqState.filters[i].gain.setTargetAtTime(safeGain, now, 0.05);
     });
 
     // Auto-reduce master gain when boosting heavily to prevent distortion
     if (eqState.gainNode) {
       const maxGain = Math.max(...currentBands.map(b => Math.abs(b.gain)), boost);
-      // Reduce master gain proportionally to prevent clipping
-      const masterGain = maxGain > 6 ? 1 - (maxGain - 6) * 0.04 : 1;
-      eqState.gainNode.gain.setTargetAtTime(Math.max(0.5, masterGain), now, 0.05);
+      const masterGain = maxGain > 4 ? 1 - (maxGain - 4) * 0.06 : 1;
+      eqState.gainNode.gain.setTargetAtTime(Math.max(0.62, masterGain), now, 0.05);
     }
   }
 
@@ -300,8 +299,8 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
     if (!eqState.dryGain || !eqState.wetGain) return;
     const wet = reverbLevel / 100;
     // Keep dry signal strong, blend reverb subtly
-    eqState.dryGain.gain.value = 1 - (wet * 0.15);
-    eqState.wetGain.gain.value = wet * 0.18;
+    eqState.dryGain.gain.value = 1 - (wet * 0.08);
+    eqState.wetGain.gain.value = wet * 0.1;
   }
 
   function applySpeed(speed: number, el?: HTMLAudioElement | null) {

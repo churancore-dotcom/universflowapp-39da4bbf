@@ -51,6 +51,28 @@ interface PlayerContextType {
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
+const EQ_SETTINGS_KEY = 'eq_settings';
+
+const isEqProcessingEnabled = () => {
+  try {
+    const raw = localStorage.getItem(EQ_SETTINGS_KEY);
+    if (!raw) return false;
+
+    const settings = JSON.parse(raw);
+    const hasBands = Array.isArray(settings?.bands) && settings.bands.some((gain: number) => Math.abs(gain) >= 0.5);
+
+    return Boolean(
+      hasBands ||
+      settings?.bassBoost > 0 ||
+      settings?.reverb > 0 ||
+      settings?.spatialAudio ||
+      (settings?.playbackSpeed && settings.playbackSpeed !== 1)
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -62,7 +84,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'off' | 'all' | 'one'>('off');
   const [isExpanded, setExpanded] = useState(false);
-  const [crossfade, setCrossfade] = useState(true);
+  const [crossfade, setCrossfade] = useState(false);
   const [crossfadeDuration, setCrossfadeDurationState] = useState(3);
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [showPrerollAd, setShowPrerollAd] = useState(false);
@@ -367,7 +389,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const handleTimeUpdate = () => {
       // Crossfade logic
-      if (crossfade && queue.length > 1 && audio.duration && !isCrossfading.current) {
+      if (crossfade && !isEqProcessingEnabled() && queue.length > 1 && audio.duration && !isCrossfading.current) {
         const timeLeft = audio.duration - audio.currentTime;
         if (timeLeft <= crossfadeDuration && timeLeft > 0) {
           startCrossfade();
@@ -394,6 +416,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const startCrossfade = useCallback(() => {
     if (!audioRef.current || !nextAudioRef.current || isCrossfading.current) return;
     if (queue.length <= 1) return;
+    if (isEqProcessingEnabled()) return;
 
     const nextIdx = getNextIndex(currentIndex, queue.length, shuffle, repeat);
     if (nextIdx === null) return;

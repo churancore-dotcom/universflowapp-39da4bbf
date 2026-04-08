@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search as SearchIcon, Music, X, Tag, Sparkles, Headphones, Globe, Youtube } from 'lucide-react';
+import { Search as SearchIcon, Music, X, Tag, Sparkles, Headphones, Globe, Radio, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
@@ -13,7 +13,7 @@ import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
-import type { YTMusicResult } from '@/lib/ytMusicSearch';
+import { resolveIndexedTrack, searchIndexedTracks, type IndexedTrack } from '@/lib/musicIndexer';
 import { toast } from 'sonner';
 
 const AUDIUS_BASE = 'https://audius-discovery-1.the-standard.io/v1';
@@ -35,14 +35,25 @@ const moods = [
   { name: 'Focus', color: 'from-violet-500 to-purple-600', icon: '🎯' },
 ];
 
-type SearchSource = 'all' | 'library' | 'audius' | 'ytmusic';
+type SearchSource = 'all' | 'library' | 'audius' | 'indexer';
+
+const mapSongRow = (s: any): Song => ({
+  id: s.id,
+  title: s.title,
+  artist: s.artist,
+  album: s.album || undefined,
+  cover_url: s.cover_url || undefined,
+  audio_url: s.audio_url,
+  artist_id: (s.artists as any)?.id || s.artist_id || undefined,
+  artist_photo_url: (s.artists as any)?.photo_url || undefined,
+});
 
 const Search = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Song[]>([]);
   const [audiusResults, setAudiusResults] = useState<Song[]>([]);
-  const [ytResults, setYtResults] = useState<YTMusicResult[]>([]);
+  const [indexedResults, setIndexedResults] = useState<IndexedTrack[]>([]);
   const [searching, setSearching] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [activeFilter, setActiveFilter] = useState<{ type: 'genre' | 'mood'; value: string } | null>(null);
@@ -66,51 +77,63 @@ const Search = () => {
   }, [searchParams]);
 
   useEffect(() => {
-    if (query.length > 1) {
-      const timer = setTimeout(() => {
-        searchSongs();
-        searchAudius();
-        searchYT();
-      }, 350);
-      return () => clearTimeout(timer);
-    } else if (!activeFilter) {
-      setResults([]);
-      setAudiusResults([]);
-      setYtResults([]);
+    const trimmedQuery = query.trim();
+
+    if (trimmedQuery.length < 2) {
+      if (!activeFilter) {
+        setResults([]);
+        setAudiusResults([]);
+        setIndexedResults([]);
+      }
+      return;
     }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      setActiveFilter(null);
+
+      const [libraryResponse, audiusResponse, indexedResponse] = await Promise.allSettled([
+        searchSongs(trimmedQuery),
+        searchAudius(trimmedQuery),
+        searchIndexedTracks(trimmedQuery),
+      ]);
+
+      if (cancelled) return;
+
+      setResults(libraryResponse.status === 'fulfilled' ? libraryResponse.value : []);
+      setAudiusResults(audiusResponse.status === 'fulfilled' ? audiusResponse.value : []);
+      setIndexedResults(indexedResponse.status === 'fulfilled' ? indexedResponse.value : []);
+      setSearching(false);
+    }, 320);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [query, activeFilter]);
 
-  const searchSongs = async () => {
-    setSearching(true);
-    setActiveFilter(null);
+  const searchSongs = async (searchTerm: string) => {
+    const safeSearchTerm = searchTerm.replace(/[%,]/g, ' ').trim();
     const { data } = await supabase
       .from('songs')
       .select('*, artists(id, name, photo_url)')
       .eq('is_visible', true)
-      .or(`title.ilike.%${query}%,artist.ilike.%${query}%,album.ilike.%${query}%`)
+      .or(`title.ilike.%${safeSearchTerm}%,artist.ilike.%${safeSearchTerm}%,album.ilike.%${safeSearchTerm}%`)
       .limit(15);
-    if (data) {
-      setResults(data.map(s => ({
-        id: s.id, title: s.title, artist: s.artist,
-        album: s.album || undefined, cover_url: s.cover_url || undefined,
-        audio_url: s.audio_url,
-        artist_id: (s.artists as any)?.id || s.artist_id || undefined,
-        artist_photo_url: (s.artists as any)?.photo_url || undefined,
-      })));
-    }
-    setSearching(false);
+    return Array.isArray(data) ? data.map(mapSongRow) : [];
   };
 
-  const searchAudius = async () => {
+  const searchAudius = async (searchTerm: string) => {
     try {
       const res = await fetch(
-        `${AUDIUS_BASE}/tracks/search?query=${encodeURIComponent(query)}&app_name=${APP_NAME}`,
+        `${AUDIUS_BASE}/tracks/search?query=${encodeURIComponent(searchTerm)}&app_name=${APP_NAME}`,
         { headers: { Accept: 'application/json' } }
       );
-      if (!res.ok) return;
+      if (!res.ok) return [];
       const json = await res.json();
       const tracks = (json.data || []).slice(0, 15);
-      setAudiusResults(tracks.map((t: any) => ({
+      return tracks.map((t: any) => ({
         id: `audius-${t.id}`,
         title: t.title,
         artist: t.user?.name || 'Unknown Artist',
@@ -120,101 +143,65 @@ const Search = () => {
       })));
     } catch (err) {
       console.error('Audius search failed:', err);
+      return [];
     }
   };
 
-  const searchYT = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('yt-music-search', {
-        body: { query },
-      });
-
-      if (error || !data?.success) {
-        console.error('YT Music search failed:', error || data?.error);
-        setYtResults([]);
-        return;
-      }
-
-      setYtResults(Array.isArray(data.results) ? data.results : []);
-    } catch (err) {
-      console.error('YT Music search failed:', err);
-      setYtResults([]);
-    }
-  };
-
-  const handlePlayYT = useCallback(async (track: YTMusicResult) => {
+  const handlePlayIndexed = useCallback(async (track: IndexedTrack) => {
     setResolvingId(track.id);
     try {
-      const { data, error } = await supabase.functions.invoke('extract-audio', {
-        body: { url: `https://www.youtube.com/watch?v=${track.videoId}` },
-      });
-
-      if (error || !data?.success || !data?.audioUrl) {
-        toast.error(data?.error || error?.message || 'Could not resolve audio stream. Try another track.');
-        return;
-      }
+      const resolved = await resolveIndexedTrack(track.artist, track.title);
+      if (!resolved.streamUrl) throw new Error('Could not resolve audio stream. Try another track.');
 
       const song: Song = {
         id: track.id,
-        title: track.title,
-        artist: track.artist,
+        title: resolved.title || track.title,
+        artist: resolved.artist || track.artist,
+        album: track.album,
         cover_url: track.cover_url,
-        audio_url: data.audioUrl,
-        duration: track.duration,
+        audio_url: resolved.streamUrl,
+        duration: resolved.duration || track.duration,
       };
-      // Build queue from all YT results
-      const allSongs: Song[] = ytResults.map(r => ({
-        id: r.id, title: r.title, artist: r.artist,
-        cover_url: r.cover_url, audio_url: '', duration: r.duration,
-      }));
-      playSong(song, undefined, allSongs);
-    } catch {
-      toast.error('Playback failed');
+      playSong(song, undefined, [song]);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Playback failed');
     } finally {
       setResolvingId(null);
     }
-  }, [ytResults, playSong]);
+  }, [playSong]);
 
   const searchByGenre = async (genre: string) => {
-    setQuery(''); setActiveFilter({ type: 'genre', value: genre }); setSearching(true);
+    setQuery(''); setActiveFilter({ type: 'genre', value: genre }); setSearching(true); setAudiusResults([]); setIndexedResults([]);
     const { data } = await supabase.from('songs').select('*, artists(id, name, photo_url)')
       .eq('is_visible', true).ilike('genre', `%${genre}%`).limit(20);
     if (data) {
-      setResults(data.map(s => ({
-        id: s.id, title: s.title, artist: s.artist, album: s.album || undefined,
-        cover_url: s.cover_url || undefined, audio_url: s.audio_url,
-        artist_id: (s.artists as any)?.id || s.artist_id || undefined,
-        artist_photo_url: (s.artists as any)?.photo_url || undefined,
-      })));
+      setResults(data.map(mapSongRow));
     }
     setSearching(false);
   };
 
   const searchByMood = async (mood: string) => {
-    setQuery(''); setActiveFilter({ type: 'mood', value: mood }); setSearching(true);
+    setQuery(''); setActiveFilter({ type: 'mood', value: mood }); setSearching(true); setAudiusResults([]); setIndexedResults([]);
     const { data } = await supabase.from('songs').select('*, artists(id, name, photo_url)')
       .eq('is_visible', true).ilike('mood', `%${mood}%`).limit(20);
     if (data) {
-      setResults(data.map(s => ({
-        id: s.id, title: s.title, artist: s.artist, album: s.album || undefined,
-        cover_url: s.cover_url || undefined, audio_url: s.audio_url,
-        artist_id: (s.artists as any)?.id || s.artist_id || undefined,
-        artist_photo_url: (s.artists as any)?.photo_url || undefined,
-      })));
+      setResults(data.map(mapSongRow));
     }
     setSearching(false);
   };
 
   const clearFilter = () => {
     setActiveFilter(null); setQuery('');
-    setResults([]); setAudiusResults([]); setYtResults([]);
+    setResults([]); setAudiusResults([]); setIndexedResults([]);
   };
 
   // Combine results based on source
   const libraryAndAudius: Song[] = source === 'audius' ? audiusResults
     : source === 'library' ? results
-    : source === 'ytmusic' ? []
+    : source === 'indexer' ? []
     : [...results, ...audiusResults];
+
+  const visibleIndexedResults = source === 'all' || source === 'indexer' ? indexedResults : [];
 
   const hasQuery = query.length > 1 || activeFilter;
 
@@ -265,7 +252,7 @@ const Search = () => {
             <div className="flex gap-2 mt-2.5 overflow-x-auto hide-scrollbar">
               {([
                 { key: 'all' as SearchSource, label: 'All', icon: Globe },
-                { key: 'ytmusic' as SearchSource, label: 'YT Music', icon: Youtube },
+                { key: 'indexer' as SearchSource, label: 'Web Stream', icon: Radio },
                 { key: 'library' as SearchSource, label: 'Library', icon: Music },
                 { key: 'audius' as SearchSource, label: 'Audius', icon: Headphones },
               ]).map(tab => (
@@ -278,8 +265,8 @@ const Search = () => {
                   }} whileTap={{ scale: 0.95 }}>
                   <tab.icon className="w-3 h-3" />
                   {tab.label}
-                  {tab.key === 'ytmusic' && ytResults.length > 0 && (
-                    <span className="ml-0.5 text-[10px] opacity-60">{ytResults.length}</span>
+                  {tab.key === 'indexer' && indexedResults.length > 0 && (
+                    <span className="ml-0.5 text-[10px] opacity-60">{indexedResults.length}</span>
                   )}
                   {tab.key === 'audius' && audiusResults.length > 0 && (
                     <span className="ml-0.5 text-[10px] opacity-60">{audiusResults.length}</span>
@@ -358,7 +345,7 @@ const Search = () => {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2 }}>
                   {source !== 'ytmusic' && (
                     <h2 className="text-sm font-bold mb-3">
-                      {source === 'all' ? 'Library & Audius' : source === 'library' ? 'Library' : 'Audius'} · {libraryAndAudius.length} results
+                               {source === 'all' ? 'Library & Audius' : source === 'library' ? 'Library' : 'Audius'} · {libraryAndAudius.length} results
                     </h2>
                   )}
                   <div className="space-y-1">
@@ -414,15 +401,15 @@ const Search = () => {
                 </motion.div>
               )}
 
-              {/* YT Music results */}
-              {(source === 'all' || source === 'ytmusic') && ytResults.length > 0 && (
+              {/* Indexed stream results */}
+              {visibleIndexedResults.length > 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className={libraryAndAudius.length > 0 ? 'mt-6' : ''}>
                   <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
-                    <Youtube className="w-4 h-4 text-red-500" />
-                    YouTube Music · {ytResults.length} results
+                    <Radio className="w-4 h-4 text-primary" />
+                    Web Streams · {visibleIndexedResults.length} results
                   </h2>
                   <div className="space-y-1">
-                    {ytResults.map((track, i) => {
+                    {visibleIndexedResults.map((track, i) => {
                       const isActive = currentSong?.id === track.id;
                       const isResolving = resolvingId === track.id;
                       return (
@@ -430,17 +417,17 @@ const Search = () => {
                           className={`flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer active:scale-[0.98] transition-all ${isActive ? 'bg-primary/10' : 'active:bg-white/5'} ${isResolving ? 'opacity-60' : ''}`}
                           initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: i * 0.025, duration: 0.25 }}
-                          onClick={() => !isResolving && handlePlayYT(track)}>
+                          onClick={() => !isResolving && handlePlayIndexed(track)}>
                           <div className={`relative w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 ${isActive ? 'shadow-lg shadow-primary/20' : 'shadow-md'}`}>
                             {track.cover_url ? (
-                              <img src={track.cover_url} alt="" className="w-full h-full object-cover" />
+                              <img src={track.cover_url} alt={`${track.title} cover art`} className="w-full h-full object-cover" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
                             ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-red-500/20 to-orange-500/20 flex items-center justify-center">
+                              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
                                 <Music className="w-4 h-4 text-foreground/30" />
                               </div>
                             )}
-                            <div className="absolute bottom-0 right-0 w-4 h-4 rounded-tl-md bg-red-600 flex items-center justify-center">
-                              <Youtube className="w-2.5 h-2.5 text-white" />
+                            <div className="absolute bottom-0 right-0 w-4 h-4 rounded-tl-md bg-primary flex items-center justify-center">
+                              <Radio className="w-2.5 h-2.5 text-primary-foreground" />
                             </div>
                           </div>
                           <div className="flex-1 min-w-0">
@@ -449,7 +436,7 @@ const Search = () => {
                             </p>
                             <p className="text-[11px] text-muted-foreground/60 truncate mt-0.5">
                               {track.artist}
-                              <span className="ml-1 text-red-400">· YT Music</span>
+                              <span className="ml-1 text-primary">· Singer</span>
                             </p>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0">
@@ -460,7 +447,7 @@ const Search = () => {
                                 ))}
                               </div>
                             ) : isResolving ? (
-                              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                              <Loader2 className="w-4 h-4 animate-spin text-primary" />
                             ) : null}
                           </div>
                         </motion.div>
@@ -471,7 +458,7 @@ const Search = () => {
               )}
 
               {/* No results */}
-              {(query.length > 1 || activeFilter) && !searching && libraryAndAudius.length === 0 && ytResults.length === 0 && (
+              {(query.length > 1 || activeFilter) && !searching && libraryAndAudius.length === 0 && visibleIndexedResults.length === 0 && (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.06)' }}>

@@ -1,13 +1,13 @@
 import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/contexts/AuthContext';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { useSongCache } from '@/hooks/useSongCache';
 import SongCard from '@/components/SongCard';
 import HorizontalSection from '@/components/HorizontalSection';
 import AllSongsSection from '@/components/AllSongsSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
+import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
 import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
 import AudiusTrending from '@/components/AudiusTrending';
@@ -19,7 +19,6 @@ import EqualizerModal from '@/components/EqualizerModal';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import { TabTransition } from '@/components/PageTransition';
 import { Music, Lock, ListMusic, Sliders, Headphones } from 'lucide-react';
-import { toast } from 'sonner';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import appLogo from '@/assets/app-logo.png';
 import { HomeSkeleton } from '@/components/PageSkeletons';
@@ -54,7 +53,6 @@ const LoadingSkeleton = memo(() => (
 LoadingSkeleton.displayName = 'LoadingSkeleton';
 
 const Home = () => {
-  const { user } = useAuth();
   const { currentSong } = usePlayer();
   const { cachedSongs, updateCache } = useSongCache();
   const [songs, setSongs] = useState<Song[]>(cachedSongs || []);
@@ -296,7 +294,9 @@ const Home = () => {
                 </motion.div>
               )}
 
-              {/* Audius Trending */}
+               <GlobalTopTracksSection />
+
+               {/* Audius Trending */}
               <AudiusTrending />
 
               {/* Featured Artists */}
