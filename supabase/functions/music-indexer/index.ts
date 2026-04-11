@@ -419,14 +419,18 @@ async function resolveStream(artist: string, title: string): Promise<ResolveResu
 
   await refreshInstances();
 
+  console.log(`[resolve] searching for: ${artist} - ${title}`);
   const candidates = await searchForCandidates(artist, title);
+  console.log(`[resolve] found ${candidates.length} candidates: ${candidates.map(c => c.videoId).join(', ')}`);
+
   if (!candidates.length) {
     return { success: false, error: 'Could not find a playable stream for this track' };
   }
 
-  // Try candidates sequentially (but each candidate resolves in parallel across instances)
-  for (const candidate of candidates) {
+  // Try top 3 candidates only (each resolves in parallel across instances)
+  for (const candidate of candidates.slice(0, 3)) {
     const videoId = String(candidate.videoId);
+    console.log(`[resolve] trying videoId: ${videoId}`);
     const resolved = await resolveVideoId(videoId);
     if (resolved) {
       const result: ResolveResult = {
