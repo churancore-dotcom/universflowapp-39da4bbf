@@ -484,11 +484,16 @@ async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; dur
         return { streamUrl: url, duration: Number(data.duration || 0) || undefined };
       } catch (e) { markFailed(inst); throw e; }
     }),
-    ...inv.slice(0, 2).map(async (inst) => {
+    ...inv.slice(0, 3).map(async (inst) => {
       try {
         const data = await fetchJson(`${inst}/api/v1/videos/${videoId}`, 7000);
         const url = pickBestStream(data, inst);
         if (!url) throw new Error('no audio stream');
+        // Skip non-CORS URLs — they will fail in browser playback
+        if (!isCorsCompatible(url)) {
+          console.warn(`[resolve] skipping non-CORS stream from ${inst}`);
+          throw new Error('non-CORS stream');
+        }
         console.log(`[resolve] ✓ ${videoId} via ${inst}`);
         return { streamUrl: url, duration: Number(data.lengthSeconds || 0) || undefined };
       } catch (e) { markFailed(inst); throw e; }
