@@ -3,7 +3,13 @@ import { motion } from 'framer-motion';
 import { Headphones, TrendingUp } from 'lucide-react';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 
-const AUDIUS_BASE = 'https://audius-discovery-1.the-standard.io/v1';
+const AUDIUS_NODES = [
+  'https://audius-discovery-1.the-standard.io/v1',
+  'https://audius-discovery-2.the-standard.io/v1',
+  'https://discoveryprovider.audius.co/v1',
+  'https://discoveryprovider2.audius.co/v1',
+  'https://discoveryprovider3.audius.co/v1',
+];
 const APP_NAME = 'univers_flow_official';
 
 interface AudiusTrack {
@@ -21,39 +27,50 @@ const AudiusTrending = memo(() => {
 
   useEffect(() => {
     const fetchTrending = async () => {
-      try {
-        const res = await fetch(`${AUDIUS_BASE}/tracks/trending?app_name=${APP_NAME}`, {
-          headers: { 'Accept': 'application/json' },
-        });
-        if (!res.ok) throw new Error('Audius API error');
-        const json = await res.json();
-        setTracks((json.data || []).slice(0, 20));
-      } catch (err) {
-        console.error('Audius trending fetch failed:', err);
-      } finally {
-        setLoading(false);
+      for (const node of AUDIUS_NODES) {
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
+          const res = await fetch(`${node}/tracks/trending?app_name=${APP_NAME}`, {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          if (!res.ok) continue;
+          const json = await res.json();
+          const data = (json.data || []).slice(0, 20);
+          if (data.length > 0) {
+            setTracks(data);
+            // Store working node
+            localStorage.setItem('uf_audius_node', node);
+            break;
+          }
+        } catch {
+          continue;
+        }
       }
+      setLoading(false);
     };
     fetchTrending();
   }, []);
 
   const handlePlay = (track: AudiusTrack) => {
+    const node = localStorage.getItem('uf_audius_node') || AUDIUS_NODES[0];
     const song: Song = {
       id: `audius-${track.id}`,
       title: track.title,
       artist: track.user.name,
       cover_url: track.artwork?.['480x480'] || track.artwork?.['150x150'] || undefined,
-      audio_url: `${AUDIUS_BASE}/tracks/${track.id}/stream?app_name=${APP_NAME}`,
+      audio_url: `${node}/tracks/${track.id}/stream?app_name=${APP_NAME}`,
       duration: track.duration,
     };
     
-    // Build queue from all Audius tracks
     const queue: Song[] = tracks.map(t => ({
       id: `audius-${t.id}`,
       title: t.title,
       artist: t.user.name,
       cover_url: t.artwork?.['480x480'] || t.artwork?.['150x150'] || undefined,
-      audio_url: `${AUDIUS_BASE}/tracks/${t.id}/stream?app_name=${APP_NAME}`,
+      audio_url: `${node}/tracks/${t.id}/stream?app_name=${APP_NAME}`,
       duration: t.duration,
     }));
     
@@ -86,7 +103,7 @@ const AudiusTrending = memo(() => {
     <div className="space-y-3">
       <div className="flex items-center gap-2 px-1">
         <TrendingUp className="w-4 h-4 text-primary" />
-        <h2 className="text-base font-bold">Trending on Audius</h2>
+        <h2 className="text-base font-bold">Indie & Underground</h2>
       </div>
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
         {tracks.map((track) => (

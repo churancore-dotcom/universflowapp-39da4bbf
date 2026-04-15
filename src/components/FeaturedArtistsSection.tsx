@@ -64,7 +64,7 @@ const ArtistCard = memo(({ artist, index }: { artist: Artist; index: number }) =
         {artist.name}
       </p>
       <p className="text-[9px] text-muted-foreground/40 mt-0.5 font-medium">
-        {artist.song_count} {artist.song_count === 1 ? 'song' : 'songs'}
+        Artist
       </p>
     </motion.button>
   );
