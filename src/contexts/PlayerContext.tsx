@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { useMediaSession } from '@/hooks/useMediaSession';
 import { supabase } from '@/integrations/supabase/client';
+import { resolveIndexedTrack } from '@/lib/musicIndexer';
 
 export interface Song {
   id: string;
