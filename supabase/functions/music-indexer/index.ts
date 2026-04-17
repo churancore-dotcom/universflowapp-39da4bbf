@@ -6,6 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const AUDIO_PROXY_ALLOWED_HOST_SNIPPETS = [
+  'private.coffee',
+  'googlevideo.com',
+  'youtube.com',
+  'youtu.be',
+  'invidious',
+  'piped',
+];
+
 const LASTFM_API_KEY = Deno.env.get('LASTFM_API_KEY') || '';
 const YOUTUBE_API_KEY = Deno.env.get('YOUTUBE_API_KEY') || '';
 const LASTFM_BASE_URL = 'https://ws.audioscrobbler.com/2.0/';
@@ -475,6 +484,16 @@ function isCorsCompatible(url: string) {
   return true;
 }
 
+function isAllowedAudioProxyUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+    return AUDIO_PROXY_ALLOWED_HOST_SNIPPETS.some((snippet) => parsed.hostname.includes(snippet));
+  } catch {
+    return false;
+  }
+}
+
 function pickBestStream(data: Record<string, any>, instance: string) {
   const adaptive = Array.isArray(data.adaptiveFormats) ? data.adaptiveFormats : [];
   const audio = adaptive
@@ -609,6 +628,36 @@ serve(async (req) => {
   }
 
   try {
+    const requestUrl = new URL(req.url);
+    const audioTarget = requestUrl.searchParams.get('audio');
+
+    if ((req.method === 'GET' || req.method === 'HEAD') && audioTarget) {
+      if (!isAllowedAudioProxyUrl(audioTarget)) {
+        return new Response('Invalid audio source', { status: 400, headers: corsHeaders });
+      }
+
+      const range = req.headers.get('range');
+      const upstream = await fetch(audioTarget, {
+        method: req.method,
+        headers: {
+          ...(range ? { range } : {}),
+          'user-agent': 'Mozilla/5.0 (UniversFlow Audio Proxy)',
+          accept: '*/*',
+        },
+      });
+
+      const headers = new Headers(corsHeaders);
+      ['content-type', 'content-length', 'content-range', 'accept-ranges', 'cache-control', 'etag', 'last-modified'].forEach((name) => {
+        const value = upstream.headers.get(name);
+        if (value) headers.set(name, value);
+      });
+
+      return new Response(req.method === 'HEAD' ? null : upstream.body, {
+        status: upstream.status,
+        headers,
+      });
+    }
+
     // ── Auth check ──
     const authHeader = req.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
