@@ -122,6 +122,8 @@ export const PlayWithMateProvider = ({ children }: { children: ReactNode }) => {
 
   const [room, setRoom] = useState<ActiveRoom | null>(readStoredRoom());
   const [participants, setParticipants] = useState<MateParticipant[]>([]);
+  const [reactions, setReactions] = useState<MateReaction[]>([]);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [loading, setLoading] = useState(false);
   const [profile, setProfile] = useState<{ username: string; avatarUrl?: string } | null>(null);
 
