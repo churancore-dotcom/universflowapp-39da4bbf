@@ -238,6 +238,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isCrossfading = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
 
+  // YouTube IFrame fallback
+  const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
+  const youtubeProgressRef = useRef<number | null>(null);
+  const youtubeActiveRef = useRef(false);
+  const youtubeEndCallbackRef = useRef<(() => void) | null>(null);
+
   // Check premium status on mount
   useEffect(() => {
     const checkStatus = async () => {
