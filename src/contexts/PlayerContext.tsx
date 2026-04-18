@@ -852,21 +852,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       queuedSong.id === song.id ? { ...queuedSong, audio_url: playbackSource } : queuedSong,
     );
 
-    // Set audio source - use offline URL if available
-    const playbackUrl = offlineUrl || buildStreamProxyUrl(playbackSource);
-    configureAudioElementSource(audioRef.current, playbackUrl);
-    audioRef.current.volume = volume;
-    audioRef.current.currentTime = 0;
-
-    // Load and play immediately
-    audioRef.current.load();
-    const playPromise = audioRef.current.play();
-    if (playPromise) {
-      playPromise.catch(err => {
-        console.warn('Playback failed:', err?.message);
+    // ── YouTube IFrame fallback path ──
+    if (!offlineUrl && isYouTubeFallbackUrl(playbackSource)) {
+      const videoId = getYouTubeFallbackVideoId(playbackSource);
+      if (videoId) {
+        await playYouTubeFallback(videoId, () => {
+          try { audioRef.current?.dispatchEvent(new Event('ended')); } catch { /* ignore */ }
+        });
+      } else {
         setIsPlaying(false);
-        toast.error('This song could not start — trying another source helps while the stream refreshes.');
-      });
+        toast.error('This song could not start right now.');
+      }
+    } else {
+      teardownYouTubePlayback();
+
+      // Set audio source - use offline URL if available
+      const playbackUrl = offlineUrl || buildStreamProxyUrl(playbackSource);
+      configureAudioElementSource(audioRef.current, playbackUrl);
+      audioRef.current.volume = volume;
+      audioRef.current.currentTime = 0;
+
+      // Load and play immediately
+      audioRef.current.load();
+      const playPromise = audioRef.current.play();
+      if (playPromise) {
+        playPromise.catch(err => {
+          console.warn('Playback failed:', err?.message);
+          setIsPlaying(false);
+          toast.error('This song could not start — trying another source helps while the stream refreshes.');
+        });
+      }
     }
 
     // If a queue is provided, use it
