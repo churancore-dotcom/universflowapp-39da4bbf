@@ -1,4 +1,5 @@
-import { useState, lazy, Suspense } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
+import { supabase } from "@/integrations/supabase/client";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -12,6 +13,9 @@ import SplashScreen from "./components/SplashScreen";
 import Onboarding from "./components/Onboarding";
 import MobileShell from "./components/MobileShell";
 import MateHeartButton from "./components/MateHeartButton";
+import ArtistPicker from "./components/ArtistPicker";
+import RateUsPopup from "./components/RateUsPopup";
+import ReviewModal from "./components/ReviewModal";
 import { NavDirectionProvider } from "./components/PageTransition";
 import SEOHead from "./components/SEOHead";
 import Auth from "./pages/Auth";
@@ -181,6 +185,39 @@ const PrerollAdWrapper = () => {
   );
 };
 
+const PostAuthGate = () => {
+  const { user } = useAuth();
+  const [showPicker, setShowPicker] = useState(false);
+  const [showReview, setShowReview] = useState(false);
+
+  // Open artist picker once per new user
+  useEffect(() => {
+    if (!user) return;
+    const key = `uf_artists_picked_${user.id}`;
+    if (localStorage.getItem(key)) return;
+    // Check DB in case picked on another device
+    supabase.from('user_artist_preferences').select('id').eq('user_id', user.id).limit(1)
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          localStorage.setItem(key, '1');
+        } else {
+          setTimeout(() => setShowPicker(true), 800);
+        }
+      });
+  }, [user]);
+
+  if (!user) return null;
+  return (
+    <>
+      <AnimatePresence>
+        {showPicker && <ArtistPicker key="picker" onComplete={() => setShowPicker(false)} />}
+      </AnimatePresence>
+      {!showPicker && <RateUsPopup onOpenReview={() => setShowReview(true)} />}
+      <ReviewModal isOpen={showReview} onClose={() => setShowReview(false)} />
+    </>
+  );
+};
+
 const AppContent = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -218,6 +255,7 @@ const AppContent = () => {
       </AnimatePresence>
       <PrerollAdWrapper />
       <MateHeartButton />
+      <PostAuthGate />
       <Suspense fallback={null}>
         <DownloadQueuePanel />
         <PWAInstallBanner />

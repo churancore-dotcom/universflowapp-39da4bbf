@@ -80,6 +80,36 @@ export type Database = {
         }
         Relationships: []
       }
+      app_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          display_name: string
+          id: string
+          rating: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          display_name: string
+          id?: string
+          rating: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          rating?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           description: string | null
@@ -742,6 +772,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_artist_preferences: {
+        Row: {
+          artist_image: string | null
+          artist_name: string
+          artist_source: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          artist_image?: string | null
+          artist_name: string
+          artist_source?: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          artist_image?: string | null
+          artist_name?: string
+          artist_source?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       user_library: {
         Row: {
