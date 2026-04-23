@@ -924,13 +924,70 @@ serve(async (req) => {
         });
       }
       try {
-        const results = await searchLastFm(query, limit);
+        const results = await smartSearch(query, limit);
         return new Response(JSON.stringify({ success: true, results }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       } catch (error) {
         console.error('music-indexer search error:', error);
         return new Response(JSON.stringify({ success: true, results: [], error: 'Search is temporarily unavailable' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    if (action === 'search-artists') {
+      const query = typeof body.query === 'string' ? body.query.trim() : '';
+      const limit = Math.max(1, Math.min(60, typeof body.limit === 'number' ? body.limit : 30));
+      if (query.length < 2) {
+        return new Response(JSON.stringify({ success: false, error: 'Query must be at least 2 characters' }), {
+          status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      try {
+        const results = await searchArtistDirectory(query, limit);
+        return new Response(JSON.stringify({ success: true, results }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('music-indexer search-artists error:', error);
+        return new Response(JSON.stringify({ success: true, results: [] }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    if (action === 'top-artists') {
+      const tag = typeof body.tag === 'string' && body.tag.trim() ? body.tag.trim() : 'pop';
+      const limit = Math.max(1, Math.min(60, typeof body.limit === 'number' ? body.limit : 40));
+      try {
+        const results = await getTopArtistsByTag(tag, limit);
+        return new Response(JSON.stringify({ success: true, results }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('music-indexer top-artists error:', error);
+        return new Response(JSON.stringify({ success: true, results: [] }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
+    if (action === 'enrich-artist-images') {
+      const names = Array.isArray(body.names) ? body.names.filter((n: unknown): n is string => typeof n === 'string').slice(0, 60) : [];
+      if (!names.length) {
+        return new Response(JSON.stringify({ success: true, results: {} }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      try {
+        const results = await enrichArtistImages(names);
+        return new Response(JSON.stringify({ success: true, results }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      } catch (error) {
+        console.error('music-indexer enrich-artist-images error:', error);
+        return new Response(JSON.stringify({ success: true, results: {} }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
