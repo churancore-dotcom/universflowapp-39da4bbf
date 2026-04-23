@@ -139,3 +139,64 @@ export function prefetchIndexedTrack(artist: string, title: string) {
   if (getCachedStream(cacheKey) || inFlightResolutions.has(cacheKey)) return;
   void resolveIndexedTrack(artist, title).catch(() => null);
 }
+
+// ── Artist directory (with real PFPs from Deezer) ──
+
+export interface IndexedArtistInfo {
+  name: string;
+  image_url?: string;
+  listeners?: number;
+}
+
+interface ArtistDirectoryResponse {
+  success: boolean;
+  results?: IndexedArtistInfo[];
+  error?: string;
+}
+
+interface ArtistImagesResponse {
+  success: boolean;
+  results?: Record<string, string>;
+  error?: string;
+}
+
+export async function searchArtistDirectory(query: string, limit = 30): Promise<IndexedArtistInfo[]> {
+  if (!query || query.trim().length < 2) return [];
+  try {
+    const data = await requestIndexer<ArtistDirectoryResponse>({
+      action: 'search-artists',
+      query: query.trim(),
+      limit,
+    });
+    return Array.isArray(data.results) ? data.results : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function getTopArtistsByTag(tag: string, limit = 40): Promise<IndexedArtistInfo[]> {
+  try {
+    const data = await requestIndexer<ArtistDirectoryResponse>({
+      action: 'top-artists',
+      tag,
+      limit,
+    });
+    return Array.isArray(data.results) ? data.results : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function enrichArtistImages(names: string[]): Promise<Record<string, string>> {
+  const filtered = names.filter((n) => typeof n === 'string' && n.trim()).slice(0, 60);
+  if (!filtered.length) return {};
+  try {
+    const data = await requestIndexer<ArtistImagesResponse>({
+      action: 'enrich-artist-images',
+      names: filtered,
+    });
+    return data.results && typeof data.results === 'object' ? data.results : {};
+  } catch {
+    return {};
+  }
+}
