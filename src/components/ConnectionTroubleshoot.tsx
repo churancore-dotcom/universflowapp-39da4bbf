@@ -34,9 +34,22 @@ const ConnectionTroubleshoot = memo(function ConnectionTroubleshoot() {
 
   useEffect(() => {
     checkConnection();
-    const interval = setInterval(checkConnection, 30000);
-    return () => clearInterval(interval);
-  }, [checkConnection]);
+    // Only poll while we believe we're disconnected. When connected, rely on
+    // browser online/offline events to avoid wasteful background HEAD requests.
+    let interval: number | null = null;
+    if (status !== 'connected') {
+      interval = window.setInterval(checkConnection, 30000);
+    }
+    const handleOnline = () => checkConnection();
+    const handleOffline = () => setStatus('unreachable');
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      if (interval) clearInterval(interval);
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [checkConnection, status]);
 
   useEffect(() => {
     if (status === 'connected') {

@@ -109,13 +109,9 @@ const configureAudioElementSource = (audio: HTMLAudioElement, sourceUrl: string)
   audio.src = sourceUrl;
 };
 
+// Hosts that already deliver proper CORS headers — safe to play & EQ-process directly
 const DIRECT_PLAYABLE_HOST_SNIPPETS = [
   'supabase.co',
-  'googleusercontent.com',
-  'sndcdn.com',
-  'scdn.co',
-  'cdninstagram.com',
-  'fbcdn.net',
 ];
 
 const shouldProxyStreamUrl = (sourceUrl: string) => {
@@ -126,6 +122,8 @@ const shouldProxyStreamUrl = (sourceUrl: string) => {
     if (parsed.origin === window.location.origin) return false;
     if (sourceUrl.includes('/functions/v1/music-indexer?audio=')) return false;
 
+    // Route ALL non-catalog streams through the CORS-enabled proxy so the
+    // equalizer / Web Audio graph can process them without tainting.
     return !DIRECT_PLAYABLE_HOST_SNIPPETS.some((host) => parsed.hostname.endsWith(host));
   } catch {
     return false;

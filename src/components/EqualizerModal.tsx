@@ -114,7 +114,14 @@ function isEqCompatibleSource(audioElement: HTMLAudioElement) {
   const sourceUrl = audioElement.currentSrc || audioElement.src;
   if (!sourceUrl) return false;
   if (audioElement.crossOrigin === 'anonymous') return true;
-  return sourceUrl.startsWith('blob:') || sourceUrl.startsWith('data:');
+  if (sourceUrl.startsWith('blob:') || sourceUrl.startsWith('data:')) return true;
+  // Same-origin and our Supabase proxy / catalog URLs are CORS-safe by default
+  try {
+    const parsed = new URL(sourceUrl, window.location.href);
+    if (parsed.origin === window.location.origin) return true;
+    if (parsed.hostname.endsWith('supabase.co')) return true;
+  } catch {}
+  return false;
 }
 
 function getAudioSignature(audioElement: HTMLAudioElement) {
