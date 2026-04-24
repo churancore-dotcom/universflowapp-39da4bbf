@@ -12,8 +12,6 @@ import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
 import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
 import BottomNav from '@/components/BottomNav';
-import MiniPlayer from '@/components/MiniPlayer';
-import FullscreenPlayer from '@/components/FullscreenPlayer';
 import LockScreenPlayer from '@/components/LockScreenPlayer';
 import EqualizerModal from '@/components/EqualizerModal';
 import OfflineIndicator from '@/components/OfflineIndicator';
@@ -322,8 +320,6 @@ const Home = () => {
         </main>
 
         <BottomNav />
-        <MiniPlayer />
-        <FullscreenPlayer />
         {showLockScreen && <LockScreenPlayer isOpen={showLockScreen} onClose={() => setShowLockScreen(false)} />}
         {showSleepTimer && <SleepTimerModal isOpen={showSleepTimer} onClose={() => setShowSleepTimer(false)} />}
         {showQueue && <QueueDrawer isOpen={showQueue} onClose={() => setShowQueue(false)} />}

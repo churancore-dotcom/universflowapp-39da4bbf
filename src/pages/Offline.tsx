@@ -5,8 +5,6 @@ import { usePlayer } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
-import MiniPlayer from '@/components/MiniPlayer';
-import FullscreenPlayer from '@/components/FullscreenPlayer';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { iosSpring, staggerContainer, staggerItem } from '@/lib/animations';
 
@@ -243,8 +241,6 @@ const Offline = memo(function Offline() {
       </div>
 
       {/* Bottom Navigation */}
-      <MiniPlayer />
-      <FullscreenPlayer />
       <BottomNav />
     </div>
   );

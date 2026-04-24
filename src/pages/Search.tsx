@@ -6,8 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import BottomNav from '@/components/BottomNav';
-import MiniPlayer from '@/components/MiniPlayer';
-import FullscreenPlayer from '@/components/FullscreenPlayer';
 import LikeButton from '@/components/LikeButton';
 import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
@@ -587,8 +585,6 @@ const Search = () => {
         </main>
 
         <BottomNav />
-        <MiniPlayer />
-        <FullscreenPlayer />
       </div>
     </TabTransition>
   );

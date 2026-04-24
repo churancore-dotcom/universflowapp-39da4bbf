@@ -17,6 +17,7 @@ import ArtistPicker from "./components/ArtistPicker";
 import RateUsPopup from "./components/RateUsPopup";
 import ReviewModal from "./components/ReviewModal";
 import { NavDirectionProvider } from "./components/PageTransition";
+import GlobalPlayerLayer from "./components/GlobalPlayerLayer";
 import SEOHead from "./components/SEOHead";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -272,6 +273,7 @@ const AppContent = () => {
         )}
       </AnimatePresence>
       <PrerollAdWrapper />
+      <GlobalPlayerLayer />
       <MateHeartButton />
       <PostAuthGate />
       <Suspense fallback={null}>

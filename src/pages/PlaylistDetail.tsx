@@ -10,8 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import BottomNav from '@/components/BottomNav';
-import MiniPlayer from '@/components/MiniPlayer';
-import FullscreenPlayer from '@/components/FullscreenPlayer';
 import LikeButton from '@/components/LikeButton';
 import DownloadButton from '@/components/DownloadButton';
 import DownloadAllButton from '@/components/DownloadAllButton';
@@ -408,8 +406,6 @@ const PlaylistDetail = () => {
         </div>
 
         <BottomNav />
-        <MiniPlayer />
-        <FullscreenPlayer />
 
         {/* Add songs modal */}
         <AddSongsToPlaylistModal

@@ -3,8 +3,6 @@ import { motion } from 'framer-motion';
 import { ChevronLeft, Heart, Coffee, Crown, Star, ExternalLink, Gift } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
-import MiniPlayer from '@/components/MiniPlayer';
-import FullscreenPlayer from '@/components/FullscreenPlayer';
 import PageTransition from '@/components/PageTransition';
 import { iosSpring, iosBounce } from '@/lib/animations';
 import { useAuth } from '@/contexts/AuthContext';
@@ -262,8 +260,6 @@ const Support = () => {
         </main>
 
         <BottomNav />
-        <MiniPlayer />
-        <FullscreenPlayer />
       </motion.div>
     </PageTransition>
   );

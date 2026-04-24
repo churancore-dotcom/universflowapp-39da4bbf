@@ -1,5 +1,7 @@
 import { memo, useCallback, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
+// NOTE: This component is now mounted ONCE at App level via GlobalPlayerLayer
+// to prevent flicker on route changes. Do not re-mount it inside individual pages.
 import { Play, Pause, SkipForward, X } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { triggerHaptic } from '@/hooks/useHaptics';
@@ -124,10 +126,9 @@ const MiniPlayer = memo(function MiniPlayer() {
   const swipeOpacity = Math.min(Math.abs(dragX) / 150, 0.5);
 
   return (
-    <AnimatePresence>
-      <motion.div
-        className="fixed left-0 right-0 w-full z-40 px-2"
-        style={{ bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}
+    <motion.div
+      className="fixed left-0 right-0 w-full z-40 px-2"
+      style={{ bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))' }}
         initial={{ y: 60, opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
         animate={{ 
           y: isNavVisible ? 0 : 100, 
@@ -300,8 +301,7 @@ const MiniPlayer = memo(function MiniPlayer() {
             </div>
           </div>
         </motion.div>
-      </motion.div>
-    </AnimatePresence>
+    </motion.div>
   );
 });
 

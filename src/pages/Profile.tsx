@@ -6,8 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePremium } from '@/hooks/usePremium';
 import BottomNav from '@/components/BottomNav';
-import MiniPlayer from '@/components/MiniPlayer';
-import FullscreenPlayer from '@/components/FullscreenPlayer';
 import ListeningStats from '@/components/ListeningStats';
 import RedeemCodeModal from '@/components/RedeemCodeModal';
 import ReviewModal from '@/components/ReviewModal';
@@ -319,8 +317,6 @@ const Profile = () => {
         </main>
 
         <BottomNav />
-        <MiniPlayer />
-        <FullscreenPlayer />
         {showStats && <ListeningStats isOpen={showStats} onClose={() => setShowStats(false)} />}
         {showRedeemCode && <RedeemCodeModal isOpen={showRedeemCode} onClose={() => setShowRedeemCode(false)} />}
         <ReviewModal isOpen={showReview} onClose={() => setShowReview(false)} onSubmitted={() => setHasReviewed(true)} />

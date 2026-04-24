@@ -7,8 +7,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import BottomNav from '@/components/BottomNav';
-import MiniPlayer from '@/components/MiniPlayer';
-import FullscreenPlayer from '@/components/FullscreenPlayer';
 import CreatePlaylistModal from '@/components/CreatePlaylistModal';
 import LikeButton from '@/components/LikeButton';
 import DownloadButton from '@/components/DownloadButton';
@@ -418,8 +416,6 @@ const Library = () => {
         </main>
 
         <BottomNav />
-        <MiniPlayer />
-        <FullscreenPlayer />
         {showCreatePlaylist && <CreatePlaylistModal isOpen={showCreatePlaylist} onClose={() => setShowCreatePlaylist(false)} onCreated={fetchLibrary} />}
       </div>
     </TabTransition>

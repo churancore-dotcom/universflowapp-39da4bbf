@@ -7,8 +7,6 @@ import {
 import { useNavigate } from 'react-router-dom';
 import PageTransition from '@/components/PageTransition';
 import BottomNav from '@/components/BottomNav';
-import MiniPlayer from '@/components/MiniPlayer';
-import FullscreenPlayer from '@/components/FullscreenPlayer';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { usePremium } from '@/hooks/usePremium';
@@ -448,8 +446,6 @@ const PlayWithMate = () => {
         </main>
 
         <BottomNav />
-        <MiniPlayer />
-        <FullscreenPlayer />
       </div>
     </PageTransition>
   );

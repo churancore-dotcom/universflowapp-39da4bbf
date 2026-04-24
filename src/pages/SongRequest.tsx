@@ -6,8 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import BottomNav from '@/components/BottomNav';
-import MiniPlayer from '@/components/MiniPlayer';
-import FullscreenPlayer from '@/components/FullscreenPlayer';
 import PageTransition from '@/components/PageTransition';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -311,8 +309,6 @@ const SongRequest = () => {
         </main>
 
         <BottomNav />
-        <MiniPlayer />
-        <FullscreenPlayer />
       </div>
     </PageTransition>
   );
