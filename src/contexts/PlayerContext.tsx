@@ -235,6 +235,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const crossfadeIntervalRef = useRef<number | null>(null);
   const isCrossfading = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
+  const recentlyPlayedTimerRef = useRef<number | null>(null);
+  const queueRestoredRef = useRef(false);
 
   // YouTube IFrame fallback
   const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
