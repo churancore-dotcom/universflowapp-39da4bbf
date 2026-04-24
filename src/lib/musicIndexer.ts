@@ -216,36 +216,6 @@ async function resolveViaEdgeFunction(artist: string, title: string, cacheKey: s
   return result;
 }
 
-// Removed legacy duplicate — kept above as the unified pending block.
-function _removed_legacy() {
-
-  const pending = (async () => {
-    const result = await requestIndexer<ResolveTrackResponse>({
-      action: 'resolve',
-      artist,
-      title,
-    });
-
-    if (!result?.success || !result.streamUrl) {
-      throw new Error(result?.error || 'Could not find a playable stream for this track');
-    }
-
-    setCachedStream(cacheKey, result.streamUrl, {
-      title: result.title,
-      artist: result.artist,
-      cover_url: result.cover_url,
-      duration: result.duration,
-      videoId: result.videoId,
-    });
-
-    return result;
-  })().finally(() => {
-    inFlightResolutions.delete(cacheKey);
-  });
-
-  inFlightResolutions.set(cacheKey, pending);
-  return pending;
-}
 
 export function prefetchIndexedTrack(artist: string, title: string) {
   const cacheKey = makeCacheKey(artist, title);
