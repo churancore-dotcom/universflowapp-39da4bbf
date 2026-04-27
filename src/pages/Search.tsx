@@ -308,41 +308,6 @@ const Search = () => {
                     </div>
                   </div>
                 )}
-                <h2 className="text-sm font-bold mb-2.5 flex items-center gap-1.5">
-                  <Sparkles className="w-4 h-4 text-accent" /> Moods
-                </h2>
-                <div className="flex gap-2.5 overflow-x-auto pb-4 -mx-4 px-4 hide-scrollbar">
-                  {moods.map((mood, i) => (
-                    <motion.button key={mood.name}
-                      className={`flex-shrink-0 w-[85px] h-16 rounded-2xl overflow-hidden relative bg-gradient-to-br ${mood.color}`}
-                      onClick={() => searchByMood(mood.name)}
-                      initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: i * 0.05 }} whileTap={{ scale: 0.93 }}
-                      style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.3)' }}>
-                      <div className="absolute inset-0 flex flex-col items-center justify-center">
-                        <span className="text-xl mb-0.5">{mood.icon}</span>
-                        <span className="text-[10px] font-bold text-primary-foreground">{mood.name}</span>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-
-                <h2 className="text-sm font-bold mb-2.5 mt-1 flex items-center gap-1.5">
-                  <Tag className="w-4 h-4 text-primary" /> Genres
-                </h2>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {genres.map((genre, i) => (
-                    <motion.button key={genre.name}
-                      className={`relative h-20 rounded-2xl overflow-hidden bg-gradient-to-br ${genre.color}`}
-                      onClick={() => searchByGenre(genre.name)}
-                      initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.05 + 0.1 }} whileTap={{ scale: 0.95 }}
-                      style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.3)' }}>
-                      <span className="absolute top-2.5 right-2.5 text-xl">{genre.icon}</span>
-                      <span className="absolute bottom-2.5 left-3 text-sm font-bold text-primary-foreground">{genre.name}</span>
-                    </motion.button>
-                  ))}
-                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -458,7 +423,7 @@ const Search = () => {
               )}
 
               {/* No results */}
-              {(query.length > 1 || activeFilter) && !searching && libraryResults.length === 0 && visibleIndexedResults.length === 0 && (
+              {query.length > 1 && !searching && libraryResults.length === 0 && visibleIndexedResults.length === 0 && (
                 <div className="text-center py-8">
                   <div className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
                     style={{ background: 'rgba(255,255,255,0.04)', border: '0.5px solid rgba(255,255,255,0.06)' }}>
