@@ -205,20 +205,6 @@ const Search = () => {
             </div>
           )}
 
-          {activeFilter && (
-            <motion.div className="mt-2.5 flex items-center gap-2"
-              initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }}>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-                style={{
-                  background: activeFilter.type === 'genre' ? 'hsl(var(--primary) / 0.15)' : 'hsl(var(--accent) / 0.15)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                }}>
-                {activeFilter.type === 'genre' ? <Tag className="w-3 h-3 text-primary" /> : <Sparkles className="w-3 h-3 text-accent" />}
-                <span className="font-medium text-xs">{activeFilter.value}</span>
-                <button onClick={clearFilter} className="ml-1 p-0.5"><X className="w-3 h-3" /></button>
-              </div>
-            </motion.div>
-          )}
         </header>
 
         {/* Content */}
