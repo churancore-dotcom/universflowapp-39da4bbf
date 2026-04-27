@@ -400,43 +400,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [volume]);
 
-  // ── Preload NEXT queued track for zero-gap transitions ──
-  // Whenever the queue / current index changes, warm `nextAudioRef` with the
-  // upcoming song's audio so that crossfade & "next" feel instantaneous.
   const preloadedNextIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!nextAudioRef.current || queue.length <= 1) {
-      preloadedNextIdRef.current = null;
-      return;
-    }
-    if (isCrossfading.current) return;
-
-    const nextIdx = getNextIndex(currentIndex, queue.length, shuffle, repeat);
-    if (nextIdx === null) {
-      preloadedNextIdRef.current = null;
-      return;
-    }
-    const upcoming = queue[nextIdx];
-    if (!upcoming) return;
-
-    // Already preloaded this exact song — skip
-    if (preloadedNextIdRef.current === upcoming.id) return;
-
-    // Streamable, real URL → warm the buffer
-    if (isPlayableUrl(upcoming.audio_url) && !isYouTubeFallbackUrl(upcoming.audio_url)) {
-      try {
-        configureAudioElementSource(nextAudioRef.current, buildStreamProxyUrl(upcoming.audio_url));
-        nextAudioRef.current.preload = 'auto';
-        nextAudioRef.current.volume = 0;
-        nextAudioRef.current.load();
-        preloadedNextIdRef.current = upcoming.id;
-      } catch { /* ignore preload errors */ }
-    } else if (upcoming.source === 'indexed' || upcoming.audio_url === 'resolving') {
-      // Pre-resolve indexed/streaming track so resolving is cached
-      prefetchIndexedTrack(upcoming.artist, upcoming.title);
-      preloadedNextIdRef.current = upcoming.id;
-    }
-  }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl]);
 
 
   // Progress update loop using requestAnimationFrame for smooth updates
