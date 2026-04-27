@@ -145,12 +145,62 @@ export async function searchIndexedTracks(query: string, limit = 50): Promise<In
   return Array.isArray(data.results) ? data.results : [];
 }
 
+// Session-level cache for Global Top tracks so they don't refetch every time
+// the user navigates back to Home. Survives across mounts during the session;
+// localStorage layer survives across reloads (TTL 30 minutes).
+const TOP_TRACKS_TTL = 30 * 60 * 1000;
+const TOP_TRACKS_LS_KEY = 'uf_top_tracks_v1';
+const topTracksMemCache = new Map<number, { data: IndexedTrack[]; expiresAt: number }>();
+let topTracksInflight = new Map<number, Promise<IndexedTrack[]>>();
+
+(function hydrateTopTracksCache() {
+  try {
+    const raw = localStorage.getItem(TOP_TRACKS_LS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as Record<string, { data: IndexedTrack[]; expiresAt: number }>;
+    const now = Date.now();
+    Object.entries(parsed).forEach(([k, v]) => {
+      if (v?.expiresAt > now && Array.isArray(v.data)) {
+        topTracksMemCache.set(Number(k), v);
+      }
+    });
+  } catch { /* ignore */ }
+})();
+
+function persistTopTracksCache() {
+  try {
+    const obj: Record<string, { data: IndexedTrack[]; expiresAt: number }> = {};
+    topTracksMemCache.forEach((v, k) => { obj[String(k)] = v; });
+    localStorage.setItem(TOP_TRACKS_LS_KEY, JSON.stringify(obj));
+  } catch { /* ignore quota */ }
+}
+
 export async function getTopIndexedTracks(limit = 30): Promise<IndexedTrack[]> {
-  const data = await requestIndexer<IndexedTracksResponse>({
-    action: 'top',
-    limit,
-  });
-  return Array.isArray(data.results) ? data.results : [];
+  const cached = topTracksMemCache.get(limit);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.data;
+  }
+  const inflight = topTracksInflight.get(limit);
+  if (inflight) return inflight;
+
+  const promise = (async () => {
+    const data = await requestIndexer<IndexedTracksResponse>({
+      action: 'top',
+      limit,
+    });
+    const results = Array.isArray(data.results) ? data.results : [];
+    if (results.length > 0) {
+      topTracksMemCache.set(limit, { data: results, expiresAt: Date.now() + TOP_TRACKS_TTL });
+      persistTopTracksCache();
+    }
+    return results;
+  })();
+  topTracksInflight.set(limit, promise);
+  try {
+    return await promise;
+  } finally {
+    topTracksInflight.delete(limit);
+  }
 }
 
 export async function resolveIndexedTrack(artist: string, title: string): Promise<ResolveTrackResponse> {
