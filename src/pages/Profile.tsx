@@ -113,7 +113,7 @@ const Profile = () => {
   };
 
   const displayName = profileData.username || user?.email?.split('@')[0] || 'User';
-  const canChangeUsername = true; // Users can change anytime now
+  const canChangeUsername = !profileData.username_changed;
 
   return (
     <TabTransition>
