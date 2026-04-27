@@ -88,26 +88,45 @@ const fetchHomeSongs = async (): Promise<Song[]> => {
 const Home = () => {
   const { currentSong } = usePlayer();
   const { cachedSongs, updateCache } = useSongCache();
+  const { isOffline } = useAuth();
+  const { downloads } = useDownloads();
   const queryClient = useQueryClient();
   const [showLockScreen, setShowLockScreen] = useState(false);
   const [showSleepTimer, setShowSleepTimer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showEqualizer, setShowEqualizer] = useState(false);
 
-  const { data: songs = (cachedSongs || []), isLoading } = useQuery({
+  const { data: onlineSongs = (cachedSongs || []), isLoading } = useQuery({
     queryKey: HOME_SONGS_QUERY_KEY,
     queryFn: fetchHomeSongs,
     initialData: cachedSongs && cachedSongs.length > 0 ? cachedSongs : undefined,
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
+    enabled: !isOffline,
   });
+
+  // When offline → ONLY show downloaded songs. When online → full catalog.
+  const songs: Song[] = useMemo(() => {
+    if (isOffline) {
+      return downloads.map((d) => ({
+        id: d.id,
+        title: d.title,
+        artist: d.artist,
+        album: d.album,
+        cover_url: d.cover_url,
+        audio_url: d.audio_url,
+        duration: d.duration,
+      } as Song));
+    }
+    return onlineSongs;
+  }, [isOffline, downloads, onlineSongs]);
 
   // Persist to local song cache for instant boot next time
   useEffect(() => {
-    if (songs && songs.length > 0) updateCache(songs);
-  }, [songs, updateCache]);
+    if (!isOffline && onlineSongs && onlineSongs.length > 0) updateCache(onlineSongs);
+  }, [onlineSongs, updateCache, isOffline]);
 
-  const loading = isLoading && songs.length === 0;
+  const loading = isLoading && songs.length === 0 && !isOffline;
 
   const newReleases = useMemo(
     () => songs.filter((s: any) => s.show_in_new_releases).slice(0, 10),
@@ -115,24 +134,61 @@ const Home = () => {
   );
   const allSongs = useMemo(() => songs, [songs]);
 
-  // Realtime: invalidate cache (debounced) instead of imperatively refetching
-  const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Realtime: DIFF-based cache patch — only mutate the affected row instead of refetching
   useEffect(() => {
+    if (isOffline) return;
     const channel = supabase
-      .channel('songs-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, () => {
-        if (debounceRef.current) clearTimeout(debounceRef.current);
-        debounceRef.current = setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: HOME_SONGS_QUERY_KEY });
-        }, 2000);
+      .channel('songs-realtime-diff')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, (payload) => {
+        const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE';
+        const newRow = payload.new as any;
+        const oldRow = payload.old as any;
+
+        queryClient.setQueryData<Song[]>(HOME_SONGS_QUERY_KEY, (current) => {
+          if (!current) return current;
+
+          if (eventType === 'DELETE') {
+            return current.filter((s) => s.id !== oldRow?.id);
+          }
+
+          if (!newRow) return current;
+
+          // Hide if no longer visible
+          if (newRow.is_visible === false) {
+            return current.filter((s) => s.id !== newRow.id);
+          }
+
+          const mapped: Song = {
+            id: newRow.id,
+            title: newRow.title,
+            artist: newRow.artist,
+            album: newRow.album || undefined,
+            cover_url: newRow.cover_url || undefined,
+            audio_url: newRow.audio_url,
+            duration: newRow.duration || undefined,
+            artist_id: newRow.artist_id || undefined,
+            show_in_new_releases: newRow.show_in_new_releases,
+            show_in_trending: newRow.show_in_trending,
+            is_premium_only: newRow.is_premium_only,
+          } as Song;
+
+          const idx = current.findIndex((s) => s.id === newRow.id);
+          if (eventType === 'INSERT' || idx === -1) {
+            // Prepend new song (preserves "latest first" order)
+            return [mapped, ...current];
+          }
+          // UPDATE — patch in place, preserve joined fields like artist_photo_url
+          const next = current.slice();
+          next[idx] = { ...current[idx], ...mapped };
+          return next;
+        });
       })
       .subscribe();
 
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, isOffline]);
 
 
 
