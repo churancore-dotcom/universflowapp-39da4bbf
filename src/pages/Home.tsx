@@ -248,9 +248,11 @@ const Home = () => {
               </div>
               <div>
                 <p className="text-[16px] font-bold text-foreground tracking-tight">{greeting()}</p>
-                <p className="text-[11px] text-muted-foreground/50 font-medium tracking-wide">
-                  Your music, anytime
-                </p>
+                {songs.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground/60 font-medium tracking-wide">
+                    {songs.length} {songs.length === 1 ? 'track' : 'tracks'} ready to play
+                  </p>
+                )}
               </div>
             </div>
             
