@@ -1,0 +1,309 @@
+package PACKAGE_PLACEHOLDER.media;
+
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.app.Service;
+import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ServiceInfo;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.os.Build;
+import android.os.Handler;
+import android.os.IBinder;
+import android.os.Looper;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
+
+import androidx.core.app.NotificationCompat;
+import androidx.media.app.NotificationCompat.MediaStyle;
+
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+
+/**
+ * Foreground service that owns a MediaSessionCompat and posts a MediaStyle
+ * notification with previous / play-pause / next actions. Visible on the
+ * lock screen and the notification shade. Required for Android 14+ media
+ * playback foreground service type compliance.
+ */
+public class MediaNotificationService extends Service {
+
+    public static final String CHANNEL_ID = "uf_media_playback";
+    public static final int NOTIFICATION_ID = 4711;
+
+    public static final String ACTION_UPDATE = "uf.media.UPDATE";
+    public static final String ACTION_STATE  = "uf.media.STATE";
+    public static final String ACTION_STOP   = "uf.media.STOP";
+    public static final String ACTION_PLAY   = "uf.media.PLAY";
+    public static final String ACTION_PAUSE  = "uf.media.PAUSE";
+    public static final String ACTION_NEXT   = "uf.media.NEXT";
+    public static final String ACTION_PREV   = "uf.media.PREV";
+
+    private MediaSessionCompat session;
+    private String title = "";
+    private String artist = "";
+    private String album = "";
+    private String coverUrl = "";
+    private long durationMs = 0L;
+    private long positionMs = 0L;
+    private boolean isPlaying = false;
+    private Bitmap currentArt = null;
+    private String loadedArtUrl = null;
+
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    @Override
+    public void onCreate() {
+        super.onCreate();
+        createChannel();
+        session = new MediaSessionCompat(this, "UniversFlowMedia");
+        session.setFlags(
+            MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS |
+            MediaSessionCompat.FLAG_HANDLES_TRANSPORT_CONTROLS
+        );
+        session.setCallback(new MediaSessionCompat.Callback() {
+            @Override public void onPlay()      { MediaNotificationPlugin.emitControlEvent("music-controls-play"); }
+            @Override public void onPause()     { MediaNotificationPlugin.emitControlEvent("music-controls-pause"); }
+            @Override public void onSkipToNext(){ MediaNotificationPlugin.emitControlEvent("music-controls-next"); }
+            @Override public void onSkipToPrevious() { MediaNotificationPlugin.emitControlEvent("music-controls-previous"); }
+            @Override public void onStop()      { MediaNotificationPlugin.emitControlEvent("music-controls-destroy"); }
+        });
+        session.setActive(true);
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        if (intent == null || intent.getAction() == null) {
+            return START_NOT_STICKY;
+        }
+        String action = intent.getAction();
+
+        switch (action) {
+            case ACTION_UPDATE: {
+                title    = safe(intent.getStringExtra("title"));
+                artist   = safe(intent.getStringExtra("artist"));
+                album    = safe(intent.getStringExtra("album"));
+                coverUrl = safe(intent.getStringExtra("cover"));
+                durationMs = intent.getLongExtra("duration", 0L);
+                isPlaying = intent.getBooleanExtra("isPlaying", false);
+                refresh(true);
+                break;
+            }
+            case ACTION_STATE: {
+                isPlaying = intent.getBooleanExtra("isPlaying", isPlaying);
+                if (intent.hasExtra("position")) {
+                    positionMs = intent.getLongExtra("position", 0L);
+                }
+                refresh(false);
+                break;
+            }
+            case ACTION_PLAY:  MediaNotificationPlugin.emitControlEvent("music-controls-play");  break;
+            case ACTION_PAUSE: MediaNotificationPlugin.emitControlEvent("music-controls-pause"); break;
+            case ACTION_NEXT:  MediaNotificationPlugin.emitControlEvent("music-controls-next");  break;
+            case ACTION_PREV:  MediaNotificationPlugin.emitControlEvent("music-controls-previous"); break;
+            case ACTION_STOP:
+                MediaNotificationPlugin.emitControlEvent("music-controls-destroy");
+                stopForegroundCompat();
+                stopSelf();
+                return START_NOT_STICKY;
+        }
+        return START_STICKY;
+    }
+
+    private void refresh(boolean reloadArt) {
+        // Build & post first using whatever bitmap we have so the foreground
+        // notification appears immediately (Android requires startForeground
+        // within ~5s of startForegroundService).
+        postNotification();
+        if (reloadArt && coverUrl != null && coverUrl.length() > 0
+                && !coverUrl.equals(loadedArtUrl)) {
+            new Thread(() -> {
+                Bitmap bmp = downloadBitmap(coverUrl);
+                if (bmp != null) {
+                    currentArt = bmp;
+                    loadedArtUrl = coverUrl;
+                    mainHandler.post(this::postNotification);
+                }
+            }).start();
+        }
+    }
+
+    private void postNotification() {
+        // Update MediaSession metadata + playback state
+        MediaMetadataCompat.Builder meta = new MediaMetadataCompat.Builder()
+            .putString(MediaMetadataCompat.METADATA_KEY_TITLE, title)
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM, album)
+            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durationMs);
+        if (currentArt != null) {
+            meta.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, currentArt);
+        }
+        session.setMetadata(meta.build());
+
+        long actions = PlaybackStateCompat.ACTION_PLAY
+            | PlaybackStateCompat.ACTION_PAUSE
+            | PlaybackStateCompat.ACTION_PLAY_PAUSE
+            | PlaybackStateCompat.ACTION_SKIP_TO_NEXT
+            | PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS
+            | PlaybackStateCompat.ACTION_STOP
+            | PlaybackStateCompat.ACTION_SEEK_TO;
+
+        PlaybackStateCompat state = new PlaybackStateCompat.Builder()
+            .setActions(actions)
+            .setState(
+                isPlaying ? PlaybackStateCompat.STATE_PLAYING : PlaybackStateCompat.STATE_PAUSED,
+                positionMs,
+                isPlaying ? 1f : 0f
+            )
+            .build();
+        session.setPlaybackState(state);
+
+        // Build notification
+        Intent contentIntent = getPackageManager().getLaunchIntentForPackage(getPackageName());
+        PendingIntent contentPi = contentIntent == null ? null : PendingIntent.getActivity(
+            this, 0, contentIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT | piFlagImmutable()
+        );
+
+        NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setContentTitle(title.isEmpty() ? "Now Playing" : title)
+            .setContentText(artist)
+            .setSubText(album)
+            .setLargeIcon(currentArt)
+            .setContentIntent(contentPi)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOngoing(isPlaying)
+            .setShowWhen(false)
+            .setOnlyAlertOnce(true);
+
+        b.addAction(new NotificationCompat.Action(
+            android.R.drawable.ic_media_previous, "Previous",
+            buildActionPi(ACTION_PREV)));
+        b.addAction(new NotificationCompat.Action(
+            isPlaying ? android.R.drawable.ic_media_pause : android.R.drawable.ic_media_play,
+            isPlaying ? "Pause" : "Play",
+            buildActionPi(isPlaying ? ACTION_PAUSE : ACTION_PLAY)));
+        b.addAction(new NotificationCompat.Action(
+            android.R.drawable.ic_media_next, "Next",
+            buildActionPi(ACTION_NEXT)));
+
+        b.setStyle(new MediaStyle()
+            .setMediaSession(session.getSessionToken())
+            .setShowActionsInCompactView(0, 1, 2));
+
+        Notification notification = b.build();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                startForeground(
+                    NOTIFICATION_ID, notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                );
+            } catch (Exception e) {
+                startForeground(NOTIFICATION_ID, notification);
+            }
+        } else {
+            startForeground(NOTIFICATION_ID, notification);
+        }
+
+        // When paused, allow user to swipe it away
+        if (!isPlaying) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_DETACH);
+            } else {
+                stopForeground(false);
+            }
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (nm != null) nm.notify(NOTIFICATION_ID, notification);
+        }
+    }
+
+    private PendingIntent buildActionPi(String action) {
+        Intent i = new Intent(this, MediaNotificationService.class).setAction(action);
+        return PendingIntent.getService(
+            this, action.hashCode(), i,
+            PendingIntent.FLAG_UPDATE_CURRENT | piFlagImmutable()
+        );
+    }
+
+    private int piFlagImmutable() {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.M ? PendingIntent.FLAG_IMMUTABLE : 0;
+    }
+
+    private void stopForegroundCompat() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE);
+        } else {
+            stopForeground(true);
+        }
+        if (session != null) {
+            session.setActive(false);
+            session.release();
+            session = null;
+        }
+    }
+
+    private void createChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+            if (nm == null) return;
+            NotificationChannel ch = new NotificationChannel(
+                CHANNEL_ID, "Playback", NotificationManager.IMPORTANCE_LOW
+            );
+            ch.setDescription("Music playback controls");
+            ch.setShowBadge(false);
+            ch.setSound(null, null);
+            ch.enableVibration(false);
+            nm.createNotificationChannel(ch);
+        }
+    }
+
+    private static String safe(String s) { return s == null ? "" : s; }
+
+    private static Bitmap downloadBitmap(String url) {
+        HttpURLConnection conn = null;
+        InputStream is = null;
+        try {
+            URL u = new URL(url);
+            conn = (HttpURLConnection) u.openConnection();
+            conn.setConnectTimeout(8000);
+            conn.setReadTimeout(8000);
+            conn.setInstanceFollowRedirects(true);
+            is = conn.getInputStream();
+            BitmapFactory.Options opts = new BitmapFactory.Options();
+            opts.inPreferredConfig = Bitmap.Config.RGB_565;
+            Bitmap raw = BitmapFactory.decodeStream(is, null, opts);
+            if (raw == null) return null;
+            // Cap art at 512px for notification memory budget
+            int max = 512;
+            int w = raw.getWidth(), h = raw.getHeight();
+            if (w > max || h > max) {
+                float scale = Math.min((float) max / w, (float) max / h);
+                Bitmap scaled = Bitmap.createScaledBitmap(
+                    raw, Math.round(w * scale), Math.round(h * scale), true);
+                if (scaled != raw) raw.recycle();
+                return scaled;
+            }
+            return raw;
+        } catch (Exception e) {
+            return null;
+        } finally {
+            try { if (is != null) is.close(); } catch (Exception ignore) {}
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    @Override
+    public void onDestroy() {
+        stopForegroundCompat();
+        super.onDestroy();
+    }
+
+    @Override public IBinder onBind(Intent intent) { return null; }
+}
