@@ -1,45 +1,34 @@
-// Native music controls bridge for Capacitor (Android lockscreen + notification).
-// On web (or when plugin missing), gracefully no-ops — Web Media Session in
-// useMediaSession.ts handles browser/PWA controls.
+// Native music controls bridge — talks to our custom Android plugin
+// `MediaNotificationPlugin` (see android-native/java/MediaNotificationPlugin.java).
+// On web, no-ops. The Web Media Session in useMediaSession.ts handles
+// browser/PWA controls.
 //
-// Plugin: capacitor-music-controls-plugin
-// Docs: https://github.com/ionic-team/capacitor-community → music-controls
-//
-// IMPORTANT: This must be initialized BEFORE the audio starts so Android can
-// keep the WebView alive in background.
+// IMPORTANT: showNativeMusicControls must be called BEFORE audio starts so
+// Android can keep the WebView alive in background as a foreground service.
 
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 
-interface MusicControlsCreateOptions {
-  track: string;
-  artist: string;
-  cover?: string;
-  album?: string;
-  duration?: number;
-  isPlaying: boolean;
-  // Show/hide buttons in the notification
-  hasPrev?: boolean;
-  hasNext?: boolean;
-  hasClose?: boolean;
-  // Android-specific
-  dismissable?: boolean;
-  hasScrubbing?: boolean;
-  ticker?: string;
-  notificationIcon?: string;
+interface MediaNotificationPluginShape {
+  create(opts: {
+    title: string;
+    artist: string;
+    album?: string;
+    cover?: string;
+    duration?: number; // seconds
+    isPlaying: boolean;
+  }): Promise<void>;
+  update(opts: { isPlaying: boolean; position?: number /* seconds */ }): Promise<void>;
+  destroy(): Promise<void>;
+  requestPermission(): Promise<{ granted: boolean }>;
+  addListener(
+    eventName: 'controlsNotification',
+    cb: (e: { message: string }) => void,
+  ): Promise<{ remove: () => Promise<void> }> | { remove: () => void };
 }
 
-type ControlEvent =
-  | { message: 'music-controls-play' }
-  | { message: 'music-controls-pause' }
-  | { message: 'music-controls-next' }
-  | { message: 'music-controls-previous' }
-  | { message: 'music-controls-destroy' }
-  | { message: 'music-controls-toggle-play-pause' }
-  | { message: 'music-controls-headset-unplugged' }
-  | { message: 'music-controls-media-button-play-pause' };
-
-let plugin: any = null;
-let pluginInitTried = false;
+// registerPlugin returns a proxy on web that throws "not implemented" — we
+// guard every call with isNative() so web stays silent.
+const MediaNotification = registerPlugin<MediaNotificationPluginShape>('MediaNotification');
 
 function isNative() {
   try {
@@ -49,18 +38,11 @@ function isNative() {
   }
 }
 
-async function getPlugin() {
-  if (!isNative()) return null;
-  if (plugin || pluginInitTried) return plugin;
-  pluginInitTried = true;
+function isAndroid() {
   try {
-    // Lazy import — bundle plugin only on native runtime
-    const mod = await import('capacitor-music-controls-plugin');
-    plugin = (mod as any).CapacitorMusicControls || (mod as any).default || mod;
-    return plugin;
-  } catch (e) {
-    console.warn('[MusicControls] Plugin not available:', e);
-    return null;
+    return Capacitor.getPlatform?.() === 'android';
+  } catch {
+    return false;
   }
 }
 
@@ -69,10 +51,11 @@ export interface NativeTrack {
   artist: string;
   cover?: string;
   album?: string;
-  duration?: number;
+  duration?: number; // seconds
 }
 
 let listenerAttached = false;
+let permissionRequested = false;
 let currentHandlers: {
   onPlay?: () => void;
   onPause?: () => void;
@@ -88,21 +71,13 @@ export function setNativeMusicHandlers(h: typeof currentHandlers) {
 
 async function attachListenerOnce() {
   if (listenerAttached || !isNative()) return;
-  const p = await getPlugin();
-  if (!p) return;
   try {
-    // The plugin emits a 'controlsNotification' event with a message string.
-    p.addListener?.('controlsNotification', (e: ControlEvent) => {
+    await MediaNotification.addListener('controlsNotification', (e) => {
       switch (e.message) {
         case 'music-controls-play':
           currentHandlers.onPlay?.();
           break;
         case 'music-controls-pause':
-          currentHandlers.onPause?.();
-          break;
-        case 'music-controls-toggle-play-pause':
-        case 'music-controls-media-button-play-pause':
-          // Safer fallback: pause (avoids double-starting audio)
           currentHandlers.onPause?.();
           break;
         case 'music-controls-next':
@@ -112,66 +87,72 @@ async function attachListenerOnce() {
           currentHandlers.onPrev?.();
           break;
         case 'music-controls-destroy':
-        case 'music-controls-headset-unplugged':
           currentHandlers.onStop?.();
           break;
       }
     });
     listenerAttached = true;
   } catch (e) {
-    console.warn('[MusicControls] Failed to attach listener:', e);
+    console.warn('[MediaNotification] addListener failed:', e);
+  }
+}
+
+/**
+ * Ask for POST_NOTIFICATIONS on Android 13+ (no-op on older Android & iOS & web).
+ * Safe to call multiple times — only the first call shows the system dialog.
+ *
+ * NOTE: This is also called by usePushRegistration; calling it from both is
+ * harmless because the OS only prompts once.
+ */
+export async function ensureNotificationPermission(): Promise<boolean> {
+  if (!isAndroid()) return true;
+  if (permissionRequested) return true;
+  permissionRequested = true;
+  try {
+    const { granted } = await MediaNotification.requestPermission();
+    return !!granted;
+  } catch (e) {
+    console.warn('[MediaNotification] requestPermission failed:', e);
+    return false;
   }
 }
 
 export async function showNativeMusicControls(track: NativeTrack, isPlaying: boolean) {
   if (!isNative()) return;
-  const p = await getPlugin();
-  if (!p) return;
-  const opts: MusicControlsCreateOptions = {
-    track: track.title || 'Unknown',
-    artist: track.artist || 'Unknown Artist',
-    cover: track.cover,
-    album: track.album,
-    duration: track.duration,
-    isPlaying,
-    hasPrev: true,
-    hasNext: true,
-    hasClose: true,
-    dismissable: false,
-    hasScrubbing: false,
-    ticker: `Now playing: ${track.title}`,
-    notificationIcon: 'notification',
-  };
+  // Best-effort permission grant; service still posts notification even if
+  // user denies — it just won't show on the lock screen.
+  await ensureNotificationPermission();
   try {
-    // Plugin requires destroy before re-create on Android
-    await p.destroy?.().catch(() => {});
-    await p.create?.(opts);
+    await MediaNotification.create({
+      title: track.title || 'Unknown',
+      artist: track.artist || 'Unknown Artist',
+      album: track.album,
+      cover: track.cover,
+      duration: track.duration ? Math.floor(track.duration) : 0,
+      isPlaying,
+    });
     attachListenerOnce();
   } catch (e) {
-    console.warn('[MusicControls] create failed:', e);
+    console.warn('[MediaNotification] create failed:', e);
   }
 }
 
 export async function updateNativeMusicState(isPlaying: boolean, position?: number) {
   if (!isNative()) return;
-  const p = await getPlugin();
-  if (!p) return;
   try {
-    await p.updateIsPlaying?.({ isPlaying });
-    if (typeof position === 'number') {
-      await p.updateElapsed?.({ elapsed: Math.floor(position), isPlaying });
-    }
+    await MediaNotification.update({
+      isPlaying,
+      position: typeof position === 'number' ? Math.floor(position) : undefined,
+    });
   } catch {
-    // Ignore — older plugin versions may not support all updates
+    // Ignore — service may not be running yet.
   }
 }
 
 export async function destroyNativeMusicControls() {
   if (!isNative()) return;
-  const p = await getPlugin();
-  if (!p) return;
   try {
-    await p.destroy?.();
+    await MediaNotification.destroy();
   } catch {
     // Ignore
   }
