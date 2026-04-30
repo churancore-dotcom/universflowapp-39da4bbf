@@ -41,17 +41,18 @@ public class NowPlayingWidget extends AppWidgetProvider {
         views.setImageViewResource(R.id.widget_btn_play_pause, 
             isPlaying ? R.drawable.ic_pause : R.drawable.ic_play);
         
-        // Play/Pause - launches app with action
-        views.setOnClickPendingIntent(R.id.widget_btn_play_pause, 
-            createActionIntent(context, "WIDGET_PLAY_PAUSE", 0));
-        
+        // Play/Pause - sent directly to MediaNotificationService (foreground media service)
+        views.setOnClickPendingIntent(R.id.widget_btn_play_pause,
+            createMediaServiceIntent(context,
+                isPlaying ? "uf.media.PAUSE" : "uf.media.PLAY", 0));
+
         // Next
-        views.setOnClickPendingIntent(R.id.widget_btn_next, 
-            createActionIntent(context, "WIDGET_NEXT", 1));
-        
+        views.setOnClickPendingIntent(R.id.widget_btn_next,
+            createMediaServiceIntent(context, "uf.media.NEXT", 1));
+
         // Previous
-        views.setOnClickPendingIntent(R.id.widget_btn_previous, 
-            createActionIntent(context, "WIDGET_PREVIOUS", 2));
+        views.setOnClickPendingIntent(R.id.widget_btn_previous,
+            createMediaServiceIntent(context, "uf.media.PREV", 2));
         
         // Open app on album art / song info click
         Intent openAppIntent = new Intent(context, BridgeActivity.class);
@@ -70,8 +71,29 @@ public class NowPlayingWidget extends AppWidgetProvider {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         intent.setData(Uri.parse("universflow://widget-action?action=" + action));
         intent.putExtra("widget_action", action);
-        return PendingIntent.getActivity(context, requestCode, 
+        return PendingIntent.getActivity(context, requestCode,
             intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+    }
+
+    /**
+     * Sends transport-control intents directly to MediaNotificationService so widget
+     * buttons work even when the app UI isn't open. Resolved via Class.forName because
+     * the service lives in the appId-derived "<pkg>.media" subpackage that's only
+     * known at build time (injected by build-android.yml).
+     */
+    private static PendingIntent createMediaServiceIntent(Context context, String action, int requestCode) {
+        String pkg = context.getPackageName();
+        Intent intent;
+        try {
+            Class<?> svc = Class.forName(pkg + ".media.MediaNotificationService");
+            intent = new Intent(context, svc).setAction(action);
+        } catch (ClassNotFoundException e) {
+            // Fallback: explicit component by name (still resolvable by the OS)
+            intent = new Intent(action).setComponent(
+                new android.content.ComponentName(pkg, pkg + ".media.MediaNotificationService"));
+        }
+        return PendingIntent.getService(context, requestCode, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 
     @Override
