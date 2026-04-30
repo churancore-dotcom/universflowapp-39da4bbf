@@ -94,7 +94,7 @@ export default function PaymentRequests() {
             Payment Requests
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Verify UPI payments → approve grants lifetime premium automatically
+            Verify UPI payments → approve grants premium based on plan (1 month or 3 months)
           </p>
         </div>
         <button onClick={load} className="p-2 rounded-lg bg-muted hover:bg-muted/70">
