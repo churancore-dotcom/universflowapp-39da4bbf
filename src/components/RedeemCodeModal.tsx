@@ -63,6 +63,14 @@ const RedeemCodeModal = memo(function RedeemCodeModal({ isOpen, onClose }: Redee
       setSuccess(true);
       refetch();
       toast({ title: '🎉 Welcome to Premium!', description: 'You now have lifetime premium access!' });
+      supabase.functions.invoke('telegram-notify', {
+        body: {
+          event: 'promo_redeemed',
+          email: user?.email,
+          user_id: user?.id,
+          note: `Code: ${code.trim().toUpperCase()}`,
+        },
+      }).catch(() => {});
       
       setTimeout(() => {
         onClose();
