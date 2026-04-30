@@ -374,7 +374,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, onClose, onR
         setSubmitting(false);
         return;
       }
-      haptics.success?.();
+      haptics.success();
       setStep('success');
     } catch (e) {
       toast({ title: 'Something went wrong', variant: 'destructive' });
