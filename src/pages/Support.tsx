@@ -124,12 +124,13 @@ const Support = () => {
 
               <motion.button
                 whileTap={{ scale: 0.98 }}
+                onClick={() => navigate('/premium')}
                 className="w-full mt-4 py-4 rounded-2xl font-semibold text-lg bg-primary text-primary-foreground"
               >
                 Upgrade to Premium
               </motion.button>
               <p className="text-center text-xs text-muted-foreground mt-2">
-                Available when you download the mobile app
+                See all premium features & pricing
               </p>
             </motion.section>
           )}

@@ -70,7 +70,7 @@ export const PremiumModal = memo(function PremiumModal({
 
   const handleUpgrade = () => {
     onClose();
-    navigate('/support');
+    navigate('/premium');
   };
 
   return (
