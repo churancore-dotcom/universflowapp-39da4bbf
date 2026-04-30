@@ -17,6 +17,7 @@ import {
   clearSongHistory,
   type SongHistoryEntry,
 } from '@/lib/songHistory';
+import { getCached, setCached } from '@/lib/searchCache';
 import { toast } from 'sonner';
 
 type SearchSource = 'all' | 'library' | 'indexer';
@@ -88,15 +89,25 @@ const Search = () => {
     });
   }, [indexedResults]);
 
-  const searchSongs = async (searchTerm: string) => {
+  const searchSongs = async (searchTerm: string): Promise<Song[]> => {
     const safeSearchTerm = searchTerm.replace(/[%,]/g, ' ').trim();
+    if (!safeSearchTerm) return [];
+
+    // 1h cache — saves a round-trip on identical or repeated queries
+    const cached = getCached<Song[]>('library_search', safeSearchTerm);
+    if (cached) return cached;
+
     const { data } = await supabase
       .from('songs')
-      .select('*, artists(id, name, photo_url)')
+      // Slim payload: only the fields the UI actually renders
+      .select('id, title, artist, album, cover_url, audio_url, artist_id, artists(id, name, photo_url)')
       .eq('is_visible', true)
       .or(`title.ilike.%${safeSearchTerm}%,artist.ilike.%${safeSearchTerm}%,album.ilike.%${safeSearchTerm}%`)
       .limit(30);
-    return Array.isArray(data) ? data.map(mapSongRow) : [];
+
+    const mapped = Array.isArray(data) ? data.map(mapSongRow) : [];
+    setCached('library_search', safeSearchTerm, mapped);
+    return mapped;
   };
 
   const handlePlayIndexed = useCallback(async (track: IndexedTrack) => {
