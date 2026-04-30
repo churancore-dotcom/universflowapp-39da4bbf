@@ -1,8 +1,8 @@
 import { memo, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, Crown, Check, Sparkles, Download, Music2, Headphones,
-  Zap, Heart, Gift, Copy, Loader2, ShieldCheck, Users, Sliders, Mic2,
+  ChevronLeft, Crown, Check, Sparkles, Download, Headphones,
+  Zap, Gift, Copy, Loader2, ShieldCheck, Users, Sliders, Music2, Infinity,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
@@ -15,30 +15,35 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
+type PlanId = 'monthly' | 'quarterly';
+
 interface UpiSettings {
-  price: number;
+  monthlyPrice: number;
+  quarterlyPrice: number;
   upiId: string;
   payeeName: string;
-  enabled: boolean;
 }
 
 const FEATURES = [
-  { icon: Zap,         title: 'Skip All Ads',         desc: 'No pre-roll, no interruptions. Just music.' },
-  { icon: Sliders,     title: '8-Band Equalizer',     desc: 'Studio-grade sound shaping with presets.' },
-  { icon: Headphones,  title: 'Advanced Audio Lab',   desc: 'Compressor, bass boost, vocal clarity.' },
-  { icon: Download,    title: 'Unlimited Downloads',  desc: 'Listen offline. Anywhere. Forever.' },
-  { icon: Users,       title: 'Play with Mate',       desc: 'Sync rooms — listen together in real time.' },
-  { icon: Sparkles,    title: 'Premium-Only Tracks',  desc: 'Early drops and exclusive releases.' },
-  { icon: Crown,       title: 'Premium Badge',        desc: 'Show your status across the app.' },
-  { icon: ShieldCheck, title: 'Priority Support',     desc: 'Skip the line. We answer first.' },
+  { icon: Zap,         title: 'Zero Ads',                desc: 'No pre-rolls, banners or interruptions.' },
+  { icon: Sliders,     title: '8-Band Equalizer',        desc: 'Studio-grade tuning with crafted presets.' },
+  { icon: Headphones,  title: 'Advanced Audio Lab',      desc: 'Compressor, bass boost and vocal clarity.' },
+  { icon: Download,    title: 'Unlimited Downloads',     desc: 'Save anything. Listen offline. Anywhere.' },
+  { icon: Users,       title: 'Listen Together',         desc: 'Sync rooms with friends in real time.' },
+  { icon: Music2,      title: 'AI Playlist Generator',   desc: 'Mood-matched playlists, made instantly.' },
+  { icon: Infinity,    title: 'Crossfade & Gapless',     desc: 'Seamless transitions, end to end.' },
+  { icon: Sparkles,    title: 'Premium-Only Tracks',     desc: 'Early drops and exclusive releases.' },
+  { icon: Crown,       title: 'Premium Badge',           desc: 'A subtle mark of support across the app.' },
+  { icon: ShieldCheck, title: 'Priority Support',        desc: 'Skip the line — we answer first.' },
 ];
 
 const PremiumPage = memo(function PremiumPage() {
   const navigate = useNavigate();
-  const { isPremium } = usePremium();
+  const { isPremium, subscription } = usePremium();
   const haptics = useHaptics();
   const [showRedeem, setShowRedeem] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<PlanId>('quarterly');
   const [settings, setSettings] = useState<UpiSettings | null>(null);
 
   useEffect(() => {
@@ -46,27 +51,34 @@ const PremiumPage = memo(function PremiumPage() {
       const { data } = await supabase
         .from('app_settings')
         .select('key, value')
-        .in('key', ['premium_price_inr', 'upi_id', 'upi_payee_name', 'premium_enabled']);
+        .in('key', ['premium_price_monthly_inr', 'premium_price_quarterly_inr', 'upi_id', 'upi_payee_name']);
       const map: Record<string, any> = {};
       data?.forEach(r => {
         try { map[r.key] = typeof r.value === 'string' ? JSON.parse(r.value) : r.value; }
         catch { map[r.key] = r.value; }
       });
       setSettings({
-        price: Number(map.premium_price_inr ?? 49),
+        monthlyPrice: Number(map.premium_price_monthly_inr ?? 49),
+        quarterlyPrice: Number(map.premium_price_quarterly_inr ?? 120),
         upiId: String(map.upi_id ?? 'yourupi@okaxis'),
         payeeName: String(map.upi_payee_name ?? 'UniversFlow'),
-        enabled: map.premium_enabled !== false,
       });
     })();
   }, []);
 
-  const price = settings?.price ?? 49;
+  const monthly = settings?.monthlyPrice ?? 49;
+  const quarterly = settings?.quarterlyPrice ?? 120;
+  const monthlyEquivalent = (quarterly / 3).toFixed(0);
+  const savePercent = Math.round((1 - (quarterly / 3) / monthly) * 100);
 
   const handleUpgrade = useCallback(() => {
     haptics.medium();
     setShowCheckout(true);
   }, [haptics]);
+
+  const expiryText = subscription?.expires_at
+    ? new Date(subscription.expires_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })
+    : null;
 
   return (
     <PageTransition>
@@ -74,14 +86,14 @@ const PremiumPage = memo(function PremiumPage() {
         className="min-h-screen bg-background pb-44 relative overflow-hidden"
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }}
       >
-        {/* Static editorial backdrop */}
+        {/* Editorial backdrop */}
         <div
-          className="absolute -top-40 left-1/2 -translate-x-1/2 w-[700px] h-[700px] rounded-full opacity-40 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), transparent 70%)', filter: 'blur(90px)' }}
+          className="absolute -top-48 left-1/2 -translate-x-1/2 w-[760px] h-[760px] rounded-full opacity-40 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), transparent 70%)', filter: 'blur(100px)' }}
         />
         <div
-          className="absolute top-1/3 -right-32 w-[400px] h-[400px] rounded-full opacity-25 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, hsl(var(--accent) / 0.5), transparent 70%)', filter: 'blur(70px)' }}
+          className="absolute top-[40%] -right-32 w-[420px] h-[420px] rounded-full opacity-25 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, hsl(var(--accent) / 0.5), transparent 70%)', filter: 'blur(80px)' }}
         />
 
         {/* Header */}
@@ -102,136 +114,134 @@ const PremiumPage = memo(function PremiumPage() {
             <ChevronLeft className="w-6 h-6" />
             <span className="text-[17px]">Back</span>
           </motion.button>
-          <h1 className="text-[17px] font-semibold absolute left-1/2 -translate-x-1/2">Premium</h1>
         </motion.header>
 
-        <main className="relative px-5 pt-2 space-y-8">
-          {/* Editorial wordmark */}
+        <main className="relative px-5 pt-2 space-y-7">
+          {/* Editorial hero */}
           <motion.section
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ ...iosSpring, delay: 0.05 }}
-            className="text-center pt-8 pb-2"
+            className="text-center pt-6 pb-1"
           >
             <motion.div
-              initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }}
+              initial={{ scale: 0, rotate: -15 }} animate={{ scale: 1, rotate: 0 }}
               transition={{ ...iosSpring, delay: 0.1 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-6"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-7"
               style={{ background: 'hsl(var(--primary) / 0.12)', border: '0.5px solid hsl(var(--primary) / 0.3)' }}
             >
-              <Crown className="w-3.5 h-3.5 text-primary" fill="currentColor" />
-              <span className="text-[11px] font-bold tracking-[0.2em] text-primary uppercase">
+              <Crown className="w-3 h-3 text-primary" fill="currentColor" />
+              <span className="text-[10px] font-bold tracking-[0.22em] text-primary uppercase">
                 Universflow Premium
               </span>
             </motion.div>
 
-            <h1 className="text-[44px] font-bold leading-[0.95] tracking-tight mb-4">
-              Music,<br />
+            <h1 className="text-[42px] font-bold leading-[0.95] tracking-tight mb-4">
+              Listen the way<br />
               <span style={{
                 background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
                 WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-              }}>uninterrupted.</span>
+              }}>it was meant to be.</span>
             </h1>
             <p className="text-muted-foreground text-[15px] max-w-[320px] mx-auto leading-relaxed">
-              One payment. Lifetime access. No subscriptions, no renewals.
+              Studio-grade audio. No interruptions. Built for people who really listen.
             </p>
           </motion.section>
 
-          {/* THE pricing card */}
+          {/* Active premium banner */}
+          {isPremium && (
+            <motion.section
+              initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
+              transition={iosSpring}
+              className="rounded-3xl p-7 text-center"
+              style={{
+                background: 'linear-gradient(135deg, hsl(var(--primary) / 0.22), hsl(var(--accent) / 0.15))',
+                border: '1px solid hsl(var(--primary) / 0.4)',
+                boxShadow: '0 20px 60px -20px hsl(var(--primary) / 0.5)',
+              }}
+            >
+              <Crown className="w-11 h-11 text-primary mx-auto mb-3" fill="currentColor" />
+              <p className="text-[20px] font-bold mb-1">You're Premium</p>
+              {expiryText && (
+                <p className="text-[13px] text-muted-foreground">Active until {expiryText}</p>
+              )}
+              <button
+                onClick={handleUpgrade}
+                className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-[13px] font-semibold"
+                style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}
+              >
+                Extend membership
+              </button>
+            </motion.section>
+          )}
+
+          {/* Plan selector */}
           {!isPremium && (
             <motion.section
               initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
               transition={{ ...iosSpring, delay: 0.15 }}
+              className="space-y-3"
             >
-              <div
-                className="relative rounded-[28px] p-7 overflow-hidden"
+              {/* 3-month — recommended */}
+              <PlanCard
+                planId="quarterly"
+                selected={selectedPlan === 'quarterly'}
+                onSelect={() => { haptics.light(); setSelectedPlan('quarterly'); }}
+                badge={`Save ${savePercent}%`}
+                title="3 Months"
+                price={quarterly}
+                perMonth={`₹${monthlyEquivalent}/mo`}
+                tagline="Best value · 90 days of premium"
+                recommended
+              />
+
+              {/* Monthly */}
+              <PlanCard
+                planId="monthly"
+                selected={selectedPlan === 'monthly'}
+                onSelect={() => { haptics.light(); setSelectedPlan('monthly'); }}
+                title="Monthly"
+                price={monthly}
+                perMonth="30 days · cancel anytime"
+                tagline="Try it for a month"
+              />
+
+              <motion.button
+                onClick={handleUpgrade}
+                whileTap={{ scale: 0.98 }}
+                className="w-full mt-4 py-[18px] rounded-2xl font-bold text-[17px] flex items-center justify-center gap-2"
                 style={{
-                  background: 'linear-gradient(160deg, hsl(var(--primary) / 0.22) 0%, hsl(var(--card) / 0.7) 50%, hsl(var(--accent) / 0.15) 100%)',
-                  border: '1px solid hsl(var(--primary) / 0.35)',
-                  boxShadow: '0 30px 80px -20px hsl(var(--primary) / 0.5), inset 0 1px 0 hsl(0 0% 100% / 0.1)',
-                  backdropFilter: 'blur(30px)',
-                  WebkitBackdropFilter: 'blur(30px)',
+                  background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
+                  color: 'hsl(var(--primary-foreground))',
+                  boxShadow: '0 18px 45px -10px hsl(var(--primary) / 0.6)',
                 }}
               >
-                <div
-                  className="absolute -top-20 -right-20 w-48 h-48 rounded-full opacity-50 pointer-events-none"
-                  style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 70%)', filter: 'blur(30px)' }}
-                />
+                Continue · ₹{selectedPlan === 'quarterly' ? quarterly : monthly}
+                <Sparkles className="w-5 h-5" fill="currentColor" />
+              </motion.button>
 
-                <div className="relative">
-                  <div className="flex items-center justify-center gap-1.5 mb-3">
-                    <span className="text-[10px] font-bold tracking-[0.18em] uppercase px-2.5 py-1 rounded-full"
-                      style={{ background: 'hsl(var(--accent) / 0.2)', color: 'hsl(var(--accent))' }}>
-                      Lifetime · One-time
-                    </span>
-                  </div>
-                  <div className="flex items-baseline justify-center gap-1 mb-2">
-                    <span className="text-[32px] font-medium text-muted-foreground self-start mt-4">₹</span>
-                    <span
-                      className="text-[96px] font-bold leading-none tracking-tighter"
-                      style={{
-                        background: 'linear-gradient(180deg, hsl(var(--foreground)), hsl(var(--primary)))',
-                        WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
-                      }}
-                    >
-                      {price}
-                    </span>
-                  </div>
-                  <p className="text-center text-[13px] text-muted-foreground mb-6">
-                    Pay once via UPI · Activated automatically
-                  </p>
-
-                  <motion.button
-                    onClick={handleUpgrade}
-                    whileTap={{ scale: 0.97 }}
-                    className="w-full py-[18px] rounded-2xl font-bold text-[17px] flex items-center justify-center gap-2"
-                    style={{
-                      background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-                      color: 'hsl(var(--primary-foreground))',
-                      boxShadow: '0 15px 40px -10px hsl(var(--primary) / 0.7)',
-                    }}
-                  >
-                    Pay with UPI
-                    <Sparkles className="w-5 h-5" fill="currentColor" />
-                  </motion.button>
-
-                  <button
-                    onClick={() => { haptics.light(); setShowRedeem(true); }}
-                    className="w-full mt-3 py-3 text-[14px] font-semibold text-primary flex items-center justify-center gap-1.5"
-                  >
-                    <Gift className="w-4 h-4" />
-                    I have a redeem code
-                  </button>
-                </div>
-              </div>
+              <button
+                onClick={() => { haptics.light(); setShowRedeem(true); }}
+                className="w-full py-3 text-[14px] font-semibold text-primary flex items-center justify-center gap-1.5"
+              >
+                <Gift className="w-4 h-4" />
+                I have a redeem code
+              </button>
             </motion.section>
           )}
 
-          {isPremium && (
-            <motion.section
-              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-              transition={iosSpring}
-              className="rounded-3xl p-8 text-center"
-              style={{
-                background: 'linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--accent) / 0.15))',
-                border: '1px solid hsl(var(--primary) / 0.4)',
-              }}
-            >
-              <Crown className="w-12 h-12 text-primary mx-auto mb-3" fill="currentColor" />
-              <p className="text-xl font-bold mb-1">You're Premium 💜</p>
-              <p className="text-sm text-muted-foreground">Thanks for keeping the music alive.</p>
-            </motion.section>
-          )}
-
-          {/* What's included */}
+          {/* What's inside */}
           <motion.section
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ ...iosSpring, delay: 0.25 }}
+            className="pt-2"
           >
-            <div className="flex items-baseline justify-between mb-5 px-1">
-              <h2 className="text-[22px] font-bold tracking-tight">What's inside</h2>
-              <span className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase">
-                {FEATURES.length} perks
-              </span>
+            <div className="mb-4 px-1">
+              <p className="text-[10px] font-bold tracking-[0.22em] text-primary uppercase mb-2">
+                Included
+              </p>
+              <h2 className="text-[26px] font-bold tracking-tight leading-tight">
+                Everything you need.<br />Nothing you don't.
+              </h2>
             </div>
 
             <div className="space-y-2">
@@ -239,7 +249,7 @@ const PremiumPage = memo(function PremiumPage() {
                 <motion.div
                   key={f.title}
                   initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + i * 0.04, ...iosSpring }}
+                  transition={{ delay: 0.3 + i * 0.03, ...iosSpring }}
                   className="flex items-center gap-4 p-4 rounded-2xl"
                   style={{ background: 'hsl(var(--card) / 0.5)', border: '0.5px solid hsl(var(--border) / 0.5)' }}
                 >
@@ -259,11 +269,33 @@ const PremiumPage = memo(function PremiumPage() {
             </div>
           </motion.section>
 
+          {/* Trust strip */}
+          <motion.section
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ delay: 0.55 }}
+            className="grid grid-cols-3 gap-2 pt-4"
+          >
+            {[
+              { label: 'Secure', value: 'UPI' },
+              { label: 'Activates', value: 'In minutes' },
+              { label: 'Support', value: '24/7' },
+            ].map(t => (
+              <div
+                key={t.label}
+                className="text-center py-3 rounded-2xl"
+                style={{ background: 'hsl(var(--card) / 0.4)', border: '0.5px solid hsl(var(--border) / 0.4)' }}
+              >
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{t.label}</p>
+                <p className="text-[13px] font-semibold mt-0.5">{t.value}</p>
+              </div>
+            ))}
+          </motion.section>
+
           {/* Closing CTA */}
           {!isPremium && (
             <motion.section
               initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ ...iosSpring, delay: 0.5 }}
+              transition={{ ...iosSpring, delay: 0.6 }}
               className="text-center py-6"
             >
               <p className="text-[24px] font-bold tracking-tight leading-tight mb-4">
@@ -275,11 +307,8 @@ const PremiumPage = memo(function PremiumPage() {
                 className="inline-flex items-center gap-2 px-8 py-4 rounded-full font-bold text-[16px]"
                 style={{ background: 'hsl(var(--foreground))', color: 'hsl(var(--background))' }}
               >
-                Unlock everything · ₹{price}
+                Become Premium
               </motion.button>
-              <p className="text-[11px] text-muted-foreground mt-4">
-                One-time payment · Instant activation · Lifetime access
-              </p>
             </motion.section>
           )}
         </main>
@@ -292,6 +321,7 @@ const PremiumPage = memo(function PremiumPage() {
           {showCheckout && settings && (
             <UpiCheckoutSheet
               settings={settings}
+              plan={selectedPlan}
               onClose={() => setShowCheckout(false)}
               onRedeem={() => { setShowCheckout(false); setShowRedeem(true); }}
             />
@@ -302,60 +332,122 @@ const PremiumPage = memo(function PremiumPage() {
   );
 });
 
-// ─────────── UPI Checkout Sheet (3-step flow) ───────────
+// ─────────── Plan card ───────────
+
+interface PlanCardProps {
+  planId: PlanId;
+  selected: boolean;
+  onSelect: () => void;
+  title: string;
+  price: number;
+  perMonth: string;
+  tagline: string;
+  badge?: string;
+  recommended?: boolean;
+}
+
+const PlanCard = memo(function PlanCard({
+  selected, onSelect, title, price, perMonth, tagline, badge, recommended,
+}: PlanCardProps) {
+  return (
+    <motion.button
+      onClick={onSelect}
+      whileTap={{ scale: 0.99 }}
+      className="w-full text-left rounded-3xl p-5 relative overflow-hidden transition-all"
+      style={{
+        background: selected
+          ? 'linear-gradient(160deg, hsl(var(--primary) / 0.22) 0%, hsl(var(--card)) 60%, hsl(var(--accent) / 0.18) 100%)'
+          : 'hsl(var(--card) / 0.6)',
+        border: selected ? '1.5px solid hsl(var(--primary) / 0.6)' : '0.5px solid hsl(var(--border))',
+        boxShadow: selected ? '0 20px 50px -15px hsl(var(--primary) / 0.45)' : 'none',
+      }}
+    >
+      {recommended && (
+        <div
+          className="absolute -top-px right-5 px-3 py-1 rounded-b-lg text-[9px] font-bold tracking-widest uppercase"
+          style={{
+            background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
+            color: 'hsl(var(--primary-foreground))',
+          }}
+        >
+          Recommended
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          <div
+            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 transition-all"
+            style={{
+              background: selected ? 'hsl(var(--primary))' : 'transparent',
+              border: selected ? 'none' : '1.5px solid hsl(var(--muted-foreground) / 0.4)',
+            }}
+          >
+            {selected && <Check className="w-3.5 h-3.5 text-primary-foreground" strokeWidth={3.5} />}
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="text-[17px] font-bold">{title}</p>
+              {badge && (
+                <span
+                  className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider"
+                  style={{ background: 'hsl(var(--accent) / 0.2)', color: 'hsl(var(--accent))' }}
+                >
+                  {badge}
+                </span>
+              )}
+            </div>
+            <p className="text-[12px] text-muted-foreground mt-0.5 truncate">{tagline}</p>
+          </div>
+        </div>
+
+        <div className="text-right shrink-0">
+          <p className="text-[24px] font-bold leading-none">₹{price}</p>
+          <p className="text-[11px] text-muted-foreground mt-1">{perMonth}</p>
+        </div>
+      </div>
+    </motion.button>
+  );
+});
+
+// ─────────── UPI Checkout Sheet ───────────
 
 interface CheckoutProps {
   settings: UpiSettings;
+  plan: PlanId;
   onClose: () => void;
   onRedeem: () => void;
 }
 
 type Step = 'pay' | 'confirm' | 'success';
 
-const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, onClose, onRedeem }: CheckoutProps) {
+const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClose, onRedeem }: CheckoutProps) {
   const haptics = useHaptics();
   const { user } = useAuth();
   const [step, setStep] = useState<Step>('pay');
   const [utr, setUtr] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Build a unique amount per user: base price + paise derived from user.id (1–99)
+  const basePrice = plan === 'quarterly' ? settings.quarterlyPrice : settings.monthlyPrice;
+  const planLabel = plan === 'quarterly' ? '3 Months' : '1 Month';
+
+  // Unique paise per user (1–99) for auto-matching
   const userPaise = user?.id
     ? (parseInt(user.id.replace(/[^0-9]/g, '').slice(-2) || '7', 10) % 99) + 1
     : 7;
-  const amountRupees = settings.price;
-  const amountFinal = `${amountRupees}.${String(userPaise).padStart(2, '0')}`;
-  const amountPaise = amountRupees * 100 + userPaise;
+  const amountFinal = `${basePrice}.${String(userPaise).padStart(2, '0')}`;
+  const amountPaise = basePrice * 100 + userPaise;
 
-  const upiUrl = `upi://pay?pa=${encodeURIComponent(settings.upiId)}&pn=${encodeURIComponent(settings.payeeName)}&am=${amountFinal}&cu=INR&tn=${encodeURIComponent(`Premium-${user?.id?.slice(0, 8) ?? ''}`)}`;
+  const upiUrl = `upi://pay?pa=${encodeURIComponent(settings.upiId)}&pn=${encodeURIComponent(settings.payeeName)}&am=${amountFinal}&cu=INR&tn=${encodeURIComponent(`Premium-${plan}-${user?.id?.slice(0, 8) ?? ''}`)}`;
 
-  const copyUpi = () => {
-    navigator.clipboard.writeText(settings.upiId);
-    haptics.light();
-    toast({ title: 'UPI ID copied' });
-  };
-
-  const copyAmount = () => {
-    navigator.clipboard.writeText(amountFinal);
-    haptics.light();
-    toast({ title: 'Amount copied' });
-  };
-
-  const openUpiApp = () => {
-    haptics.medium();
-    window.location.href = upiUrl;
-  };
+  const copyUpi = () => { navigator.clipboard.writeText(settings.upiId); haptics.light(); toast({ title: 'UPI ID copied' }); };
+  const copyAmount = () => { navigator.clipboard.writeText(amountFinal); haptics.light(); toast({ title: 'Amount copied' }); };
+  const openUpiApp = () => { haptics.medium(); window.location.href = upiUrl; };
 
   const submitUtr = async () => {
-    if (!user) {
-      toast({ title: 'Please sign in first', variant: 'destructive' });
-      return;
-    }
+    if (!user) { toast({ title: 'Please sign in first', variant: 'destructive' }); return; }
     const cleanUtr = utr.trim();
-    if (cleanUtr.length < 6) {
-      toast({ title: 'Enter a valid UTR / transaction ID', variant: 'destructive' });
-      return;
-    }
+    if (cleanUtr.length < 6) { toast({ title: 'Enter a valid UTR / transaction ID', variant: 'destructive' }); return; }
     setSubmitting(true);
     try {
       const { error } = await supabase.from('payment_requests').insert({
@@ -363,24 +455,18 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, onClose, onR
         amount_paise: amountPaise,
         utr_number: cleanUtr,
         status: 'pending',
-        plan: 'lifetime',
+        plan,
       });
       if (error) {
-        if (error.code === '23505') {
-          toast({ title: 'This transaction ID is already submitted', variant: 'destructive' });
-        } else {
-          toast({ title: 'Submission failed', description: error.message, variant: 'destructive' });
-        }
-        setSubmitting(false);
-        return;
+        if (error.code === '23505') toast({ title: 'This transaction ID is already submitted', variant: 'destructive' });
+        else toast({ title: 'Submission failed', description: error.message, variant: 'destructive' });
+        setSubmitting(false); return;
       }
       haptics.success();
       setStep('success');
-    } catch (e) {
+    } catch {
       toast({ title: 'Something went wrong', variant: 'destructive' });
-    } finally {
-      setSubmitting(false);
-    }
+    } finally { setSubmitting(false); }
   };
 
   return (
@@ -410,13 +496,13 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, onClose, onR
               >
                 <Crown className="w-7 h-7 text-primary-foreground" />
               </div>
-              <h3 className="text-[20px] font-bold">Pay ₹{amountFinal}</h3>
+              <p className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1">{planLabel} · Premium</p>
+              <h3 className="text-[22px] font-bold">Pay ₹{amountFinal}</h3>
               <p className="text-[12px] text-muted-foreground mt-1">
                 Unique amount helps us auto-match your payment
               </p>
             </div>
 
-            {/* Big amount card */}
             <div
               className="rounded-2xl p-5 mb-3 text-center"
               style={{
@@ -432,7 +518,6 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, onClose, onR
               <p className="text-[11px] text-muted-foreground mt-1">Tap to copy · Pay this exact amount</p>
             </div>
 
-            {/* UPI ID */}
             <button
               onClick={copyUpi}
               className="w-full rounded-2xl p-4 mb-4 flex items-center justify-between"
