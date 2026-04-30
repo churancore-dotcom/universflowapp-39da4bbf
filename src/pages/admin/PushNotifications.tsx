@@ -44,6 +44,19 @@ const audienceLabels: Record<Audience, string> = {
 
 interface KPI { delivered: number; opened: number; clicked: number; }
 
+const getFunctionErrorMessage = async (error: unknown) => {
+  const context = (error as { context?: Response })?.context;
+  if (context) {
+    try {
+      const payload = await context.clone().json();
+      if (typeof payload?.error === 'string') return payload.error;
+    } catch {
+      // Fall back to the SDK error message below.
+    }
+  }
+  return error instanceof Error ? error.message : 'Push notification failed';
+};
+
 const PushNotifications = () => {
   const [items, setItems] = useState<Announcement[]>([]);
   const [pushHistory, setPushHistory] = useState<PushHistoryItem[]>([]);
@@ -148,7 +161,7 @@ const PushNotifications = () => {
       });
       if (error) {
         pushOk = false;
-        toast.error(`Push: ${error.message}`);
+        toast.error(`Push: ${await getFunctionErrorMessage(error)}`);
       } else if (data?.success) {
         toast.success(
           `Push sent → ${data.success_count}/${data.sent} devices` +
