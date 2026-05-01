@@ -709,27 +709,14 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
           </>
         )}
 
-        {step === 'success' && (
-          <div className="text-center py-6">
-            <motion.div
-              initial={{ scale: 0 }} animate={{ scale: 1 }} transition={iosBounce}
-              className="w-20 h-20 mx-auto mb-4 rounded-full flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))' }}
-            >
-              <Check className="w-10 h-10 text-primary-foreground" strokeWidth={3} />
-            </motion.div>
-            <h3 className="text-[22px] font-bold mb-2">Payment submitted</h3>
-            <p className="text-[14px] text-muted-foreground mb-6 px-4">
-              We're verifying your transaction. Premium activates within a few minutes — you'll see it instantly when it's done.
-            </p>
-            <button
-              onClick={onClose}
-              className="w-full py-4 rounded-2xl font-bold text-[16px]"
-              style={{ background: 'hsl(var(--foreground))', color: 'hsl(var(--background))' }}
-            >
-              Got it
-            </button>
-          </div>
+        {step === 'verifying' && (
+          <LiveVerification
+            stage={verifyStage}
+            activated={activated}
+            amount={amountFinal}
+            utr={utr}
+            onClose={onClose}
+          />
         )}
       </motion.div>
     </motion.div>
