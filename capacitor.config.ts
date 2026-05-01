@@ -44,6 +44,9 @@ const config: CapacitorConfig = {
     captureInput: true,
     webContentsDebuggingEnabled: false,
   },
+  // Disable JS hijacking the hardware back button while media plays.
+  // @ts-expect-error supported by the Android runtime even if absent from older type defs
+  hardwareBackButton: false,
 };
 
 export default config;

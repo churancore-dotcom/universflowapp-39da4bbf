@@ -14,6 +14,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
@@ -54,8 +55,28 @@ public class MediaNotificationService extends Service {
     private boolean isPlaying = false;
     private Bitmap currentArt = null;
     private String loadedArtUrl = null;
+    private PowerManager.WakeLock wakeLock = null;
 
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+
+    private void acquireWakeLockIfNeeded() {
+        if (wakeLock != null && wakeLock.isHeld()) return;
+        try {
+            PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+            if (pm == null) return;
+            wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "UniversFlow:MediaPlayback");
+            wakeLock.setReferenceCounted(false);
+            // Safety cap — Android allows long-held wake locks but we re-acquire on each track
+            wakeLock.acquire(60L * 60L * 1000L);
+        } catch (Exception ignore) {}
+    }
+
+    private void releaseWakeLock() {
+        try {
+            if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        } catch (Exception ignore) {}
+        wakeLock = null;
+    }
 
     @Override
     public void onCreate() {
@@ -91,11 +112,13 @@ public class MediaNotificationService extends Service {
                 coverUrl = safe(intent.getStringExtra("cover"));
                 durationMs = intent.getLongExtra("duration", 0L);
                 isPlaying = intent.getBooleanExtra("isPlaying", false);
+                if (isPlaying) acquireWakeLockIfNeeded(); else releaseWakeLock();
                 refresh(true);
                 break;
             }
             case ACTION_STATE: {
                 isPlaying = intent.getBooleanExtra("isPlaying", isPlaying);
+                if (isPlaying) acquireWakeLockIfNeeded(); else releaseWakeLock();
                 if (intent.hasExtra("position")) {
                     positionMs = intent.getLongExtra("position", 0L);
                 }
@@ -301,6 +324,7 @@ public class MediaNotificationService extends Service {
 
     @Override
     public void onDestroy() {
+        releaseWakeLock();
         stopForegroundCompat();
         super.onDestroy();
     }

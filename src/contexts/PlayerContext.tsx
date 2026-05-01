@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useRef, useEffect, useCallback } from 'react';
 import { useMediaSession } from '@/hooks/useMediaSession';
+import { useGlobalAudioEngine } from '@/hooks/useGlobalAudioEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { resolveIndexedTrack, prefetchIndexedTrack } from '@/lib/musicIndexer';
 import { toast } from 'sonner';
@@ -375,10 +376,37 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', handleFocus);
 
+    // Native app resume — only fires inside Capacitor APK. Web preview ignores.
+    let appResumeRemove: (() => void) | null = null;
+    (async () => {
+      try {
+        const modName = '@capacitor/app';
+        const mod: any = await import(/* @vite-ignore */ modName).catch(() => null);
+        if (!mod?.App) return;
+        const handle = await mod.App.addListener('appStateChange', (state: { isActive: boolean }) => {
+          if (!state?.isActive) return;
+          // Returning to foreground from native background:
+          // 1) clear any stale 'error' UI state by re-checking the audio element
+          // 2) resume if we were playing
+          const a = audioRef.current;
+          if (!a) return;
+          // If readyState dropped below HAVE_CURRENT_DATA, re-prime by reassigning currentTime
+          if (a.src && a.readyState < 2) {
+            try { a.currentTime = a.currentTime; } catch {}
+          }
+          if (wasPlayingRef.current && a.src && a.paused) {
+            a.play().catch(() => {});
+          }
+        });
+        appResumeRemove = () => { try { handle.remove?.(); } catch {} };
+      } catch {}
+    })();
+
     return () => {
       audio.removeEventListener('waiting', handleWaiting);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', handleFocus);
+      if (appResumeRemove) appResumeRemove();
       if (keepAliveRef.current) clearInterval(keepAliveRef.current);
       audio.pause();
       audio.src = '';
@@ -401,6 +429,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, [volume]);
 
   const preloadedNextIdRef = useRef<string | null>(null);
+
+  // Wire the global EQ/audio engine to the live audio element. Persists across modal open/close.
+  useGlobalAudioEngine(audioElement);
 
 
   // Progress update loop using requestAnimationFrame for smooth updates
