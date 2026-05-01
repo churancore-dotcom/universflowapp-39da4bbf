@@ -24,6 +24,7 @@ interface ReactionState {
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  onWriteReview?: () => void;
 }
 
 const timeAgo = (iso: string) => {
@@ -38,7 +39,7 @@ const timeAgo = (iso: string) => {
   return new Date(iso).toLocaleDateString();
 };
 
-const ReviewsSheet = ({ isOpen, onClose }: Props) => {
+const ReviewsSheet = ({ isOpen, onClose, onWriteReview }: Props) => {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [reactions, setReactions] = useState<Record<string, ReactionState>>({});
