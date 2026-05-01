@@ -112,11 +112,13 @@ public class MediaNotificationService extends Service {
                 coverUrl = safe(intent.getStringExtra("cover"));
                 durationMs = intent.getLongExtra("duration", 0L);
                 isPlaying = intent.getBooleanExtra("isPlaying", false);
+                if (isPlaying) acquireWakeLockIfNeeded(); else releaseWakeLock();
                 refresh(true);
                 break;
             }
             case ACTION_STATE: {
                 isPlaying = intent.getBooleanExtra("isPlaying", isPlaying);
+                if (isPlaying) acquireWakeLockIfNeeded(); else releaseWakeLock();
                 if (intent.hasExtra("position")) {
                     positionMs = intent.getLongExtra("position", 0L);
                 }
