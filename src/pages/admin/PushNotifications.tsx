@@ -363,11 +363,92 @@ const PushNotifications = () => {
                       className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                         draft.target_audience === key ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'
                       }`}>
-                      {audienceLabels[key]} <span className="opacity-60">({reach[key].toLocaleString()})</span>
+                      {audienceLabels[key]}
+                      {key !== 'specific' && (
+                        <span className="opacity-60"> ({(reach as any)[key]?.toLocaleString?.() ?? 0})</span>
+                      )}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {draft.target_audience === 'specific' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <UserCircle2 className="w-4 h-4" /> Send to user
+                  </label>
+                  {selectedUser ? (
+                    <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-primary/10 border border-primary/30">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {selectedUser.avatar_url ? (
+                          <img src={selectedUser.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                            <UserCircle2 className="w-5 h-5 text-primary" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">
+                            {selectedUser.username || selectedUser.email || selectedUser.user_id}
+                          </p>
+                          {selectedUser.username && selectedUser.email && (
+                            <p className="text-xs text-muted-foreground truncate">{selectedUser.email}</p>
+                          )}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedUser(null)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                          className="pl-9"
+                          placeholder="Search by email or username (min 2 chars)"
+                          value={userQuery}
+                          onChange={(e) => setUserQuery(e.target.value)}
+                        />
+                      </div>
+                      {searching && (
+                        <p className="text-xs text-muted-foreground">Searching…</p>
+                      )}
+                      {!searching && userQuery.trim().length >= 2 && userHits.length === 0 && (
+                        <p className="text-xs text-muted-foreground">No users match "{userQuery}".</p>
+                      )}
+                      {userHits.length > 0 && (
+                        <div className="max-h-56 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+                          {userHits.map((u) => (
+                            <button
+                              key={u.user_id}
+                              onClick={() => { setSelectedUser(u); setUserQuery(''); setUserHits([]); }}
+                              className="w-full text-left p-3 hover:bg-muted transition-colors flex items-center gap-3"
+                            >
+                              {u.avatar_url ? (
+                                <img src={u.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
+                                  <UserCircle2 className="w-5 h-5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{u.username || u.email || u.user_id}</p>
+                                {u.username && u.email && (
+                                  <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Specific-user notifications are push-only and require the recipient to have opened the Android app at least once.
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="text-sm font-medium mb-1.5 block">Style (in-app banner)</label>
                 <div className="flex gap-2 flex-wrap">
