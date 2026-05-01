@@ -524,6 +524,24 @@ export type Database = {
         }
         Relationships: []
       }
+      internal_secrets: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       listening_session_members: {
         Row: {
           id: string
@@ -1241,6 +1259,10 @@ export type Database = {
           created_at: string
           expires_at: string | null
           id: string
+          notif_activated_at: string | null
+          notif_expired_at: string | null
+          notif_warn_1d_at: string | null
+          notif_warn_3d_at: string | null
           platform: Database["public"]["Enums"]["subscription_platform"]
           purchase_token: string | null
           status: Database["public"]["Enums"]["subscription_status"]
@@ -1253,6 +1275,10 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          notif_activated_at?: string | null
+          notif_expired_at?: string | null
+          notif_warn_1d_at?: string | null
+          notif_warn_3d_at?: string | null
           platform?: Database["public"]["Enums"]["subscription_platform"]
           purchase_token?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
@@ -1265,6 +1291,10 @@ export type Database = {
           created_at?: string
           expires_at?: string | null
           id?: string
+          notif_activated_at?: string | null
+          notif_expired_at?: string | null
+          notif_warn_1d_at?: string | null
+          notif_warn_3d_at?: string | null
           platform?: Database["public"]["Enums"]["subscription_platform"]
           purchase_token?: string | null
           status?: Database["public"]["Enums"]["subscription_status"]
@@ -1314,6 +1344,16 @@ export type Database = {
         Args: { p_session_code: string }
         Returns: string
       }
+      notify_system_push: {
+        Args: {
+          _body: string
+          _deep_link?: string
+          _title: string
+          _user_ids: string[]
+        }
+        Returns: undefined
+      }
+      process_premium_expiry_notifications: { Args: never; Returns: Json }
       redeem_promo_code: { Args: { p_code: string }; Returns: Json }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }

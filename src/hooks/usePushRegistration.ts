@@ -106,19 +106,40 @@ export function usePushRegistration() {
 
         const actionListener = await PushNotifications.addListener(
           'pushNotificationActionPerformed',
-          (action) => {
-            const dl = (action.notification.data as any)?.deep_link;
-            if (typeof dl === 'string' && dl.length > 0) {
-              try {
-                if (dl.startsWith('http')) {
-                  window.location.href = dl;
-                } else {
-                  window.history.pushState({}, '', dl);
-                  window.dispatchEvent(new PopStateEvent('popstate'));
-                }
-              } catch (e) {
-                console.warn('deep link nav failed', e);
+          async (action) => {
+            const data = (action.notification.data ?? {}) as Record<string, unknown>;
+            const dl = typeof data.deep_link === 'string' ? data.deep_link : '';
+            const title = action.notification.title ?? 'Notification opened';
+
+            // Lazy-import toast so we don't pull it into the registration path.
+            const { toast } = await import('@/hooks/use-toast');
+
+            if (dl.length === 0) {
+              toast({ title, description: 'No deep link attached' });
+              return;
+            }
+
+            try {
+              if (dl.startsWith('http')) {
+                window.location.href = dl;
+              } else {
+                window.history.pushState({}, '', dl);
+                window.dispatchEvent(new PopStateEvent('popstate'));
               }
+              // Confirm in-app that the deep link resolved
+              setTimeout(() => {
+                toast({
+                  title: '🔗 Opened from notification',
+                  description: `Navigated to ${dl}`,
+                });
+              }, 250);
+            } catch (e) {
+              console.warn('deep link nav failed', e);
+              toast({
+                title: 'Could not open link',
+                description: dl,
+                variant: 'destructive',
+              });
             }
           },
         );
