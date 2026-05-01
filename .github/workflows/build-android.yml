@@ -231,6 +231,22 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
+      - name: Apply custom app launcher icon (Universflow logo)
+        run: |
+          ICON="android-config/app-icon.png"
+          if [ -f "$ICON" ]; then
+            for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+              DIR="android/app/src/main/res/$d"
+              mkdir -p "$DIR"
+              cp "$ICON" "$DIR/ic_launcher.png"
+              cp "$ICON" "$DIR/ic_launcher_round.png"
+              cp "$ICON" "$DIR/ic_launcher_foreground.png"
+            done
+            echo "Custom launcher icon applied."
+          else
+            echo "No custom icon found, using Capacitor default."
+          fi
+
       - name: Build Debug APK
         working-directory: android
         run: ./gradlew assembleDebug
