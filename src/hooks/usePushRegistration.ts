@@ -57,6 +57,21 @@ export function usePushRegistration() {
         }
         if (perm.receive !== 'granted') return;
 
+        // Android 8+ requires the notification channel to exist before FCM can
+        // display notifications sent with android.notification.channel_id.
+        // Our backend sends `universflow_default`, so create/refresh it here.
+        try {
+          await PushNotifications.createChannel({
+            id: 'universflow_default',
+            name: 'UniversFlow Notifications',
+            description: 'Messages and updates from UniversFlow',
+            importance: 5,
+            visibility: 1,
+          });
+        } catch (channelError) {
+          console.warn('[Push] notification channel setup failed', channelError);
+        }
+
         // 2) Register listeners FIRST so we catch registrationError
         const tokenListener = await PushNotifications.addListener('registration', async (t) => {
           if (cancelled) return;
