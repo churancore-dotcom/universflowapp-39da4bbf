@@ -194,16 +194,23 @@ public class MediaNotificationService extends Service {
         );
 
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_media_play)
+            .setSmallIcon(getApplicationInfo().icon)
+            .setColor(0xFFFF2D55)
+            .setColorized(true)
             .setContentTitle(title.isEmpty() ? "Now Playing" : title)
-            .setContentText(artist)
-            .setSubText(album)
+            .setContentText(artist.isEmpty() ? "UniversFlow" : artist)
             .setLargeIcon(currentArt)
             .setContentIntent(contentPi)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(isPlaying)
             .setShowWhen(false)
             .setOnlyAlertOnce(true);
+
+        if (album != null && !album.isEmpty()) {
+            b.setSubText(album);
+        }
 
         b.addAction(new NotificationCompat.Action(
             android.R.drawable.ic_media_previous, "Previous",
@@ -245,6 +252,37 @@ public class MediaNotificationService extends Service {
             NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
             if (nm != null) nm.notify(NOTIFICATION_ID, notification);
         }
+
+        // Keep the home-screen widget in sync even when the JS layer is asleep.
+        syncWidget();
+    }
+
+    /** Push current track state to the NowPlayingWidget so it never goes stale. */
+    private void syncWidget() {
+        try {
+            android.content.SharedPreferences.Editor editor = getSharedPreferences(
+                "UniversFlowWidgetPrefs", Context.MODE_PRIVATE).edit();
+            editor.putString("current_title", title.isEmpty() ? "Not Playing" : title);
+            editor.putString("current_artist", artist.isEmpty() ? "Tap to open UniversFlow" : artist);
+            editor.putBoolean("is_playing", isPlaying);
+            int progress = durationMs > 0 ? (int) ((positionMs * 100L) / durationMs) : 0;
+            editor.putInt("progress", Math.max(0, Math.min(100, progress)));
+            editor.apply();
+
+            // Broadcast widget update (resolves widget class via package name)
+            String pkg = getPackageName();
+            try {
+                Class<?> widgetCls = Class.forName(pkg + ".widgets.NowPlayingWidget");
+                Intent updateIntent = new Intent(this, widgetCls);
+                updateIntent.setAction("android.appwidget.action.APPWIDGET_UPDATE");
+                android.appwidget.AppWidgetManager mgr = android.appwidget.AppWidgetManager.getInstance(this);
+                int[] ids = mgr.getAppWidgetIds(new android.content.ComponentName(this, widgetCls));
+                if (ids != null && ids.length > 0) {
+                    updateIntent.putExtra(android.appwidget.AppWidgetManager.EXTRA_APPWIDGET_IDS, ids);
+                    sendBroadcast(updateIntent);
+                }
+            } catch (ClassNotFoundException ignore) {}
+        } catch (Exception ignore) {}
     }
 
     private PendingIntent buildActionPi(String action) {

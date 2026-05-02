@@ -1,12 +1,9 @@
 import { motion } from 'framer-motion';
 import { Download, ListPlus, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { Song } from '@/contexts/PlayerContext';
 import { Button } from '@/components/ui/button';
 import { iosBounce } from '@/lib/animations';
-import { usePremium } from '@/hooks/usePremium';
-import { toast } from '@/hooks/use-toast';
 
 interface DownloadAllButtonProps {
   songs: Song[];
@@ -15,8 +12,6 @@ interface DownloadAllButtonProps {
 
 const DownloadAllButton = ({ songs, className = '' }: DownloadAllButtonProps) => {
   const { addToQueue, isDownloaded, isInQueue } = useDownloads();
-  const { isPremium } = usePremium();
-  const navigate = useNavigate();
 
   const downloadableSongs = songs.filter(
     song => !isDownloaded(song.id) && !isInQueue(song.id)
@@ -28,11 +23,6 @@ const DownloadAllButton = ({ songs, className = '' }: DownloadAllButtonProps) =>
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (downloadableSongs.length === 0) return;
-    if (!isPremium) {
-      toast({ title: 'Premium feature', description: 'Bulk downloads are part of Premium.' });
-      navigate('/premium');
-      return;
-    }
     addToQueue(downloadableSongs);
   };
 

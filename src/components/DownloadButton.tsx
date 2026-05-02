@@ -1,12 +1,9 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Check, Trash2, Loader2, CloudOff, AlertCircle, ListPlus } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { Song } from '@/contexts/PlayerContext';
 import { iosBounce } from '@/lib/animations';
 import { triggerHaptic } from '@/hooks/useHaptics';
-import { usePremium } from '@/hooks/usePremium';
-import { toast } from '@/hooks/use-toast';
 
 interface DownloadButtonProps {
   song: Song;
@@ -17,8 +14,6 @@ interface DownloadButtonProps {
 
 const DownloadButton = ({ song, size = 'md', showLabel = false, queueMode = false }: DownloadButtonProps) => {
   const { downloadSong, addToQueue, removeSong, isDownloaded, isInQueue, downloadProgress } = useDownloads();
-  const { isPremium } = usePremium();
-  const navigate = useNavigate();
 
   const downloaded = isDownloaded(song.id);
   const inQueue = isInQueue(song.id);
@@ -34,12 +29,6 @@ const DownloadButton = ({ song, size = 'md', showLabel = false, queueMode = fals
     if (isDownloading || inQueue) return;
 
     triggerHaptic('impactMedium');
-
-    if (!isPremium && !downloaded) {
-      toast({ title: 'Premium feature', description: 'Unlimited downloads are part of Premium.' });
-      navigate('/premium');
-      return;
-    }
 
     if (downloaded) removeSong(song.id);
     else if (queueMode) addToQueue([song]);
