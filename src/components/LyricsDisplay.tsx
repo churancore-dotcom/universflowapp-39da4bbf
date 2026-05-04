@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Music2, Loader2, AlertCircle, Mic2 } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
+import { usePlayerProgress } from '@/lib/playerProgressStore';
 import { iosSpring } from '@/lib/animations';
 
 interface LyricsDisplayProps {
