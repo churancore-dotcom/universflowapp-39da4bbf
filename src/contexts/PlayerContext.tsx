@@ -228,6 +228,13 @@ const loadYouTubeIframeApi = (): Promise<typeof window.YT> => {
 export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentSong, setCurrentSong] = useState<Song | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  // progress/duration live in an external store (playerProgressStore) so the
+  // 250ms tick doesn't rerender every component using usePlayer().
+  const setProgress = (v: number | ((prev: number) => number)) => {
+    const next = typeof v === 'function' ? (v as (p: number) => number)(playerProgressStore.getProgress()) : v;
+    playerProgressStore.setProgress(next);
+  };
+  const setDuration = (v: number) => playerProgressStore.setDuration(v);
   const [volume, setVolumeState] = useState(0.8);
   const [queue, setQueueState] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
