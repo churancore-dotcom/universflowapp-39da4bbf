@@ -12,6 +12,7 @@ import AllSongsSection from '@/components/AllSongsSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
 
 import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
+import MadeForYouSection from '@/components/MadeForYouSection';
 import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
 import BottomNav from '@/components/BottomNav';
@@ -128,31 +129,6 @@ const Home = () => {
   }, [onlineSongs, updateCache, isOffline]);
 
   const loading = isLoading && songs.length === 0 && !isOffline;
-
-  // External "real" New Releases — pulled from live Last.fm/Deezer charts (not user uploads)
-  const { data: externalNewReleases = [] } = useQuery({
-    queryKey: ['home', 'external-new-releases'],
-    queryFn: async () => {
-      const tracks = await getTopIndexedTracks(12);
-      return tracks.map((t): Song => ({
-        id: t.id,
-        title: t.title,
-        artist: t.artist,
-        album: t.album,
-        cover_url: t.cover_url,
-        audio_url: 'resolving',
-        duration: t.duration,
-        source: 'indexed',
-      }));
-    },
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    enabled: !isOffline,
-  });
-
-  const handlePlayExternal = useCallback((track: Song, queue: Song[]) => {
-    playSong(track, undefined, queue);
-  }, [playSong]);
 
   const allSongs = useMemo(() => songs, [songs]);
 
@@ -388,38 +364,8 @@ const Home = () => {
                   {/* Global Top Tracks */}
                   <GlobalTopTracksSection />
 
-                  {/* New Releases — REAL external charts (Last.fm/Deezer), not user uploads */}
-                  {externalNewReleases.length > 0 && (
-                    <HorizontalSection title="New Releases" subtitle="Fresh from global charts" songs={externalNewReleases}>
-                      {externalNewReleases.map((song, i) => (
-                        <motion.button
-                          key={song.id}
-                          onClick={() => { triggerHaptic('selection'); handlePlayExternal(song, externalNewReleases); }}
-                          className="flex-shrink-0 w-[140px] snap-start text-left"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: i * 0.04, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                          whileTap={{ scale: 0.96 }}
-                        >
-                          <div
-                            className="relative w-[140px] h-[140px] rounded-2xl overflow-hidden mb-2 bg-muted"
-                            style={{ boxShadow: '0 6px 20px rgba(0,0,0,0.35)', border: '0.5px solid rgba(255,255,255,0.08)' }}
-                          >
-                            {song.cover_url ? (
-                              <img src={song.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
-                            ) : (
-                              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                                <Music className="w-7 h-7 text-muted-foreground" />
-                              </div>
-                            )}
-                            {currentSong?.id === song.id && <div className="absolute inset-0 bg-primary/10" />}
-                          </div>
-                          <p className="text-[13px] font-bold truncate text-foreground leading-tight">{song.title}</p>
-                          <p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">{song.artist}</p>
-                        </motion.button>
-                      ))}
-                    </HorizontalSection>
-                  )}
+                  {/* Made For You — personalized from artists the user follows */}
+                  <MadeForYouSection />
                 </>
               )}
 
