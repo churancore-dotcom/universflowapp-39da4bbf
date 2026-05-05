@@ -7,7 +7,7 @@ import { useSongCache } from '@/hooks/useSongCache';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import SongCard from '@/components/SongCard';
-import HorizontalSection from '@/components/HorizontalSection';
+
 import AllSongsSection from '@/components/AllSongsSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
 
@@ -24,7 +24,7 @@ import { Music, Lock, ListMusic, Sliders, Headphones } from 'lucide-react';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import appLogo from '@/assets/app-logo.png';
 import { HomeSkeleton } from '@/components/PageSkeletons';
-import { getTopIndexedTracks } from '@/lib/musicIndexer';
+
 
 // Simple empty state
 const EmptyState = memo(() => (
