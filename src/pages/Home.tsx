@@ -11,6 +11,7 @@ import AllSongsSection from '@/components/AllSongsSection';
 
 import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
+import FollowedArtistSongsSection from '@/components/FollowedArtistSongsSection';
 import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
 import BottomNav from '@/components/BottomNav';
@@ -78,6 +79,9 @@ const fetchHomeSongs = async (): Promise<Song[]> => {
       duration: s.duration || undefined,
       artist_id: artistData?.id || s.artist_id || undefined,
       artist_photo_url: artistData?.photo_url || undefined,
+      genre: s.genre || undefined,
+      mood: s.mood || undefined,
+      created_at: s.created_at || undefined,
       show_in_new_releases: s.show_in_new_releases,
       show_in_trending: s.show_in_trending,
       is_premium_only: s.is_premium_only,
@@ -358,6 +362,8 @@ const Home = () => {
                 <>
                   {/* Artist discovery */}
                   <FeaturedArtistsSection />
+
+                  <FollowedArtistSongsSection songs={allSongs} />
 
                   {/* Global Top Tracks */}
                   <GlobalTopTracksSection />

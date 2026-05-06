@@ -7,7 +7,8 @@
  *                  -> convolver -> wetGain ─┴-> destination
  *
  * Public API:
- *   connectAudioElement(el)      // idempotent; reuses MediaElementSource
+  *   connectAudioElement(el)      // idempotent; reuses MediaElementSource
+  *   bypassAudioElement(el)       // smooth direct path when EQ/effects are off
  *   setBands(gainsDb[])          // 8 values, smoothed
  *   setBassBoost(percent)        // 0-100, adds to lowest 3 bands
  *   setReverb(percent)           // 0-100 wet mix
@@ -80,12 +81,6 @@ function ensureCtx(): AudioContext | null {
   if (!AC) return null;
   try {
     engine.ctx = new AC();
-    // Auto-resume if Android/iOS suspends the context while backgrounded.
-    engine.ctx.addEventListener('statechange', () => {
-      if (engine.ctx?.state === 'suspended') {
-        engine.ctx.resume().catch(() => {});
-      }
-    });
     return engine.ctx;
   } catch {
     return null;
@@ -218,6 +213,20 @@ function buildDirectChain(source: MediaElementAudioSourceNode, ctx: AudioContext
   engine.panner = null;
 }
 
+function getOrCreateSource(ctx: AudioContext, el: HTMLAudioElement): MediaElementAudioSourceNode | null {
+  let source = sourceCache.get(el);
+  if (source) return source;
+  try {
+    source = ctx.createMediaElementSource(el);
+    sourceCache.set(el, source);
+    return source;
+  } catch (e) {
+    console.warn('[audioEngine] createMediaElementSource failed', e);
+    setMode('unsupported');
+    return null;
+  }
+}
+
 /**
  * Connect (or reconnect) the global engine to this audio element.
  * Safe to call repeatedly — only rebuilds when the source URL/CORS mode changes.
@@ -234,24 +243,17 @@ export function connectAudioElement(el: HTMLAudioElement): boolean {
   // Same element + same source => already wired
   if (engine.el === el && engine.signature === sig && sig !== null) {
     if (ctx.state === 'suspended') ctx.resume().catch(() => { });
-    return engine.mode === 'processed';
+    if (engine.mode === 'processed') return true;
+    // If the caller now wants processing after a previous bypass/direct path,
+    // fall through and rebuild the processed chain for the same source.
   }
 
   // Need to (re)wire. Disconnect first.
   disconnectAll();
 
   // Get/create the source. NEVER re-create one for the same element.
-  let source = sourceCache.get(el);
-  if (!source) {
-    try {
-      source = ctx.createMediaElementSource(el);
-      sourceCache.set(el, source);
-    } catch (e) {
-      console.warn('[audioEngine] createMediaElementSource failed', e);
-      setMode('unsupported');
-      return false;
-    }
-  }
+  const source = getOrCreateSource(ctx, el);
+  if (!source) return false;
 
   engine.el = el;
   engine.signature = sig;
@@ -266,6 +268,28 @@ export function connectAudioElement(el: HTMLAudioElement): boolean {
   buildProcessedChain(ctx, source);
   setMode('processed');
   if (ctx.state === 'suspended') ctx.resume().catch(() => { });
+  return true;
+}
+
+/** Keep audio routed without EQ/effects. Avoids expensive filters while preserving sound after a MediaElementSource exists. */
+export function bypassAudioElement(el: HTMLAudioElement): boolean {
+  if (engine.el !== el && !sourceCache.has(el)) {
+    setMode('idle');
+    return true;
+  }
+
+  const ctx = ensureCtx();
+  if (!ctx) return false;
+  const source = getOrCreateSource(ctx, el);
+  if (!source) return false;
+
+  if (engine.el === el && engine.mode === 'direct') return true;
+  disconnectAll();
+  engine.el = el;
+  engine.signature = signature(el);
+  buildDirectChain(source, ctx);
+  setMode('direct');
+  if (ctx.state === 'suspended' && document.visibilityState === 'visible') ctx.resume().catch(() => { });
   return true;
 }
 

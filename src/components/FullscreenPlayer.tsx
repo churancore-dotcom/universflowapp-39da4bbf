@@ -1,4 +1,4 @@
-import { useState, memo, useCallback, useRef, useEffect } from 'react';
+import { useState, memo, useCallback, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, Shuffle, Repeat, Repeat1, ChevronDown, ListMusic, Share2, Sliders } from 'lucide-react';
 import { usePlayer } from '@/contexts/PlayerContext';
@@ -64,7 +64,9 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
     volume,
     shuffle,
     repeat,
+    queue,
     isExpanded,
+    playSong,
     togglePlay,
     nextSong,
     prevSong,
@@ -83,6 +85,24 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
   const [direction, setDirection] = useState(0);
   const prevSongIdRef = useRef<string | null>(null);
   const navigate = useNavigate();
+
+  const vibeSuggestions = useMemo(() => {
+    if (!currentSong) return [];
+    const currentMood = currentSong.mood?.toLowerCase().trim();
+    const currentGenre = currentSong.genre?.toLowerCase().trim();
+    return queue
+      .filter((song) => song.id !== currentSong.id)
+      .map((song) => {
+        const moodMatch = currentMood && song.mood?.toLowerCase().trim() === currentMood ? 4 : 0;
+        const genreMatch = currentGenre && song.genre?.toLowerCase().trim() === currentGenre ? 2 : 0;
+        const differentArtist = song.artist.toLowerCase() !== currentSong.artist.toLowerCase() ? 1 : 0;
+        return { song, score: moodMatch + genreMatch + differentArtist };
+      })
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 8)
+      .map((item) => item.song);
+  }, [currentSong, queue]);
 
   useEffect(() => {
     if (currentSong?.id && currentSong.id !== prevSongIdRef.current) {
@@ -352,6 +372,32 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
 
               {/* Volume slider */}
               <VolumeSlider value={volume} onChange={setVolume} />
+
+              {vibeSuggestions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40 px-1">Same Vibe</p>
+                  <div className="flex gap-2 overflow-x-auto hide-scrollbar pb-1 -mx-1 px-1">
+                    {vibeSuggestions.map((song) => (
+                      <button
+                        key={song.id}
+                        type="button"
+                        onClick={() => { triggerHaptic('selection'); playSong(song, undefined, queue); }}
+                        className="w-32 flex-shrink-0 rounded-2xl bg-white/5 p-2 text-left active:scale-[0.96] transition-transform"
+                      >
+                        <div className="mb-2 aspect-square overflow-hidden rounded-xl bg-white/10">
+                          {song.cover_url ? (
+                            <img src={song.cover_url} alt={`${song.title} cover art`} className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-white/30">♪</div>
+                          )}
+                        </div>
+                        <p className="truncate text-[12px] font-semibold text-white/90">{song.title}</p>
+                        <p className="truncate text-[10px] text-white/45">{song.mood || song.genre || song.artist}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Bottom actions */}
               <div className="flex items-center justify-around">

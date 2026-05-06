@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { connectAudioElement, setBands, setReverb, setSpatial, resume, subscribe } from '@/lib/audioEngine';
+import { bypassAudioElement, connectAudioElement, setBands, setReverb, setSpatial, resume, subscribe } from '@/lib/audioEngine';
 
 const STORAGE_KEY = 'eq_settings';
 
@@ -40,6 +40,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     const reapply = () => {
       const s = readStored();
       if (!hasActiveProcessing(s)) {
+        bypassAudioElement(audioElement);
         audioElement.playbackRate = 1;
         return;
       }

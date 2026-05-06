@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { usePremium } from '@/hooks/usePremium';
 import PremiumLockOverlay from './PremiumLockOverlay';
 import {
+  bypassAudioElement,
   connectAudioElement,
   setBands as engineSetBands,
   setReverb as engineSetReverb,
@@ -61,6 +62,22 @@ const defaultBands: EQBand[] = [
 
 const STORAGE_KEY = 'eq_settings';
 
+function hasActiveProcessing(data: {
+  bands: EQBand[];
+  bassBoost: number;
+  reverb: number;
+  playbackSpeed: number;
+  spatialAudio: boolean;
+}) {
+  return Boolean(
+    data.bands.some((band) => Math.abs(band.gain) >= 0.5) ||
+    data.bassBoost > 0 ||
+    data.reverb > 0 ||
+    data.spatialAudio ||
+    data.playbackSpeed !== 1
+  );
+}
+
 function loadSettings() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
@@ -91,20 +108,31 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   const [spatialAudio, setSpatialAudio] = useState(saved?.spatialAudio ?? false);
   const [activePreset, setActivePreset] = useState<string>(saved?.activePreset ?? 'flat');
 
-  // Ensure the engine is wired the moment the modal opens / song changes
+  // Only route through Web Audio while EQ/effects are active. This prevents
+  // background/native playback from fighting expensive filters when EQ is off.
   useEffect(() => {
-    if (audioElement) {
+    if (!audioElement) return;
+    const active = hasActiveProcessing({ bands, bassBoost, reverb, playbackSpeed, spatialAudio });
+    if (active) {
       engineResume();
       connectAudioElement(audioElement);
+      engineSetBands(bands.map(b => b.gain), bassBoost);
+      engineSetReverb(reverb);
+      engineSetSpatial(spatialAudio);
+    } else {
+      bypassAudioElement(audioElement);
+      engineSetSpatial(false);
+      audioElement.playbackRate = 1;
     }
-  }, [audioElement, currentSong?.id]);
+  }, [audioElement, currentSong?.id, bands, bassBoost, reverb, playbackSpeed, spatialAudio]);
 
   // Push EQ band changes to the engine (smoothed, never rebuilds graph)
   useEffect(() => {
+    if (!audioElement || !hasActiveProcessing({ bands, bassBoost, reverb, playbackSpeed, spatialAudio })) return;
     engineResume();
-    if (audioElement) connectAudioElement(audioElement);
+    connectAudioElement(audioElement);
     engineSetBands(bands.map(b => b.gain), bassBoost);
-  }, [bands, bassBoost, audioElement]);
+  }, [bands, bassBoost, audioElement, reverb, playbackSpeed, spatialAudio]);
 
   useEffect(() => {
     engineSetReverb(reverb);

@@ -46,6 +46,9 @@ export interface Song {
   artist_id?: string;
   artist_photo_url?: string;
   play_count?: number;
+  genre?: string;
+  mood?: string;
+  created_at?: string;
   source?: 'library' | 'audius' | 'indexed';
 }
 
@@ -125,8 +128,9 @@ const shouldProxyStreamUrl = (sourceUrl: string) => {
     if (parsed.origin === window.location.origin) return false;
     if (sourceUrl.includes('/functions/v1/music-indexer?audio=')) return false;
 
-    // Route ALL non-catalog streams through the CORS-enabled proxy so the
-    // equalizer / Web Audio graph can process them without tainting.
+    // Only proxy non-catalog streams while EQ/effects are active. Proxying every
+    // stream makes Android background playback more fragile and can cause stutter.
+    if (!isEqProcessingEnabled()) return false;
     return !DIRECT_PLAYABLE_HOST_SNIPPETS.some((host) => parsed.hostname.endsWith(host));
   } catch {
     return false;
@@ -1367,6 +1371,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     })();
     return () => { cancelled = true; };
   }, [currentSong?.id, isPlaying, liveDuration, mediaSessionCallbacks]);
+
+  useEffect(() => {
+    if (!currentSong) return;
+    let cancelled = false;
+    const tick = () => {
+      import('@/lib/nativeMusicControls')
+        .then(({ updateNativeMusicState }) => {
+          if (!cancelled) updateNativeMusicState(isPlaying, playerProgressStore.getProgress());
+        })
+        .catch(() => {});
+    };
+    tick();
+    const id = window.setInterval(tick, 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, [currentSong?.id, isPlaying]);
 
   // Track each played song into local song-history (Spotify-style search history)
   useEffect(() => {
