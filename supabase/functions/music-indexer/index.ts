@@ -598,23 +598,55 @@ const DISCOVERY_TAGS = [
   'dance', 'k-pop', 'latin', 'edm', 'rap', 'house', 'alternative', 'trap',
 ];
 
-async function getTopTracks(limit = 30) {
-  // Rotation key changes every ~5 minutes so the chart visibly refreshes
+// Geo-aware tag map: country code → preferred Last.fm tags
+const GEO_TAGS: Record<string, string[]> = {
+  IN: ['bollywood', 'punjabi', 'hindi', 'indian'],
+  US: ['pop', 'hip-hop', 'rap', 'r&b'],
+  GB: ['uk', 'pop', 'indie', 'rock'],
+  KR: ['k-pop', 'korean'],
+  JP: ['j-pop', 'japanese'],
+  BR: ['brasileiro', 'latin', 'sertanejo'],
+  MX: ['latin', 'reggaeton', 'regional mexicano'],
+  ES: ['latin', 'spanish', 'reggaeton'],
+  FR: ['french', 'pop', 'rap'],
+  DE: ['german', 'pop', 'rock'],
+  ID: ['indonesian', 'pop'],
+  PH: ['opm', 'pop'],
+  TR: ['turkish', 'pop'],
+  NG: ['afrobeats', 'afro'],
+  PK: ['pakistani', 'bollywood'],
+  BD: ['bengali', 'bollywood'],
+  SA: ['arabic', 'pop'],
+  AE: ['arabic', 'pop'],
+  RU: ['russian', 'pop'],
+};
+
+const GLOBAL_TAGS = ['pop', 'hip-hop', 'rock', 'electronic', 'r&b', 'indie', 'dance', 'k-pop', 'latin'];
+
+async function getTopTracks(limit = 30, country?: string) {
+  const cc = (country || '').toUpperCase().slice(0, 2);
+  const geoTags = GEO_TAGS[cc] || [];
   const rotation = Math.floor(Date.now() / (5 * 60 * 1000));
-  const ck = `top-rotated:${limit}:${rotation}`;
+  const ck = `top-rotated:${cc || 'global'}:${limit}:${rotation}`;
   const c = getCached<IndexedTrack[]>(ck);
   if (c) return c;
 
-  // Pick 2 random tags + global chart for the freshest blend
-  const shuffled = [...DISCOVERY_TAGS].sort(() => Math.random() - 0.5);
-  const picks = shuffled.slice(0, 2);
-  const perBucket = Math.ceil(limit / 2) + 5;
+  // Build buckets: bias toward geo tags when present
+  const tagPool = geoTags.length ? [...geoTags, ...GLOBAL_TAGS.slice(0, 2)] : [...GLOBAL_TAGS].sort(() => Math.random() - 0.5).slice(0, 3);
+  const perBucket = Math.ceil(limit / Math.max(tagPool.length, 1)) + 4;
 
   const fetches: Promise<LastFmTrack[]>[] = [
-    fetchJson(buildLastFmUrl('chart.gettoptracks', { limit: String(perBucket), page: String((rotation % 3) + 1) }))
+    // Global chart slice (smaller weight when geo bias active)
+    fetchJson(buildLastFmUrl('chart.gettoptracks', { limit: String(geoTags.length ? 6 : perBucket), page: String((rotation % 3) + 1) }))
       .then((d) => (Array.isArray(d?.tracks?.track) ? d.tracks.track : []))
       .catch(() => []),
-    ...picks.map((tag) =>
+    // Geo country chart (Last.fm geo.gettoptracks)
+    ...(cc ? [
+      fetchJson(`https://ws.audioscrobbler.com/2.0/?method=geo.gettoptracks&country=${encodeURIComponent(countryCodeToName(cc))}&api_key=${LASTFM_API_KEY}&format=json&limit=${perBucket}&page=${(rotation % 3) + 1}`)
+        .then((d: any) => (Array.isArray(d?.tracks?.track) ? d.tracks.track : []))
+        .catch(() => []),
+    ] : []),
+    ...tagPool.map((tag) =>
       fetchJson(buildLastFmUrl('tag.gettoptracks', { tag, limit: String(perBucket), page: String((rotation % 4) + 1) }))
         .then((d) => (Array.isArray(d?.tracks?.track) ? d.tracks.track : []))
         .catch(() => []),
@@ -623,24 +655,32 @@ async function getTopTracks(limit = 30) {
 
   const buckets = await Promise.all(fetches);
   const merged: LastFmTrack[] = [];
-  // Interleave so chart top + tag picks mix nicely
   const maxLen = Math.max(...buckets.map((b) => b.length));
   for (let i = 0; i < maxLen; i += 1) {
-    for (const bucket of buckets) {
-      if (bucket[i]) merged.push(bucket[i]);
-    }
+    for (const bucket of buckets) if (bucket[i]) merged.push(bucket[i]);
   }
 
-  const enriched = await Promise.all(merged.slice(0, limit + 4).map(async (t) => {
+  const enriched = await Promise.all(merged.slice(0, limit + 8).map(async (t) => {
     const info = t.name ? await getTrackInfo(getArtistName(t.artist), t.name) : null;
     const mapped = mapTrack(t, info);
     return mapped ? hydrateTrackArtwork(mapped) : null;
   }));
-  // Re-shuffle slightly so order doesn't feel mechanical
-  const unique = uniqueTracks(enriched).sort(() => Math.random() - 0.35);
+  const unique = uniqueTracks(enriched).sort(() => Math.random() - 0.25);
   const results = unique.slice(0, limit).map((t, i) => ({ ...t, rank: i + 1 }));
   setCached(ck, results, 5 * 60 * 1000);
   return results;
+}
+
+function countryCodeToName(cc: string): string {
+  const map: Record<string, string> = {
+    IN: 'India', US: 'United States', GB: 'United Kingdom', KR: 'South Korea',
+    JP: 'Japan', BR: 'Brazil', MX: 'Mexico', ES: 'Spain', FR: 'France',
+    DE: 'Germany', ID: 'Indonesia', PH: 'Philippines', TR: 'Turkey',
+    NG: 'Nigeria', PK: 'Pakistan', BD: 'Bangladesh', SA: 'Saudi Arabia',
+    AE: 'United Arab Emirates', RU: 'Russia', CA: 'Canada', AU: 'Australia',
+    IT: 'Italy', NL: 'Netherlands', SE: 'Sweden', AR: 'Argentina', CO: 'Colombia',
+  };
+  return map[cc] || 'United States';
 }
 
 // ── Video search & scoring ──
@@ -1113,8 +1153,9 @@ serve(async (req) => {
 
     if (action === 'top') {
       const limit = Math.max(1, Math.min(50, typeof body.limit === 'number' ? body.limit : 30));
+      const country = typeof body.country === 'string' ? body.country : '';
       try {
-        const results = await getTopTracks(limit);
+        const results = await getTopTracks(limit, country);
         return new Response(JSON.stringify({ success: true, results }), {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
