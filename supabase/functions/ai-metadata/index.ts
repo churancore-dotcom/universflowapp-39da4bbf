@@ -48,6 +48,35 @@ serve(async (req) => {
 
     console.log(`Authenticated user: ${claimsData.user.id}`);
 
+    // Restrict to admins or premium users (consumes paid AI credits)
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    const [{ data: isAdmin }, { data: isPremium }] = await Promise.all([
+      adminClient.rpc('has_role', { _user_id: claimsData.user.id, _role: 'admin' }),
+      adminClient.rpc('has_premium_subscription', { _user_id: claimsData.user.id }),
+    ]);
+    if (!isAdmin && !isPremium) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'This feature requires Premium' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Per-user rate limit (10 req/min)
+    const { data: allowed } = await adminClient.rpc('check_and_increment_rate_limit', {
+      _user_id: claimsData.user.id,
+      _endpoint: 'ai-metadata',
+      _max_per_minute: 10,
+    });
+    if (allowed === false) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { url } = await req.json();
 
     if (!url) {

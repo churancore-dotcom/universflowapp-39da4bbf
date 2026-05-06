@@ -56,6 +56,23 @@ serve(async (req) => {
       });
     }
 
+    // Per-user rate limit (30 req/min) to protect YouTube quota
+    const adminClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+    const { data: allowed } = await adminClient.rpc('check_and_increment_rate_limit', {
+      _user_id: userData.user.id,
+      _endpoint: 'yt-music-search',
+      _max_per_minute: 30,
+    });
+    if (allowed === false) {
+      return new Response(JSON.stringify({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }), {
+        status: 429,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { query } = await req.json();
     if (!query || typeof query !== 'string' || query.trim().length < 2) {
       return new Response(JSON.stringify({ success: false, error: 'A search query is required' }), {

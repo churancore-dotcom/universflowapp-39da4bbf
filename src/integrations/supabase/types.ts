@@ -154,6 +154,27 @@ export type Database = {
         }
         Relationships: []
       }
+      api_rate_limits: {
+        Row: {
+          endpoint: string
+          request_count: number
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          endpoint: string
+          request_count?: number
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          endpoint?: string
+          request_count?: number
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       app_reviews: {
         Row: {
           comment: string | null
@@ -1313,6 +1334,10 @@ export type Database = {
       admin_log_event: {
         Args: { p_details?: Json; p_event_type: string; p_severity?: string }
         Returns: string
+      }
+      check_and_increment_rate_limit: {
+        Args: { _endpoint: string; _max_per_minute: number; _user_id: string }
+        Returns: boolean
       }
       expire_old_subscriptions: { Args: never; Returns: number }
       find_profile_by_share_code: {
