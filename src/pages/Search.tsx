@@ -80,7 +80,9 @@ const Search = () => {
 
   const libraryResults: Song[] = [];
 
-  const visibleIndexedResults = source === 'all' || source === 'indexer' ? indexedResults : [];
+  const visibleIndexedResults = source === 'originals'
+    ? indexedResults.filter(isOriginalTrack)
+    : indexedResults;
 
   const handlePlayIndexed = useCallback((track: IndexedTrack) => {
     const song: Song = {
@@ -153,8 +155,8 @@ const Search = () => {
           {hasQuery && (
             <div className="flex gap-2 mt-2.5 overflow-x-auto hide-scrollbar">
               {([
-                { key: 'all' as SearchSource, label: 'All Songs', icon: Globe },
-                { key: 'indexer' as SearchSource, label: 'Worldwide', icon: Radio },
+                { key: 'originals' as SearchSource, label: 'Originals', icon: Radio },
+                { key: 'all' as SearchSource, label: 'All Results', icon: Globe },
               ]).map(tab => (
                 <motion.button key={tab.key} onClick={() => setSource(tab.key)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all flex-shrink-0"
@@ -165,9 +167,6 @@ const Search = () => {
                   }} whileTap={{ scale: 0.95 }}>
                   <tab.icon className="w-3 h-3" />
                   {tab.label}
-                  {tab.key === 'indexer' && indexedResults.length > 0 && (
-                    <span className="ml-0.5 text-[10px] opacity-60">{indexedResults.length}</span>
-                  )}
                 </motion.button>
               ))}
             </div>
