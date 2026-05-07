@@ -4,13 +4,6 @@ import { toast } from 'sonner';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { detectCountry, getTopIndexedTracks, prefetchIndexedTrack, resolveIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
 
-const REGION_LABEL: Record<string, string> = {
-  IN: 'India', US: 'USA', GB: 'UK', CA: 'Canada', AU: 'Australia',
-  PK: 'Pakistan', BD: 'Bangladesh', JP: 'Japan', KR: 'Korea',
-  CN: 'China', SG: 'Singapore', AE: 'UAE', SA: 'Saudi Arabia',
-  FR: 'France', DE: 'Germany', ES: 'Spain', RU: 'Russia',
-  MX: 'Mexico', BR: 'Brazil',
-};
 
 const GlobalTopTracksSection = () => {
   const [tracks, setTracks] = useState<IndexedTrack[]>([]);
