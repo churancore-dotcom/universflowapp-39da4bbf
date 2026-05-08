@@ -2,9 +2,10 @@ import { useEffect, useState, useCallback, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play } from 'lucide-react';
 import { usePlayer, type Song } from '@/contexts/PlayerContext';
-import { getTopIndexedTracks, prefetchIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
+import { getTopIndexedTracks, prefetchIndexedTrack, invalidateTopTracksCache, type IndexedTrack } from '@/lib/musicIndexer';
 import { getGeo, flagFor } from '@/lib/geoLocation';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Top hero carousel — auto-rotating "Cover Story" cards built from the
