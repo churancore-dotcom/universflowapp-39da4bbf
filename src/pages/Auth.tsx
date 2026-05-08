@@ -255,6 +255,40 @@ const Auth = () => {
             </div>
 
             <div className="space-y-3">
+              {!isLogin && (
+                <>
+                  <div className="relative">
+                    <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Username (locked once set)"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.replace(/\s+/g, ''))}
+                      className="pl-10 h-12 text-sm rounded-xl border-0"
+                      style={{ background: 'rgba(255, 255, 255, 0.06)' }}
+                      maxLength={20}
+                      required
+                    />
+                  </div>
+                  <div className="relative">
+                    <Globe2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none z-10" />
+                    <select
+                      value={country}
+                      onChange={(e) => setCountry(e.target.value)}
+                      className="w-full pl-10 pr-3 h-12 text-sm rounded-xl border-0 appearance-none text-foreground"
+                      style={{ background: 'rgba(255, 255, 255, 0.06)' }}
+                      required
+                    >
+                      {COUNTRIES.map((c) => (
+                        <option key={c.code} value={c.code} className="bg-neutral-900">
+                          {c.flag}  {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+
               <div className="relative">
                 <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
