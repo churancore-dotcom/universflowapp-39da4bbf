@@ -424,10 +424,7 @@ const Home = () => {
                 </section>
               )}
 
-              {/* ───── Top Artists ───── */}
-              <div className="px-3 pt-7">
-                <ArtistsRail />
-              </div>
+              {/* (Artists rail moved above, below Trending) */}
 
               {/* ───── Fresh Drops ───── */}
               {freshDrops.length > 0 && (
