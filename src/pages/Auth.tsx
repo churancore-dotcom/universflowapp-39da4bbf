@@ -4,16 +4,19 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, MailCheck, RefreshCw } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, MailCheck, RefreshCw, User as UserIcon, Globe2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FadeTransition } from '@/components/PageTransition';
 import { supabase } from '@/integrations/supabase/client';
 import appLogo from '@/assets/app-logo.png';
+import { COUNTRIES } from '@/lib/countries';
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [country, setCountry] = useState('IN');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [verifySent, setVerifySent] = useState<string | null>(null);
