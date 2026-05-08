@@ -625,35 +625,42 @@ const GLOBAL_TAGS = ['pop', 'hip-hop', 'rock', 'electronic', 'r&b', 'indie', 'da
 
 async function getTopTracks(limit = 30, country?: string) {
   const cc = (country || '').toUpperCase().slice(0, 2);
-  const geoTags = GEO_TAGS[cc] || [];
-  const rotation = Math.floor(Date.now() / (5 * 60 * 1000));
-  const ck = `top-rotated:${cc || 'global'}:${limit}:${rotation}`;
+  // 1h cache — REAL chart positions don't shuffle every 5 minutes.
+  const ck = `viral:${cc || 'global'}:${limit}`;
   const c = getCached<IndexedTrack[]>(ck);
   if (c) return c;
 
-  // Build buckets: bias toward geo tags when present
-  const tagPool = geoTags.length ? [...geoTags, ...GLOBAL_TAGS.slice(0, 2)] : [...GLOBAL_TAGS].sort(() => Math.random() - 0.5).slice(0, 3);
-  const perBucket = Math.ceil(limit / Math.max(tagPool.length, 1)) + 4;
-
+  // Pull ONLY real, listener-driven charts — no tag pools, no random shuffle.
+  // Last.fm geo.gettoptracks = real weekly listener chart per country.
+  // Last.fm chart.gettoptracks = real global weekly chart.
+  // Deezer chart = real streaming chart (refreshed daily).
   const fetches: Promise<LastFmTrack[]>[] = [
-    // Global chart slice (smaller weight when geo bias active)
-    fetchJson(buildLastFmUrl('chart.gettoptracks', { limit: String(geoTags.length ? 6 : perBucket), page: String((rotation % 3) + 1) }))
+    cc
+      ? fetchJson(`https://ws.audioscrobbler.com/2.0/?method=geo.gettoptracks&country=${encodeURIComponent(countryCodeToName(cc))}&api_key=${LASTFM_API_KEY}&format=json&limit=${limit + 10}`)
+          .then((d: any) => (Array.isArray(d?.tracks?.track) ? d.tracks.track : []))
+          .catch(() => [])
+      : Promise.resolve([]),
+    fetchJson(buildLastFmUrl('chart.gettoptracks', { limit: String(limit + 10) }))
       .then((d) => (Array.isArray(d?.tracks?.track) ? d.tracks.track : []))
       .catch(() => []),
-    // Geo country chart (Last.fm geo.gettoptracks)
-    ...(cc ? [
-      fetchJson(`https://ws.audioscrobbler.com/2.0/?method=geo.gettoptracks&country=${encodeURIComponent(countryCodeToName(cc))}&api_key=${LASTFM_API_KEY}&format=json&limit=${perBucket}&page=${(rotation % 3) + 1}`)
-        .then((d: any) => (Array.isArray(d?.tracks?.track) ? d.tracks.track : []))
-        .catch(() => []),
-    ] : []),
-    ...tagPool.map((tag) =>
-      fetchJson(buildLastFmUrl('tag.gettoptracks', { tag, limit: String(perBucket), page: String((rotation % 4) + 1) }))
-        .then((d) => (Array.isArray(d?.tracks?.track) ? d.tracks.track : []))
-        .catch(() => []),
-    ),
+    // Deezer chart (real streaming)
+    fetch(`https://api.deezer.com/chart/0/tracks?limit=${limit}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d: any) => Array.isArray(d?.data)
+        ? d.data.map((t: any) => ({
+            name: t.title_short || t.title,
+            artist: { name: t.artist?.name },
+            image: t.album?.cover_xl ? [{ '#text': t.album.cover_xl }] : [],
+            duration: String(t.duration || 0),
+            listeners: t.rank,
+          }))
+        : [])
+      .catch(() => []),
   ];
 
   const buckets = await Promise.all(fetches);
+
+  // Interleave country → global → deezer to keep country first but enrich
   const merged: LastFmTrack[] = [];
   const maxLen = Math.max(...buckets.map((b) => b.length));
   for (let i = 0; i < maxLen; i += 1) {
@@ -665,9 +672,10 @@ async function getTopTracks(limit = 30, country?: string) {
     const mapped = mapTrack(t, info);
     return mapped ? hydrateTrackArtwork(mapped) : null;
   }));
-  const unique = uniqueTracks(enriched).sort(() => Math.random() - 0.25);
+  // Stable order — NO random shuffle. Real chart rank wins.
+  const unique = uniqueTracks(enriched);
   const results = unique.slice(0, limit).map((t, i) => ({ ...t, rank: i + 1 }));
-  setCached(ck, results, 5 * 60 * 1000);
+  setCached(ck, results, 60 * 60 * 1000); // 1h
   return results;
 }
 
