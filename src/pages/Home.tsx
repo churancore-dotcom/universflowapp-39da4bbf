@@ -167,9 +167,9 @@ const Home = () => {
     () => songs.find((s) => s.cover_url) || songs[0] || null,
     [songs]
   );
-  // Top 6 trending strip (after spotlight)
+  // Top 30 trending (3 rows × 10) horizontal
   const trendingStrip = useMemo(
-    () => songs.filter((s) => s.id !== spotlight?.id).slice(0, 6),
+    () => songs.filter((s) => s.id !== spotlight?.id).slice(0, 30),
     [songs, spotlight]
   );
   // Fresh drops
