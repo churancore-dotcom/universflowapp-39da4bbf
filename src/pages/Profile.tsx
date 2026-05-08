@@ -13,7 +13,7 @@ import { flagFor, nameFor } from '@/lib/countries';
 
 interface ProfileData {
   username: string | null;
-  username_changed: boolean;
+  country_code: string | null;
 }
 
 const Profile = () => {
