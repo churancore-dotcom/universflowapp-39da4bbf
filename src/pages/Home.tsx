@@ -171,15 +171,73 @@ const Home = () => {
     return 'Good night';
   }, []);
 
+  // User country (from profile, fallback to detected)
+  const { data: userCountry = '' } = useQuery({
+    queryKey: ['profile', 'country', user?.id || 'anon'],
+    queryFn: async () => {
+      if (!user?.id) return detectCountry();
+      const { data } = await supabase
+        .from('profiles')
+        .select('country_code')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return ((data as any)?.country_code as string) || detectCountry();
+    },
+    staleTime: 60 * 60 * 1000,
+  });
+
+  // Real viral trending — country scoped (3x10 = 30)
+  const {
+    data: trending = [],
+    isLoading: trendingLoading,
+  } = useQuery({
+    queryKey: ['home', 'viral', userCountry || 'auto'],
+    queryFn: () => getTopIndexedTracks(30, userCountry || undefined),
+    staleTime: 15 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    enabled: !isOffline,
+  });
+
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+
+  const handlePlayTrending = async (track: IndexedTrack, queue: IndexedTrack[]) => {
+    triggerHaptic('selection');
+    if (currentSong?.id === track.id) { togglePlay(); return; }
+    setResolvingId(track.id);
+    try {
+      let r = await resolveIndexedTrack(track.artist, track.title);
+      if (!r.streamUrl) r = await forceResolveIndexedTrack(track.artist, track.title);
+      if (!r.streamUrl) return;
+      const song: Song = {
+        id: track.id,
+        title: r.title || track.title,
+        artist: r.artist || track.artist,
+        album: track.album,
+        cover_url: r.cover_url || track.cover_url,
+        audio_url: r.streamUrl,
+        duration: r.duration || track.duration,
+        source: 'indexed',
+      } as Song;
+      const q: Song[] = queue.map((t) => ({
+        id: t.id, title: t.title, artist: t.artist, album: t.album,
+        cover_url: t.cover_url, audio_url: 'resolving', duration: t.duration,
+        source: 'indexed' as const,
+      } as Song));
+      playSong(song, undefined, q);
+    } finally {
+      setResolvingId(null);
+    }
+  };
+
+  // Prefetch top 6 stream resolutions
+  useEffect(() => {
+    trending.slice(0, 6).forEach((t) => prefetchIndexedTrack(t.artist, t.title));
+  }, [trending]);
+
   // Spotlight = first new release with cover
   const spotlight = useMemo(
     () => songs.find((s) => s.cover_url) || songs[0] || null,
     [songs]
-  );
-  // Top 30 trending (3 rows × 10) horizontal
-  const trendingStrip = useMemo(
-    () => songs.filter((s) => s.id !== spotlight?.id).slice(0, 30),
-    [songs, spotlight]
   );
   // Fresh drops
   const freshDrops = useMemo(() => songs.slice(0, 12), [songs]);
