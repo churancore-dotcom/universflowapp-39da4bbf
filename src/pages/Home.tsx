@@ -10,35 +10,17 @@ import { useDownloads } from '@/contexts/DownloadContext';
 
 import AllSongsSection from '@/components/AllSongsSection';
 import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
-import FollowedArtistSongsSection from '@/components/FollowedArtistSongsSection';
-import QuickPicksGrid from '@/components/QuickPicksGrid';
 import ArtistsRail from '@/components/home/ArtistsRail';
-import ViralByCountrySection from '@/components/home/ViralByCountrySection';
-import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
 import BottomNav from '@/components/BottomNav';
 import LockScreenPlayer from '@/components/LockScreenPlayer';
 import EqualizerModal from '@/components/EqualizerModal';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import { TabTransition } from '@/components/PageTransition';
-import { Music, Lock, ListMusic, Sliders, Search, Play, Pause, Sparkles, Flame, Heart, Radio, Headphones } from 'lucide-react';
+import { Music, Lock, ListMusic, Sliders, Search, Play, Pause } from 'lucide-react';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import appLogo from '@/assets/app-logo.png';
 import { HomeSkeleton } from '@/components/PageSkeletons';
-
-const EmptyState = memo(() => (
-  <div className="text-center py-12">
-    <div
-      className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-4"
-      style={{ background: 'linear-gradient(135deg, hsl(350 100% 60% / 0.25), hsl(280 100% 65% / 0.2))' }}
-    >
-      <Music className="w-9 h-9 text-foreground/70" />
-    </div>
-    <h2 className="text-lg font-bold mb-1">No music yet</h2>
-    <p className="text-muted-foreground text-xs px-4">Music will appear here once uploaded.</p>
-  </div>
-));
-EmptyState.displayName = 'EmptyState';
 
 const HOME_SONGS_QUERY_KEY = ['home', 'songs'] as const;
 
@@ -68,26 +50,14 @@ const fetchHomeSongs = async (): Promise<Song[]> => {
   });
 };
 
-const MOOD_CHIPS = [
-  { label: 'Pop', tag: 'pop', gradient: 'from-pink-500/30 to-rose-500/20' },
-  { label: 'Hip-Hop', tag: 'hip-hop', gradient: 'from-amber-500/30 to-orange-500/20' },
-  { label: 'Bollywood', tag: 'bollywood', gradient: 'from-fuchsia-500/30 to-pink-500/20' },
-  { label: 'Chill', tag: 'chill', gradient: 'from-cyan-500/30 to-blue-500/20' },
-  { label: 'Workout', tag: 'workout', gradient: 'from-red-500/30 to-rose-500/20' },
-  { label: 'Lo-Fi', tag: 'lo-fi', gradient: 'from-violet-500/30 to-purple-500/20' },
-  { label: 'K-Pop', tag: 'k-pop', gradient: 'from-purple-500/30 to-pink-500/20' },
-  { label: 'Electronic', tag: 'electronic', gradient: 'from-emerald-500/30 to-teal-500/20' },
-];
-
 const Home = () => {
   const navigate = useNavigate();
-  const { currentSong, isPlaying, togglePlay, setExpanded } = usePlayer();
+  const { currentSong, isPlaying, togglePlay, setExpanded, playSong } = usePlayer();
   const { cachedSongs, updateCache } = useSongCache();
   const { isOffline, user } = useAuth() as any;
   const { downloads } = useDownloads();
   const queryClient = useQueryClient();
   const [showLockScreen, setShowLockScreen] = useState(false);
-  const [showSleepTimer, setShowSleepTimer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [showEqualizer, setShowEqualizer] = useState(false);
 
@@ -115,9 +85,8 @@ const Home = () => {
   }, [onlineSongs, updateCache, isOffline]);
 
   const loading = isLoading && songs.length === 0 && !isOffline;
-  const allSongs = useMemo(() => songs, [songs]);
 
-  // Realtime: DIFF-based cache patch — only mutate the affected row instead of refetching
+  // Realtime diff patching
   useEffect(() => {
     if (isOffline) return;
     const channel = supabase
@@ -151,77 +120,49 @@ const Home = () => {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient, isOffline]);
 
-  const greeting = useCallback(() => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  }, []);
-
   const userName = useMemo(() => {
     const meta = (user?.user_metadata || {}) as any;
     return (meta.username || meta.full_name || (user?.email ? String(user.email).split('@')[0] : '')) || '';
   }, [user]);
 
+  // New releases: latest 12 songs
+  const newReleases = useMemo(() => songs.slice(0, 12), [songs]);
+
+  // Made For You: 4 mixes bucketed by genre/mood
+  const mixes = useMemo(() => buildMixes(songs), [songs]);
+
   return (
     <TabTransition>
-      <div className="h-[100dvh] bg-background relative flex flex-col overflow-hidden">
-        {/* Cinematic ambient background — driven by current cover */}
-        <div className="absolute inset-0 pointer-events-none">
-          {currentSong?.cover_url && (
-            <img
-              src={currentSong.cover_url}
-              alt=""
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-[260%] blur-[140px] opacity-[0.18] saturate-[1.6]"
-              style={{ height: '70%' }}
-            />
-          )}
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `
-                radial-gradient(ellipse 90% 55% at 50% 0%, hsl(350 100% 60% / 0.10), transparent 70%),
-                radial-gradient(ellipse 70% 40% at 90% 25%, hsl(280 100% 65% / 0.07), transparent 70%),
-                radial-gradient(ellipse 50% 35% at 5% 65%, hsl(210 100% 60% / 0.06), transparent 70%)
-              `,
-            }}
-          />
-          <div
-            className="absolute inset-x-0 bottom-0 h-40"
-            style={{ background: 'linear-gradient(180deg, transparent, hsl(var(--background)) 80%)' }}
-          />
-        </div>
-
-        {/* Glassy header */}
+      <div className="h-[100dvh] bg-black relative flex flex-col overflow-hidden text-white">
+        {/* Compact monochrome header */}
         <header
-          className="flex-shrink-0 z-30 px-4 pt-3 pb-3 safe-area-pt"
+          className="flex-shrink-0 z-30 px-4 pt-3 pb-2 safe-area-pt"
           style={{
-            background: 'rgba(0,0,0,0.55)',
-            backdropFilter: 'blur(40px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-            borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(40px)',
+            WebkitBackdropFilter: 'blur(40px)',
+            borderBottom: '0.5px solid rgba(255,255,255,0.07)',
           }}
         >
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-3 min-w-0">
-              <button
-                onClick={() => { triggerHaptic('selection'); navigate('/profile'); }}
-                className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 active:scale-95 transition-transform"
-                style={{ boxShadow: '0 2px 14px hsl(var(--primary) / 0.3)', border: '1.5px solid hsl(var(--primary) / 0.35)' }}
-              >
+            <button
+              onClick={() => { triggerHaptic('selection'); navigate('/profile'); }}
+              className="flex items-center gap-2.5 min-w-0 active:opacity-60"
+            >
+              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 ring-1 ring-white/15">
                 <img src={appLogo} alt="UniversFlow" className="w-full h-full object-cover" />
-              </button>
-              <div className="min-w-0">
-                <p className="text-[15px] font-bold text-foreground tracking-tight leading-tight truncate">
-                  {greeting()}{userName ? `, ${userName}` : ''}
+              </div>
+              <div className="min-w-0 text-left">
+                <p className="text-[15px] font-extrabold tracking-tight leading-tight truncate">
+                  {userName ? userName : 'Universflow'}
                 </p>
-                <p className="text-[11px] text-muted-foreground/60 font-medium tracking-wide truncate">
-                  What do you want to hear today?
+                <p className="text-[10px] uppercase tracking-[0.18em] text-white/40 font-bold truncate">
+                  Home
                 </p>
               </div>
-            </div>
+            </button>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1">
               {[
                 { icon: Search, action: () => navigate('/search') },
                 { icon: ListMusic, action: () => setShowQueue(true) },
@@ -231,11 +172,10 @@ const Home = () => {
                 <motion.button
                   key={i}
                   onClick={() => { triggerHaptic('selection'); action(); }}
-                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.10)' }}
+                  className="w-9 h-9 rounded-full flex items-center justify-center"
                   whileTap={{ scale: 0.85 }}
                 >
-                  <Icon className="w-4 h-4 text-foreground/70" />
+                  <Icon className="w-[18px] h-[18px] text-white/80" />
                 </motion.button>
               ))}
             </div>
@@ -244,65 +184,79 @@ const Home = () => {
 
         {/* Scrollable content */}
         <main
-          className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-4 pb-36 relative z-10"
+          className="flex-1 overflow-y-auto overflow-x-hidden pb-36 relative z-10"
           style={{ WebkitOverflowScrolling: 'touch' }}
         >
           {loading ? (
-            <HomeSkeleton />
-          ) : isOffline && songs.length === 0 ? (
-            <EmptyState />
+            <div className="px-3 pt-4"><HomeSkeleton /></div>
           ) : (
-            <div className="space-y-7">
-              {!isOffline && (
-                <>
-                  {/* Continue Listening — appears only when there is a current song */}
-                  {currentSong && (
-                    <ContinueListeningCard
-                      song={currentSong}
-                      isPlaying={isPlaying}
-                      onToggle={() => { triggerHaptic('selection'); togglePlay(); }}
-                      onOpen={() => { triggerHaptic('selection'); setExpanded(true); }}
-                    />
-                  )}
+            <>
+              {/* HERO: Huge Now Playing artwork (full-bleed, monochrome treatment) */}
+              <NowPlayingHero
+                song={currentSong}
+                isPlaying={isPlaying}
+                onTogglePlay={() => { triggerHaptic('selection'); togglePlay(); }}
+                onExpand={() => { triggerHaptic('selection'); setExpanded(true); }}
+                onSearch={() => navigate('/search')}
+              />
 
-                  {/* Quick action tiles */}
-                  <QuickActionsRow navigate={navigate} />
+              {/* Section padding wrapper */}
+              <div className="px-3 pt-6 space-y-7">
+                {/* Top Artists */}
+                <ArtistsRail />
 
-                  {/* Mood chips */}
-                  <MoodChipsRow onPick={(tag) => navigate(`/search?q=${encodeURIComponent(tag)}`)} />
+                {/* New Releases — Spotify-style horizontal rail of small covers */}
+                {newReleases.length > 0 && (
+                  <Rail
+                    title="New Releases"
+                    subtitle="Just dropped"
+                    onSeeAll={() => navigate('/library')}
+                  >
+                    {newReleases.map((s) => (
+                      <CoverCard
+                        key={s.id}
+                        song={s}
+                        active={currentSong?.id === s.id}
+                        onPlay={() => playSong(s, undefined, newReleases)}
+                      />
+                    ))}
+                  </Rail>
+                )}
 
-                  {/* Featured artists */}
-                  <ArtistsRail />
+                {/* Made For You — auto-generated mix tiles */}
+                {mixes.length > 0 && (
+                  <Rail title="Made For You" subtitle="Mixes built from your catalog">
+                    {mixes.map((m) => (
+                      <MixCard
+                        key={m.id}
+                        mix={m}
+                        onPlay={() => {
+                          if (m.songs.length > 0) playSong(m.songs[0], undefined, m.songs);
+                        }}
+                      />
+                    ))}
+                  </Rail>
+                )}
 
-                  {/* Quick Picks */}
-                  <QuickPicksGrid />
+                {/* Trending Now (viral feed) */}
+                <GlobalTopTracksSection />
 
-                  {/* Viral / regional charts */}
-                  <ViralByCountrySection />
+                {/* Offline mode fallback */}
+                {isOffline && songs.length > 0 && <AllSongsSection songs={songs} />}
 
-                  {/* From artists you follow */}
-                  <FollowedArtistSongsSection songs={allSongs} />
-
-                  {/* Trending feed (hero #1 + ranked rows) */}
-                  <GlobalTopTracksSection />
-
-                  {/* Footer wordmark */}
-                  <div className="pt-6 pb-2 text-center">
-                    <p className="text-[10px] tracking-[0.4em] text-muted-foreground/40 font-bold">
-                      UNIVERSFLOW
-                    </p>
-                  </div>
-                </>
-              )}
-
-              {isOffline && allSongs.length > 0 && <AllSongsSection songs={allSongs} />}
-            </div>
+                {/* Wordmark footer */}
+                <div className="pt-4 pb-2 text-center">
+                  <p className="text-[10px] tracking-[0.4em] text-white/20 font-bold">
+                    UNIVERSFLOW
+                  </p>
+                </div>
+              </div>
+            </>
           )}
         </main>
 
         <BottomNav />
         {showLockScreen && <LockScreenPlayer isOpen={showLockScreen} onClose={() => setShowLockScreen(false)} />}
-        {showSleepTimer && <SleepTimerModal isOpen={showSleepTimer} onClose={() => setShowSleepTimer(false)} />}
         {showQueue && <QueueDrawer isOpen={showQueue} onClose={() => setShowQueue(false)} />}
         {showEqualizer && <EqualizerModal isOpen={showEqualizer} onClose={() => setShowEqualizer(false)} />}
         <OfflineIndicator />
@@ -311,126 +265,261 @@ const Home = () => {
   );
 };
 
-/* ---------- Continue Listening ---------- */
-const ContinueListeningCard = memo(({ song, isPlaying, onToggle, onOpen }: {
-  song: Song; isPlaying: boolean; onToggle: () => void; onOpen: () => void;
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 8 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.25 }}
-    className="relative overflow-hidden rounded-3xl"
-    style={{ boxShadow: '0 20px 50px -20px rgba(0,0,0,0.6)' }}
-  >
-    {/* Cover blurred backdrop */}
-    {song.cover_url && (
-      <img
-        src={song.cover_url}
-        alt=""
-        className="absolute inset-0 w-full h-full object-cover blur-2xl scale-150 opacity-70"
-      />
-    )}
-    <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg, rgba(0,0,0,0.55), rgba(0,0,0,0.75))' }} />
-    <div className="relative p-4 flex items-center gap-3">
+/* ───────────── Hero ───────────── */
+const NowPlayingHero = memo(({ song, isPlaying, onTogglePlay, onExpand, onSearch }: {
+  song: Song | null;
+  isPlaying: boolean;
+  onTogglePlay: () => void;
+  onExpand: () => void;
+  onSearch: () => void;
+}) => {
+  if (!song) {
+    // Fallback hero when nothing playing — pure black w/ giant search invite
+    return (
+      <div className="relative w-full" style={{ aspectRatio: '1 / 1.05' }}>
+        <div className="absolute inset-0 bg-gradient-to-b from-white/[0.04] to-black" />
+        <div className="absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+          <p className="text-[11px] uppercase tracking-[0.4em] text-white/40 font-bold mb-3">
+            Universflow
+          </p>
+          <h1 className="text-[42px] font-black leading-[0.95] tracking-tight mb-6">
+            Press play.<br/>Feel everything.
+          </h1>
+          <button
+            onClick={onSearch}
+            className="flex items-center gap-2 px-5 h-12 rounded-full bg-white text-black font-bold text-[14px] active:scale-95 transition-transform"
+          >
+            <Search className="w-4 h-4" />
+            Search any song
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative w-full overflow-hidden" style={{ aspectRatio: '1 / 1.05' }}>
+      {/* Huge artwork — desaturated for monochrome aesthetic */}
+      {song.cover_url ? (
+        <img
+          src={song.cover_url}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ filter: 'grayscale(0.6) contrast(1.05) brightness(0.85)' }}
+        />
+      ) : (
+        <div className="absolute inset-0 bg-white/5 flex items-center justify-center">
+          <Music className="w-20 h-20 text-white/30" />
+        </div>
+      )}
+
+      {/* Top vignette for header contrast */}
+      <div className="absolute inset-x-0 top-0 h-24"
+        style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.6), transparent)' }} />
+      {/* Bottom vignette for text legibility */}
+      <div className="absolute inset-x-0 bottom-0 h-2/3"
+        style={{ background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.55) 55%, #000 100%)' }} />
+
+      {/* Tap target to expand player (covers full hero except play button) */}
       <button
         type="button"
-        onClick={onOpen}
-        className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0 bg-muted active:scale-95 transition-transform"
-        style={{ boxShadow: '0 8px 20px rgba(0,0,0,0.5)' }}
-      >
-        {song.cover_url ? (
-          <img src={song.cover_url} alt={song.title} className="w-full h-full object-cover" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center"><Music className="w-6 h-6 text-white/70" /></div>
-        )}
-      </button>
-      <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
-        <div className="flex items-center gap-1.5 mb-1">
-          <Headphones className="w-3 h-3 text-primary" />
-          <p className="text-[10px] font-extrabold tracking-[0.18em] text-primary uppercase">Continue Listening</p>
-        </div>
-        <p className="text-white text-[15px] font-bold leading-tight truncate" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}>
-          {song.title}
-        </p>
-        <p className="text-white/70 text-[12px] font-semibold truncate mt-0.5">{song.artist}</p>
-      </button>
-      <motion.button
-        whileTap={{ scale: 0.9 }}
-        onClick={onToggle}
-        className="w-12 h-12 rounded-full bg-primary flex items-center justify-center flex-shrink-0"
-        style={{ boxShadow: '0 8px 20px hsl(var(--primary) / 0.5)' }}
-      >
-        {isPlaying ? (
-          <Pause className="w-5 h-5 text-primary-foreground" fill="currentColor" />
-        ) : (
-          <Play className="w-5 h-5 text-primary-foreground ml-0.5" fill="currentColor" />
-        )}
-      </motion.button>
-    </div>
-  </motion.div>
-));
-ContinueListeningCard.displayName = 'ContinueListeningCard';
+        onClick={onExpand}
+        className="absolute inset-0"
+        aria-label="Open player"
+      />
 
-/* ---------- Quick action tiles ---------- */
-const QuickActionsRow = memo(({ navigate }: { navigate: (p: string) => void }) => {
-  const items = [
-    { label: 'Liked Songs', icon: Heart, to: '/library', gradient: 'linear-gradient(135deg, hsl(350 100% 60%), hsl(330 100% 50%))' },
-    { label: 'Trending', icon: Flame, to: '/search?q=trending', gradient: 'linear-gradient(135deg, hsl(20 100% 55%), hsl(0 100% 55%))' },
-    { label: 'Discover', icon: Sparkles, to: '/search', gradient: 'linear-gradient(135deg, hsl(280 100% 60%), hsl(250 100% 60%))' },
-    { label: 'Listen Together', icon: Radio, to: '/listen-together', gradient: 'linear-gradient(135deg, hsl(200 100% 55%), hsl(180 100% 45%))' },
-  ];
-  return (
-    <div className="grid grid-cols-2 gap-2.5 px-1">
-      {items.map(({ label, icon: Icon, to, gradient }) => (
-        <motion.button
-          key={label}
-          whileTap={{ scale: 0.97 }}
-          onClick={() => { triggerHaptic('selection'); navigate(to); }}
-          className="relative flex items-center gap-2.5 rounded-2xl overflow-hidden p-2.5 pr-3"
-          style={{
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02))',
-            border: '0.5px solid rgba(255,255,255,0.08)',
-          }}
-        >
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: gradient, boxShadow: '0 6px 16px rgba(0,0,0,0.3)' }}
+      {/* Bottom content */}
+      <div className="absolute inset-x-0 bottom-0 p-5 pointer-events-none">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-white/60 font-bold mb-2">
+          Now Playing
+        </p>
+        <h2 className="text-[30px] font-black leading-[1] tracking-tight line-clamp-2">
+          {song.title}
+        </h2>
+        <p className="text-white/70 text-[15px] font-semibold mt-1.5 truncate">
+          {song.artist}
+        </p>
+
+        <div className="mt-4 flex items-center gap-3 pointer-events-auto">
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={onTogglePlay}
+            className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-2xl"
           >
-            <Icon className="w-5 h-5 text-white" fill="currentColor" />
-          </div>
-          <span className="text-[13px] font-bold text-foreground tracking-tight truncate">{label}</span>
-        </motion.button>
-      ))}
+            {isPlaying
+              ? <Pause className="w-6 h-6 text-black" fill="currentColor" />
+              : <Play className="w-6 h-6 text-black ml-0.5" fill="currentColor" />}
+          </motion.button>
+          <button
+            onClick={onExpand}
+            className="h-12 px-5 rounded-full border border-white/25 text-white text-[13px] font-bold active:scale-95 transition-transform"
+          >
+            Open player
+          </button>
+        </div>
+      </div>
     </div>
   );
 });
-QuickActionsRow.displayName = 'QuickActionsRow';
+NowPlayingHero.displayName = 'NowPlayingHero';
 
-/* ---------- Mood chips ---------- */
-const MoodChipsRow = memo(({ onPick }: { onPick: (tag: string) => void }) => (
-  <div className="space-y-2 px-1">
-    <div className="flex items-center gap-2">
-      <Sparkles className="w-4 h-4 text-primary" />
-      <h3 className="text-[14px] font-extrabold tracking-tight text-foreground">Browse Moods</h3>
+/* ───────────── Rail ───────────── */
+const Rail = memo(({ title, subtitle, onSeeAll, children }: {
+  title: string; subtitle?: string; onSeeAll?: () => void; children: React.ReactNode;
+}) => (
+  <section>
+    <div className="flex items-end justify-between mb-3 px-1">
+      <div className="min-w-0">
+        <h2 className="text-[20px] font-black tracking-tight text-white leading-tight">{title}</h2>
+        {subtitle && (
+          <p className="text-[11px] uppercase tracking-[0.18em] text-white/40 font-bold mt-0.5">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      {onSeeAll && (
+        <button
+          onClick={() => { triggerHaptic('selection'); onSeeAll(); }}
+          className="text-[11px] uppercase tracking-[0.18em] font-bold text-white/60 active:text-white"
+        >
+          See all
+        </button>
+      )}
     </div>
     <div
-      className="flex gap-2 overflow-x-auto hide-scrollbar -mx-3 px-3 pb-1"
+      className="flex gap-3 overflow-x-auto hide-scrollbar -mx-3 px-3 pb-1 snap-x"
       style={{ WebkitOverflowScrolling: 'touch' }}
     >
-      {MOOD_CHIPS.map((m) => (
-        <motion.button
-          key={m.tag}
-          whileTap={{ scale: 0.94 }}
-          onClick={() => { triggerHaptic('selection'); onPick(m.tag); }}
-          className={`flex-shrink-0 px-4 py-2 rounded-full bg-gradient-to-br ${m.gradient}`}
-          style={{ border: '0.5px solid rgba(255,255,255,0.10)' }}
-        >
-          <span className="text-[12px] font-bold text-foreground tracking-tight">{m.label}</span>
-        </motion.button>
-      ))}
+      {children}
     </div>
-  </div>
+  </section>
 ));
-MoodChipsRow.displayName = 'MoodChipsRow';
+Rail.displayName = 'Rail';
+
+/* ───────────── Cover card (for New Releases) ───────────── */
+const CoverCard = memo(({ song, active, onPlay }: {
+  song: Song; active: boolean; onPlay: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={() => { triggerHaptic('selection'); onPlay(); }}
+    className="group flex-shrink-0 w-36 snap-start text-left active:scale-[0.97] transition-transform"
+  >
+    <div
+      className="relative aspect-square mb-2 overflow-hidden rounded-md bg-white/5"
+      style={{ boxShadow: '0 6px 18px rgba(0,0,0,0.6)' }}
+    >
+      {song.cover_url ? (
+        <img
+          src={song.cover_url}
+          alt={song.title}
+          className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <Music className="w-8 h-8 text-white/30" />
+        </div>
+      )}
+      <div className="absolute bottom-2 right-2 w-9 h-9 rounded-full bg-white opacity-0 group-active:opacity-100 flex items-center justify-center">
+        <Play className="w-4 h-4 text-black ml-0.5" fill="currentColor" />
+      </div>
+    </div>
+    <p className={`truncate text-[13px] font-bold leading-tight ${active ? 'text-white' : 'text-white/95'}`}>
+      {song.title}
+    </p>
+    <p className="mt-0.5 truncate text-[11px] text-white/50 font-medium">{song.artist}</p>
+  </button>
+));
+CoverCard.displayName = 'CoverCard';
+
+/* ───────────── Mix card (Made For You) ───────────── */
+type Mix = { id: string; label: string; subtitle: string; songs: Song[]; cover?: string };
+
+const MixCard = memo(({ mix, onPlay }: { mix: Mix; onPlay: () => void }) => (
+  <button
+    type="button"
+    onClick={() => { triggerHaptic('selection'); onPlay(); }}
+    className="group flex-shrink-0 w-44 snap-start text-left active:scale-[0.97] transition-transform"
+  >
+    <div
+      className="relative aspect-square mb-2 overflow-hidden rounded-md bg-white/5"
+      style={{ boxShadow: '0 6px 18px rgba(0,0,0,0.6)' }}
+    >
+      {mix.cover ? (
+        <img
+          src={mix.cover}
+          alt={mix.label}
+          className="w-full h-full object-cover"
+          style={{ filter: 'grayscale(0.5) contrast(1.05)' }}
+          loading="lazy"
+          decoding="async"
+          referrerPolicy="no-referrer"
+        />
+      ) : (
+        <div className="w-full h-full bg-gradient-to-br from-white/15 to-white/5" />
+      )}
+      <div className="absolute inset-0 bg-black/35" />
+      <div className="absolute inset-0 p-3 flex flex-col justify-between">
+        <p className="text-[10px] uppercase tracking-[0.3em] font-extrabold text-white/90">
+          Mix
+        </p>
+        <div>
+          <p className="text-white text-[20px] font-black leading-none tracking-tight line-clamp-2">
+            {mix.label}
+          </p>
+          <p className="text-white/70 text-[10px] font-semibold mt-1.5 truncate">
+            {mix.subtitle}
+          </p>
+        </div>
+      </div>
+    </div>
+    <p className="truncate text-[12px] font-bold text-white/90">{mix.label}</p>
+    <p className="mt-0.5 truncate text-[11px] text-white/50">{mix.songs.length} songs</p>
+  </button>
+));
+MixCard.displayName = 'MixCard';
+
+/* ───────────── Mix builder ───────────── */
+function buildMixes(songs: Song[]): Mix[] {
+  if (!songs || songs.length < 4) return [];
+  const buckets = new Map<string, Song[]>();
+  for (const s of songs) {
+    const key = (s.genre || s.mood || 'Daily').trim();
+    if (!key) continue;
+    const arr = buckets.get(key) || [];
+    arr.push(s);
+    buckets.set(key, arr);
+  }
+  // Take top 4 buckets by count
+  const sorted = Array.from(buckets.entries())
+    .filter(([, arr]) => arr.length >= 3)
+    .sort((a, b) => b[1].length - a[1].length)
+    .slice(0, 4);
+
+  // Always include a "Daily Mix" from latest songs as the first
+  const mixes: Mix[] = [];
+  mixes.push({
+    id: 'daily',
+    label: 'Daily Mix',
+    subtitle: 'Fresh picks for today',
+    songs: songs.slice(0, 30),
+    cover: songs.find((s) => s.cover_url)?.cover_url,
+  });
+
+  for (const [key, arr] of sorted) {
+    mixes.push({
+      id: `mix-${key}`,
+      label: key,
+      subtitle: `${arr[0]?.artist || ''}${arr[1] ? ', ' + arr[1].artist : ''} & more`,
+      songs: arr.slice(0, 30),
+      cover: arr.find((s) => s.cover_url)?.cover_url,
+    });
+  }
+
+  return mixes;
+}
 
 export default Home;
