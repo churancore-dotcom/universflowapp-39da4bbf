@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { loadLiveViralTracks } from '@/lib/viralEvents';
 
 export interface IndexedTrack {
   id: string;
@@ -148,7 +149,7 @@ export async function searchIndexedTracks(query: string, limit = 50): Promise<In
 // Session-level cache for Global Top tracks so they don't refetch every time
 // the user navigates back to Home. Survives across mounts during the session;
 // localStorage layer survives across reloads (TTL 30 minutes).
-const TOP_TRACKS_TTL = 30 * 60 * 1000;
+const TOP_TRACKS_TTL = 10 * 60 * 1000;
 const TOP_TRACKS_LS_KEY = 'uf_top_tracks_v2';
 const topTracksMemCache = new Map<string, { data: IndexedTrack[]; expiresAt: number }>();
 let topTracksInflight = new Map<string, Promise<IndexedTrack[]>>();
@@ -211,12 +212,24 @@ function persistTopTracksCache() {
   } catch { /* ignore quota */ }
 }
 
-export async function getTopIndexedTracks(limit = 30, country?: string): Promise<IndexedTrack[]> {
+export function invalidateTopTracksCache() {
+  topTracksMemCache.clear();
+  topTracksInflight = new Map<string, Promise<IndexedTrack[]>>();
+  try { localStorage.removeItem(TOP_TRACKS_LS_KEY); } catch { /* ignore */ }
+}
+
+export async function getTopIndexedTracks(limit = 30, country?: string, options?: { force?: boolean; city?: string }): Promise<IndexedTrack[]> {
   // Pass empty country by default → edge function detects from request IP (respects VPNs).
   const cc = (country ?? '').toUpperCase().slice(0, 2);
-  const key = `${limit}::${cc || 'auto'}`;
+  const key = `${limit}::${cc || 'auto'}::${options?.city || ''}`;
+  if (!options?.force) {
+    const live = await loadLiveViralTracks({ countryCode: cc || undefined, city: options?.city, limit, sinceHours: 24 });
+    if (live.length >= Math.min(6, limit)) {
+      return live as IndexedTrack[];
+    }
+  }
   const cached = topTracksMemCache.get(key);
-  if (cached && cached.expiresAt > Date.now()) {
+  if (!options?.force && cached && cached.expiresAt > Date.now()) {
     return cached.data;
   }
   const inflight = topTracksInflight.get(key);

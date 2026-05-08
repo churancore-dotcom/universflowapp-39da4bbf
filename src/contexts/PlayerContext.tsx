@@ -3,6 +3,7 @@ import { useMediaSession } from '@/hooks/useMediaSession';
 import { useGlobalAudioEngine } from '@/hooks/useGlobalAudioEngine';
 import { supabase } from '@/integrations/supabase/client';
 import { resolveIndexedTrack, prefetchIndexedTrack } from '@/lib/musicIndexer';
+import { recordViralEvent } from '@/lib/viralEvents';
 import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
 import { toast } from 'sonner';
@@ -259,6 +260,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isCrossfading = useRef(false);
   const animationFrameRef = useRef<number | null>(null);
   const recentlyPlayedTimerRef = useRef<number | null>(null);
+  const viralEventTimerRef = useRef<number | null>(null);
   const queueRestoredRef = useRef(false);
 
   // YouTube IFrame fallback
@@ -1066,6 +1068,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       clearTimeout(recentlyPlayedTimerRef.current);
       recentlyPlayedTimerRef.current = null;
     }
+    if (viralEventTimerRef.current) {
+      clearTimeout(viralEventTimerRef.current);
+      viralEventTimerRef.current = null;
+    }
+    viralEventTimerRef.current = window.setTimeout(() => {
+      viralEventTimerRef.current = null;
+      recordViralEvent(song, 'stream');
+    }, 30000);
     const isCatalogUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(song.id);
     if (isCatalogUuid) {
       const songIdToLog = song.id;
