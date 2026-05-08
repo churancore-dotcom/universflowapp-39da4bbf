@@ -334,61 +334,72 @@ const Home = () => {
                 </div>
               )}
 
-              {/* ───── Trending Now — 3 rows × 10, horizontal scroll ───── */}
-              {trendingStrip.length > 0 && (
-                <section className="pt-6">
-                  <div className="px-3">
-                    <SectionTitle
-                      eyebrow="Charts"
-                      title="Trending now"
-                      onSeeAll={() => navigate('/library')}
-                    />
+              {/* ───── Trending Now — country-scoped viral, 3 rows × 10 ───── */}
+              <section className="pt-6">
+                <div className="px-3">
+                  <SectionTitle
+                    eyebrow={userCountry ? `${flagFor(userCountry)} ${nameFor(userCountry)}` : 'Worldwide'}
+                    title="Trending now"
+                  />
+                </div>
+                <div
+                  className="mt-3 overflow-x-auto hide-scrollbar pb-1"
+                  style={{ WebkitOverflowScrolling: 'touch' }}
+                >
+                  <div className="grid grid-rows-3 grid-flow-col auto-cols-[78%] gap-x-3 gap-y-1.5 px-3">
+                    {trendingLoading && trending.length === 0
+                      ? Array.from({ length: 30 }).map((_, i) => (
+                          <div key={`sk-${i}`} className="w-full flex items-center gap-3 px-2 py-2 rounded-xl">
+                            <span className="w-6 h-4 rounded bg-white/[0.06] animate-pulse flex-shrink-0" />
+                            <div className="w-11 h-11 rounded-md bg-white/[0.06] animate-pulse flex-shrink-0" />
+                            <div className="min-w-0 flex-1 space-y-1.5">
+                              <div className="h-3 w-3/4 rounded bg-white/[0.06] animate-pulse" />
+                              <div className="h-2.5 w-1/2 rounded bg-white/[0.05] animate-pulse" />
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-white/[0.06] animate-pulse flex-shrink-0" />
+                          </div>
+                        ))
+                      : trending.map((s, i) => {
+                          const active = currentSong?.id === s.id;
+                          const isResolving = resolvingId === s.id;
+                          return (
+                            <button
+                              key={s.id}
+                              onClick={() => handlePlayTrending(s, trending)}
+                              className="w-full flex items-center gap-3 px-2 py-2 rounded-xl active:bg-white/[0.05]"
+                            >
+                              <span className="w-6 text-center text-[16px] font-black text-white/40 tabular-nums flex-shrink-0">
+                                {i + 1}
+                              </span>
+                              <div className="w-11 h-11 rounded-md overflow-hidden bg-white/5 flex-shrink-0">
+                                {s.cover_url ? (
+                                  <img src={s.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center"><Music className="w-5 h-5 text-white/30" /></div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1 text-left">
+                                <p className={`truncate text-[13px] font-bold leading-tight ${active ? 'text-rose-400' : 'text-white'}`}>{s.title}</p>
+                                <p className="truncate text-[11px] text-white/50 mt-0.5">{s.artist}</p>
+                              </div>
+                              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
+                                {isResolving
+                                  ? <Loader2 className="w-3.5 h-3.5 text-white animate-spin" />
+                                  : active && isPlaying
+                                    ? <Pause className="w-3.5 h-3.5 text-white" fill="currentColor" />
+                                    : <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" />}
+                              </div>
+                            </button>
+                          );
+                        })}
                   </div>
-                  <div
-                    className="mt-3 overflow-x-auto hide-scrollbar pb-1"
-                    style={{ WebkitOverflowScrolling: 'touch' }}
-                  >
-                    <div
-                      className="grid grid-rows-3 grid-flow-col auto-cols-[78%] gap-x-3 gap-y-1.5 px-3"
-                    >
-                      {trendingStrip.map((s, i) => {
-                        const active = currentSong?.id === s.id;
-                        return (
-                          <button
-                            key={s.id}
-                            onClick={() => {
-                              triggerHaptic('selection');
-                              if (active) togglePlay();
-                              else playSong(s, undefined, trendingStrip);
-                            }}
-                            className="w-full flex items-center gap-3 px-2 py-2 rounded-xl active:bg-white/[0.05]"
-                          >
-                            <span className="w-6 text-center text-[16px] font-black text-white/40 tabular-nums flex-shrink-0">
-                              {i + 1}
-                            </span>
-                            <div className="w-11 h-11 rounded-md overflow-hidden bg-white/5 flex-shrink-0">
-                              {s.cover_url ? (
-                                <img src={s.cover_url} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center"><Music className="w-5 h-5 text-white/30" /></div>
-                              )}
-                            </div>
-                            <div className="min-w-0 flex-1 text-left">
-                              <p className={`truncate text-[13px] font-bold leading-tight ${active ? 'text-rose-400' : 'text-white'}`}>{s.title}</p>
-                              <p className="truncate text-[11px] text-white/50 mt-0.5">{s.artist}</p>
-                            </div>
-                            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center flex-shrink-0">
-                              {active && isPlaying
-                                ? <Pause className="w-3.5 h-3.5 text-white" fill="currentColor" />
-                                : <Play className="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" />}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </section>
-              )}
+                </div>
+              </section>
+
+              {/* ───── Top Artists (moved below Trending) ───── */}
+              <div className="px-3 pt-7">
+                <ArtistsRail />
+              </div>
 
               {/* ───── Made For You — gradient mixes ───── */}
               {mixes.length > 0 && (
