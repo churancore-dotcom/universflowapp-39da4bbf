@@ -142,13 +142,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [checkAdminRole, ensureUserProfile]);
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string, meta?: { username?: string; country_code?: string }) => {
     try {
+      const data: Record<string, string> = {};
+      if (meta?.username) data.username = meta.username.trim();
+      if (meta?.country_code) data.country_code = meta.country_code.toUpperCase().slice(0, 2);
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           emailRedirectTo: window.location.origin,
+          data,
         },
       });
 
