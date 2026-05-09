@@ -282,6 +282,11 @@ const Search = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Followed artists rail (shows on browse / empty state) */}
+                <div className="mt-4">
+                  <FollowedArtistsRail />
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
