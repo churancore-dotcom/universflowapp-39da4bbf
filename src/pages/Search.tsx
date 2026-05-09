@@ -86,6 +86,11 @@ const Search = () => {
     const timer = setTimeout(async () => {
       setSearching(true);
       try {
+        const cached = getCached<IndexedTrack[]>('stable-search-v1', trimmedQuery);
+        if (cached) {
+          if (!cancelled) setIndexedResults(cached);
+          return;
+        }
         // YouTube-style: detect mood + language separately. e.g. "hindi sad
         // song" → language=hindi, mood=sad. We then fetch BOTH tag charts and
         // intersect by artist (or rank by overlap) so users actually get sad
@@ -105,35 +110,8 @@ const Search = () => {
         const [youtube, literal, ...tagSets] = await Promise.all([youtubeJob, literalJob, ...tagJobs]);
         if (cancelled) return;
 
-        // Score each track by how many of the requested tags it appeared in.
-        const score = new Map<string, { track: IndexedTrack; hits: number }>();
-        const norm = (t: IndexedTrack) =>
-          `${t.artist?.toLowerCase().trim()}::${t.title?.toLowerCase().trim()}`;
-
-        tagSets.forEach((set) => {
-          set.forEach((t) => {
-            const k = norm(t);
-            if (!k) return;
-            const cur = score.get(k);
-            if (cur) cur.hits += 1;
-            else score.set(k, { track: t, hits: 1 });
-          });
-        });
-
-        // When BOTH mood + language matched, prefer tracks present in BOTH sets.
-        const tagMerged = Array.from(score.values())
-          .sort((a, b) => b.hits - a.hits)
-          .map((e) => e.track);
-
-        const merged: IndexedTrack[] = [];
-        const seen = new Set<string>();
-        const ordered = (mood || language) ? [...youtube, ...tagMerged, ...literal] : [...youtube, ...literal, ...tagMerged];
-        for (const t of ordered) {
-          const key = norm(t);
-          if (!key || seen.has(key)) continue;
-          seen.add(key);
-          merged.push(t);
-        }
+        const merged = rankAndDedupeResults(trimmedQuery, youtube, literal, tagSets).slice(0, 120);
+        setCached('stable-search-v1', trimmedQuery, merged);
 
         setIndexedResults(merged);
         setSearchHistory(getSongHistory().filter(entry => !isCatalogSongId(entry.id)));
