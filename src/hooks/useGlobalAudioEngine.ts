@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { bypassAudioElement, connectAudioElement, setBands, setReverb, setSpatial, resume, subscribe } from '@/lib/audioEngine';
+import { usePremium } from '@/hooks/usePremium';
 
 const STORAGE_KEY = 'eq_settings';
 
@@ -34,10 +35,18 @@ function hasActiveProcessing(s: StoredEQ) {
  * and re-applies persisted EQ settings whenever the source changes.
  */
 export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
+  const { isPremium, isLoading } = usePremium();
+
   useEffect(() => {
     if (!audioElement) return;
 
     const reapply = () => {
+      if (!isPremium) {
+        bypassAudioElement(audioElement);
+        audioElement.playbackRate = 1;
+        return;
+      }
+
       const s = readStored();
       if (!hasActiveProcessing(s)) {
         bypassAudioElement(audioElement);
@@ -57,7 +66,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     const onPlay = () => resume();
     const onPointer = () => resume();
 
-    reapply();
+    if (!isLoading) reapply();
     audioElement.addEventListener('loadedmetadata', reapply);
     audioElement.addEventListener('canplay', reapply);
     audioElement.addEventListener('play', onPlay);
@@ -69,7 +78,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
       audioElement.removeEventListener('play', onPlay);
       document.removeEventListener('pointerdown', onPointer);
     };
-  }, [audioElement]);
+  }, [audioElement, isPremium, isLoading]);
 }
 
 export function useEngineState() {
