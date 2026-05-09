@@ -1471,6 +1471,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_premium_user: { Args: { _user_id: string }; Returns: boolean }
       is_session_host: {
         Args: { _session_id: string; _user_id: string }
         Returns: boolean

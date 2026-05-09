@@ -22,6 +22,7 @@ import OfflineIndicator from '@/components/OfflineIndicator';
 import { TabTransition } from '@/components/PageTransition';
 import { Music, Lock, ListMusic, Sliders, Headphones } from 'lucide-react';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import { usePremium } from '@/hooks/usePremium';
 import appLogo from '@/assets/app-logo.png';
 import { HomeSkeleton } from '@/components/PageSkeletons';
 
@@ -95,6 +96,7 @@ const Home = () => {
   const { cachedSongs, updateCache } = useSongCache();
   const { isOffline } = useAuth();
   const { downloads } = useDownloads();
+  const { isPremium } = usePremium();
   const queryClient = useQueryClient();
   const [showLockScreen, setShowLockScreen] = useState(false);
   const [showSleepTimer, setShowSleepTimer] = useState(false);
@@ -258,7 +260,7 @@ const Home = () => {
             <div className="flex items-center gap-1.5">
               {[
                 { icon: ListMusic, action: () => setShowQueue(true) },
-                { icon: Sliders, action: () => setShowEqualizer(true) },
+                ...(isPremium ? [{ icon: Sliders, action: () => setShowEqualizer(true) }] : []),
                 { icon: Lock, action: () => setShowLockScreen(true) },
               ].map(({ icon: Icon, action }, i) => (
                 <motion.button

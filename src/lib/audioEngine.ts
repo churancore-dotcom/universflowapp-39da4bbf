@@ -30,7 +30,7 @@ interface Engine {
   dryGain: GainNode | null;
   wetGain: GainNode | null;
   convolver: ConvolverNode | null;
-  panner: StereoPannerNode | null;
+  panner: PannerNode | null;
   el: HTMLAudioElement | null;
   signature: string | null;
   mode: Mode;
@@ -80,7 +80,7 @@ function ensureCtx(): AudioContext | null {
   const AC = window.AudioContext || (window as any).webkitAudioContext;
   if (!AC) return null;
   try {
-    engine.ctx = new AC();
+    engine.ctx = new AC({ latencyHint: 'playback' });
     return engine.ctx;
   } catch {
     return null;
@@ -112,7 +112,9 @@ function makeReverbIR(ctx: AudioContext, duration = 2, decay = 2): AudioBuffer {
   for (let ch = 0; ch < 2; ch++) {
     const data = buf.getChannelData(ch);
     for (let i = 0; i < length; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, decay);
+      const t = i / ctx.sampleRate;
+      const envelope = Math.pow(1 - i / length, decay) * 0.18;
+      data[i] = (Math.sin(t * 431 + ch * 0.7) + Math.sin(t * 997 + ch * 1.9) * 0.45) * envelope;
     }
   }
   return buf;
@@ -158,14 +160,14 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   });
 
   const master = ctx.createGain();
-  master.gain.value = 1;
+  master.gain.value = 0.86;
 
   const compressor = ctx.createDynamicsCompressor();
-  compressor.threshold.value = -3;
-  compressor.knee.value = 4;
-  compressor.ratio.value = 12;
-  compressor.attack.value = 0.001;
-  compressor.release.value = 0.08;
+  compressor.threshold.value = -6;
+  compressor.knee.value = 1;
+  compressor.ratio.value = 20;
+  compressor.attack.value = 0.003;
+  compressor.release.value = 0.16;
 
   const dryGain = ctx.createGain();
   dryGain.gain.value = 1;
@@ -176,8 +178,15 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   const convolver = ctx.createConvolver();
   convolver.buffer = makeReverbIR(ctx);
 
-  const panner = ctx.createStereoPanner();
-  panner.pan.value = 0;
+  const panner = ctx.createPanner();
+  panner.panningModel = 'HRTF';
+  panner.distanceModel = 'inverse';
+  panner.refDistance = 1;
+  panner.maxDistance = 4;
+  panner.rolloffFactor = 0.35;
+  panner.positionX.value = 0;
+  panner.positionY.value = 0;
+  panner.positionZ.value = 1;
 
   // Wire chain: source -> filters -> master -> compressor -> [dry + reverb->wet] -> panner -> destination
   source.connect(filters[0]);
@@ -335,15 +344,22 @@ export function setSpatial(enabled: boolean) {
   if (!engine.panner || !engine.ctx) return;
   if (!enabled) {
     const now = engine.ctx.currentTime;
-    engine.panner.pan.cancelScheduledValues(now);
-    engine.panner.pan.setTargetAtTime(0, now, SMOOTH);
+    engine.panner.positionX.cancelScheduledValues(now);
+    engine.panner.positionY.cancelScheduledValues(now);
+    engine.panner.positionZ.cancelScheduledValues(now);
+    engine.panner.positionX.setTargetAtTime(0, now, SMOOTH);
+    engine.panner.positionY.setTargetAtTime(0, now, SMOOTH);
+    engine.panner.positionZ.setTargetAtTime(1, now, SMOOTH);
     return;
   }
   const tick = () => {
     if (!engine.panner || !engine.ctx) return;
     engine.spatialAngle += 0.012;
-    const v = Math.sin(engine.spatialAngle) * 0.32;
-    engine.panner.pan.setTargetAtTime(v, engine.ctx.currentTime, 0.12);
+    const x = Math.sin(engine.spatialAngle) * 0.75;
+    const z = 0.85 + Math.cos(engine.spatialAngle) * 0.28;
+    engine.panner.positionX.setTargetAtTime(x, engine.ctx.currentTime, 0.16);
+    engine.panner.positionY.setTargetAtTime(0, engine.ctx.currentTime, 0.16);
+    engine.panner.positionZ.setTargetAtTime(z, engine.ctx.currentTime, 0.16);
     engine.spatialRaf = requestAnimationFrame(tick);
   };
   engine.spatialRaf = requestAnimationFrame(tick);
