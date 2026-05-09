@@ -2,7 +2,7 @@
  * Global audio engine — single AudioContext, single source per <audio>,
  * smooth parameter changes via setTargetAtTime.
  *
- * Graph: source -> [lowshelf, peaking x6, highshelf] -> masterGain -> compressor
+ * Graph: source -> [lowshelf, peaking x6, highshelf] -> masterGain -> limiter
  *                  -> dryGain ─┐
  *                  -> convolver -> wetGain ─┴-> destination
  *
@@ -161,11 +161,11 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   master.gain.value = 1;
 
   const compressor = ctx.createDynamicsCompressor();
-  compressor.threshold.value = -8;
-  compressor.knee.value = 12;
-  compressor.ratio.value = 4;
-  compressor.attack.value = 0.003;
-  compressor.release.value = 0.15;
+  compressor.threshold.value = -3;
+  compressor.knee.value = 4;
+  compressor.ratio.value = 12;
+  compressor.attack.value = 0.001;
+  compressor.release.value = 0.08;
 
   const dryGain = ctx.createGain();
   dryGain.gain.value = 1;
@@ -298,14 +298,14 @@ export function setBands(gainsDb: number[], bassBoostPercent = 0) {
   if (engine.mode !== 'processed' || !engine.ctx || !engine.filters.length) return;
   const ctx = engine.ctx;
   const now = ctx.currentTime;
-  const boost = (bassBoostPercent / 100) * 6; // up to +6dB on lowest band
+  const boost = (Math.min(60, Math.max(0, bassBoostPercent)) / 60) * 4; // safe +4dB max on lowest band
 
   for (let i = 0; i < engine.filters.length; i++) {
     let g = gainsDb[i] ?? 0;
     if (i === 0) g += boost;
     else if (i === 1) g += boost * 0.6;
     else if (i === 2) g += boost * 0.25;
-    g = Math.max(-12, Math.min(12, g));
+    g = Math.max(-8, Math.min(8, g));
     const param = engine.filters[i].gain;
     param.cancelScheduledValues(now);
     param.setTargetAtTime(g, now, SMOOTH);
