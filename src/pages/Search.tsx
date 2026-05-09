@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
 import { prefetchIndexedTrack, searchIndexedTracks, getTagTopTracks, type IndexedTrack } from '@/lib/musicIndexer';
 import { isCatalogSongId } from '@/lib/songSupport';
-import { detectMoodTag } from '@/lib/moodKeywords';
+import { detectMoodAndLanguage } from '@/lib/moodKeywords';
 import FollowedArtistsRail from '@/components/FollowedArtistsRail';
 import {
   getSongHistory,
