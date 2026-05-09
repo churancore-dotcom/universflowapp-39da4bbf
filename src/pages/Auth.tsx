@@ -47,7 +47,7 @@ const Auth = () => {
           navigate(isAdmin ? '/admin' : '/home');
         }
       } else {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, username, detectCountryCode());
         if (error) {
           toast.error(error.message);
         } else {
