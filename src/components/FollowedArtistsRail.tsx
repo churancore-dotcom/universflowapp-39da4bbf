@@ -56,7 +56,9 @@ const FollowedArtistsRail = memo(function FollowedArtistsRail({
   useEffect(() => {
     if (!followedNames.length) { setFetched([]); return; }
     const localCovered = new Set(localMatches.map((s) => normalize(s.artist)));
-    const need = followedNames.filter((n) => !localCovered.has(normalize(n))).slice(0, 4);
+    // Fetch top tracks for ALL followed artists (not just non-catalog), so users
+    // see "most of their songs" even when local catalog has only 1-2 of them.
+    const need = followedNames.slice(0, 12);
     const key = need.join('|');
     if (!need.length || key === fetchedKey.current) return;
     fetchedKey.current = key;
@@ -64,7 +66,8 @@ const FollowedArtistsRail = memo(function FollowedArtistsRail({
     let cancelled = false;
     (async () => {
       const all: IndexedTrack[] = [];
-      const perArtist = Math.max(2, Math.floor(limit / need.length));
+      // Aim for ~10 tracks per followed artist; capped by the indexer.
+      const perArtist = 10;
       const results = await Promise.all(
         need.map((n) => getArtistTopTracksByName(n, perArtist).catch(() => [] as IndexedTrack[]))
       );
