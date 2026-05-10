@@ -263,20 +263,19 @@ const QueueItem = ({ song, position, progress, isDownloading, onRemove }: QueueI
         )}
       </div>
 
-      {/* Remove button (only for queued, not downloading) */}
-      {!isDownloading && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-        >
-          <X className="w-4 h-4" />
-        </Button>
-      )}
+      {/* Cancel/remove button */}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 flex-shrink-0 text-muted-foreground hover:text-destructive"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        aria-label={isDownloading ? 'Cancel download' : 'Remove from queue'}
+      >
+        <X className="w-4 h-4" />
+      </Button>
     </motion.div>
   );
 };
