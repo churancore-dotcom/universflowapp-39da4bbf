@@ -53,10 +53,44 @@ const CountryViralSection = memo(function CountryViralSection() {
     if (!country) return;
     let cancelled = false;
     setLoading(true);
-    const name = COUNTRY_NAMES[country] || COUNTRY_NAMES.IN;
-    getGeoTopTracks(name, 24)
-      .then((res) => { if (!cancelled) setTracks(res); })
-      .finally(() => { if (!cancelled) setLoading(false); });
+    const TARGET = 24;
+
+    (async () => {
+      // 1) Admin-curated picks (global) come first
+      const { data: picks } = await supabase
+        .from('viral_picks')
+        .select('track_id, title, artist, cover_url, audio_url, source, position')
+        .eq('is_active', true)
+        .order('position', { ascending: true })
+        .limit(TARGET);
+
+      const pinned: IndexedTrack[] = (picks || []).map((p) => ({
+        id: p.track_id,
+        title: p.title,
+        artist: p.artist,
+        cover_url: p.cover_url || undefined,
+        audio_url: p.audio_url || undefined,
+      }));
+
+      const seen = new Set(pinned.map((t) => t.id));
+      const need = Math.max(0, TARGET - pinned.length);
+
+      // 2) Fill remainder with Last.fm geo-top
+      let filler: IndexedTrack[] = [];
+      if (need > 0) {
+        const name = COUNTRY_NAMES[country] || COUNTRY_NAMES.IN;
+        try {
+          const fetched = await getGeoTopTracks(name, need + pinned.length);
+          filler = fetched.filter((t) => !seen.has(t.id)).slice(0, need);
+        } catch { /* ignore */ }
+      }
+
+      if (!cancelled) {
+        setTracks([...pinned, ...filler]);
+        setLoading(false);
+      }
+    })();
+
     return () => { cancelled = true; };
   }, [country]);
 
