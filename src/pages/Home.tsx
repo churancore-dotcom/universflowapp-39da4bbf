@@ -11,7 +11,7 @@ import AllSongsSection from '@/components/AllSongsSection';
 
 import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
-import FollowedArtistSongsSection from '@/components/FollowedArtistSongsSection';
+
 import CountryViralSection from '@/components/CountryViralSection';
 import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';

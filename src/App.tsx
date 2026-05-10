@@ -61,7 +61,6 @@ const ManageAlbums = lazy(() => import("./pages/admin/ManageAlbums"));
 const ManagePlaylists = lazy(() => import("./pages/admin/ManagePlaylists"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
 const ManageSubscriptions = lazy(() => import("./pages/admin/ManageSubscriptions"));
-const DonationHistory = lazy(() => import("./pages/admin/DonationHistory"));
 const AppSettings = lazy(() => import("./pages/admin/AppSettings"));
 const FeatureFlags = lazy(() => import("./pages/admin/FeatureFlags"));
 const Announcements = lazy(() => import("./pages/admin/Announcements"));
@@ -77,14 +76,12 @@ const PromoCodes = lazy(() => import("./pages/admin/PromoCodes"));
 const PaymentRequests = lazy(() => import("./pages/admin/PaymentRequests"));
 const APIManagement = lazy(() => import("./pages/admin/APIManagement"));
 const PushNotifications = lazy(() => import("./pages/admin/PushNotifications"));
-const RevenueAnalytics = lazy(() => import("./pages/admin/RevenueAnalytics"));
 const UserEngagement = lazy(() => import("./pages/admin/UserEngagement"));
 const ABTesting = lazy(() => import("./pages/admin/ABTesting"));
 const SecurityCenter = lazy(() => import("./pages/admin/SecurityCenter"));
-const AIAssistant = lazy(() => import("./pages/admin/AIAssistant"));
 
-const AdminSongRequests = lazy(() => import("./pages/admin/SongRequests"));
 const SupportInbox = lazy(() => import("./pages/admin/SupportInbox"));
+const SharedPlaylist = lazy(() => import("./pages/SharedPlaylist"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -173,18 +170,17 @@ const AnimatedRoutes = () => {
           <Route path="/subscription" element={<ProtectedRoute><ManageSubscription /></ProtectedRoute>} />
           <Route path="/premium" element={<ProtectedRoute><Premium /></ProtectedRoute>} />
           <Route path="/downloads" element={<ProtectedRoute><Downloads /></ProtectedRoute>} />
+          <Route path="/p/:token" element={<SharedPlaylist />} />
 
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route index element={<AdminDashboard />} />
             <Route path="upload" element={<UploadMusic />} />
-            <Route path="song-requests" element={<AdminSongRequests />} />
             <Route path="songs" element={<ManageSongs />} />
             <Route path="artists" element={<ManageArtists />} />
             <Route path="albums" element={<ManageAlbums />} />
             <Route path="playlists" element={<ManagePlaylists />} />
             <Route path="users" element={<ManageUsers />} />
             <Route path="subscriptions" element={<ManageSubscriptions />} />
-            <Route path="donations" element={<DonationHistory />} />
             <Route path="app-settings" element={<AppSettings />} />
             <Route path="features" element={<FeatureFlags />} />
             <Route path="announcements" element={<Announcements />} />
@@ -200,11 +196,9 @@ const AnimatedRoutes = () => {
             <Route path="settings" element={<AdminSettings />} />
             <Route path="api" element={<APIManagement />} />
             <Route path="notifications" element={<PushNotifications />} />
-            <Route path="revenue" element={<RevenueAnalytics />} />
             <Route path="engagement" element={<UserEngagement />} />
             <Route path="ab-testing" element={<ABTesting />} />
             <Route path="security" element={<SecurityCenter />} />
-            <Route path="ai-assistant" element={<AIAssistant />} />
             <Route path="support" element={<SupportInbox />} />
           </Route>
           <Route path="*" element={<NotFound />} />
