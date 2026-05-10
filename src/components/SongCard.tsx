@@ -5,6 +5,7 @@ import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { useNavigate } from 'react-router-dom';
 import LikeButton from './LikeButton';
+import PinToViralButton from './PinToViralButton';
 import AddToPlaylistModal from './AddToPlaylistModal';
 import CreatePlaylistModal from './CreatePlaylistModal';
 import OptimizedImage from './OptimizedImage';
