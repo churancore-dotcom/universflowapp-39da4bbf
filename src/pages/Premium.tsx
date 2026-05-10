@@ -504,6 +504,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
 
   const submitUtr = async () => {
     if (!user) { toast({ title: 'Please sign in first', variant: 'destructive' }); return; }
+    if (!requireVerified('submit a payment')) return;
     const cleanUtr = utr.trim();
     if (cleanUtr.length < 6) { toast({ title: 'Enter a valid UTR / transaction ID', variant: 'destructive' }); return; }
     setSubmitting(true);
