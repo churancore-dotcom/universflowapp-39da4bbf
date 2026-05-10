@@ -213,12 +213,17 @@ const PushNotifications = () => {
           draft.target_audience === 'specific' && selectedUser
             ? ` to ${selectedUser.username || selectedUser.email || 'user'}`
             : '';
-        toast.success(
-          `Push sent${who} → ${data.success_count}/${data.sent} devices` +
-            (data.invalid_removed ? ` · cleaned ${data.invalid_removed} stale` : ''),
-        );
         if (data.sent === 0) {
-          toast.warning('Recipient has no registered device. They must open the Android app at least once.');
+          pushOk = false;
+          toast.error(
+            'Push not delivered: 0 devices registered for this audience',
+            { description: 'Users must open the Android app at least once before they can receive push notifications.' },
+          );
+        } else {
+          toast.success(
+            `Push delivered${who} → ${data.success_count}/${data.sent} devices` +
+              (data.invalid_removed ? ` · cleaned ${data.invalid_removed} stale` : ''),
+          );
         }
       }
     }
