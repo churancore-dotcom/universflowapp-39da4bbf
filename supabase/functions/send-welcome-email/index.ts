@@ -28,27 +28,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Require authenticated caller — prevents spam/phishing abuse of Resend quota.
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
-    const token = authHeader.replace('Bearer ', '');
-    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
-      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
-    });
-    if (!userRes.ok) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-    const authUser = await userRes.json().catch(() => null);
-    const callerEmail = String(authUser?.email ?? '').trim().toLowerCase();
-
     const body = await req.json().catch(() => ({}));
     const email = String(body?.email ?? '').trim().toLowerCase();
     const username = String(body?.username ?? '').trim().slice(0, 40) || 'there';
@@ -59,8 +38,27 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Caller may only send the welcome email to their own registered address.
-    if (!callerEmail || callerEmail !== email) {
+    // Anti-abuse: only send if a matching auth user exists and was created in the last 10 minutes.
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const lookup = await fetch(
+      `${SUPABASE_URL}/auth/v1/admin/users?filter=${encodeURIComponent(`email.eq.${email}`)}`,
+      { headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` } }
+    );
+    if (!lookup.ok) {
+      return new Response(JSON.stringify({ error: 'Lookup failed' }), {
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const lookupData = await lookup.json().catch(() => ({}));
+    const u = (lookupData?.users ?? []).find((x: any) => String(x?.email ?? '').toLowerCase() === email);
+    if (!u) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const createdAt = new Date(u.created_at).getTime();
+    if (!createdAt || Date.now() - createdAt > 10 * 60 * 1000) {
       return new Response(JSON.stringify({ error: 'Forbidden' }), {
         status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
