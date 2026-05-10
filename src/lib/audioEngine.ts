@@ -35,6 +35,7 @@ interface Engine {
   signature: string | null;
   mode: Mode;
   spatialEnabled: boolean;
+  lateNightEnabled: boolean;
   listeners: Set<(m: Mode) => void>;
   cachedIR: AudioBuffer | null;
 }
