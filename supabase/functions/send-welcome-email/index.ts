@@ -28,6 +28,27 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Require authenticated caller — prevents spam/phishing abuse of Resend quota.
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const token = authHeader.replace('Bearer ', '');
+    const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}`, apikey: SUPABASE_ANON_KEY },
+    });
+    if (!userRes.ok) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const authUser = await userRes.json().catch(() => null);
+    const callerEmail = String(authUser?.email ?? '').trim().toLowerCase();
+
     const body = await req.json().catch(() => ({}));
     const email = String(body?.email ?? '').trim().toLowerCase();
     const username = String(body?.username ?? '').trim().slice(0, 40) || 'there';
@@ -35,6 +56,13 @@ Deno.serve(async (req) => {
     if (!isEmail(email)) {
       return new Response(JSON.stringify({ error: 'Invalid email' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Caller may only send the welcome email to their own registered address.
+    if (!callerEmail || callerEmail !== email) {
+      return new Response(JSON.stringify({ error: 'Forbidden' }), {
+        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
