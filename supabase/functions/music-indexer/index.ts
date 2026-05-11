@@ -752,7 +752,14 @@ async function searchForCandidates(artist: string, title: string): Promise<Recor
         const ytItems = Array.isArray(ytData?.items) ? ytData.items : [];
         for (const item of ytItems) {
           const vid = item?.id?.videoId;
-          if (vid) {
+          const candidate = {
+            videoId: vid,
+            title: item?.snippet?.title || '',
+            author: item?.snippet?.channelTitle || '',
+            published: item?.snippet?.publishedAt ? Math.floor(new Date(item.snippet.publishedAt).getTime() / 1000) : 0,
+            _source: 'youtube-api',
+          };
+          if (vid && scoreVideo(candidate, artist, title) > -8 && !isBadVideoCandidate(candidate, artist, title)) {
             addCandidate({
               videoId: vid,
               title: item?.snippet?.title || '',
