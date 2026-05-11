@@ -15,6 +15,7 @@ import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LibrarySkeleton, LibraryArtistsSkeleton } from '@/components/PageSkeletons';
+import PlaylistCover from '@/components/PlaylistCover';
 import { hydratePlaylistCoverUrls, loadLibrarySongs } from '@/lib/streamSongs';
 import { getUserArtistPrefs, unfollowArtist } from '@/lib/userArtistPrefs';
 import { Heart as HeartIcon } from 'lucide-react';
