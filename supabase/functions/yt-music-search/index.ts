@@ -248,24 +248,31 @@ serve(async (req) => {
 
     let data: any = null;
     let lastErr = '';
-    for (const apiKey of apiKeys) {
-      const url = new URL('https://www.googleapis.com/youtube/v3/search');
-      url.searchParams.set('part', 'snippet');
-      url.searchParams.set('q', `${cleanQuery} music`);
-      url.searchParams.set('type', 'video');
-      url.searchParams.set('videoCategoryId', '10');
-      url.searchParams.set('maxResults', String(limit));
-      url.searchParams.set('order', sortBy === 'upload_date' ? 'date' : 'relevance');
-      url.searchParams.set('publishedAfter', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString());
-      url.searchParams.set('key', apiKey);
+    for (const freshOnly of [true, false]) {
+      for (const apiKey of apiKeys) {
+        const url = new URL('https://www.googleapis.com/youtube/v3/search');
+        url.searchParams.set('part', 'snippet');
+        url.searchParams.set('q', `${cleanQuery} music`);
+        url.searchParams.set('type', 'video');
+        url.searchParams.set('videoCategoryId', '10');
+        url.searchParams.set('maxResults', String(limit));
+        url.searchParams.set('order', sortBy === 'upload_date' ? 'date' : 'relevance');
+        if (freshOnly) url.searchParams.set('publishedAfter', new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString());
+        url.searchParams.set('key', apiKey);
 
-      const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
-      if (response.ok) {
-        data = await response.json();
-        break;
+        const response = await fetch(url.toString(), { headers: { Accept: 'application/json' } });
+        if (response.ok) {
+          const candidateData = await response.json();
+          const hasMatch = (candidateData.items || []).some((item: any) => queryMatchesResult({ title: item?.snippet?.title, author: item?.snippet?.channelTitle }, cleanQuery));
+          if (hasMatch || !freshOnly) {
+            data = candidateData;
+            break;
+          }
+        }
+        lastErr = await response.text().catch(() => 'No matching videos');
+        console.warn(`YouTube key/search window failed (${response.status}), trying next...`, lastErr.slice(0, 200));
       }
-      lastErr = await response.text();
-      console.warn(`YouTube key failed (${response.status}), trying next...`, lastErr.slice(0, 200));
+      if (data) break;
     }
 
     if (!data) {
