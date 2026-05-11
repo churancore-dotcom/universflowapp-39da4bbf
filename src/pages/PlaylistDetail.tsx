@@ -259,21 +259,17 @@ const PlaylistDetail = () => {
         {/* Playlist artwork and info */}
         <div className="px-6 py-6">
           <motion.div
-            className="w-48 h-48 mx-auto rounded-2xl shadow-2xl overflow-hidden"
-            style={{
-              background: 'linear-gradient(135deg, hsl(211 100% 50% / 0.4), hsl(328 100% 54% / 0.4))',
-            }}
+            className="w-48 h-48 mx-auto shadow-2xl"
             initial={{ scale: 0.8, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={iosBounce}
           >
-            {playlist.cover_url ? (
-              <img src={playlist.cover_url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Music className="w-20 h-20 text-white/30" />
-              </div>
-            )}
+            <PlaylistCover
+              coverUrl={playlist.cover_url}
+              coverUrls={songs.map((s) => s.cover_url)}
+              className="w-full h-full"
+              iconClassName="w-20 h-20 text-white/30"
+            />
           </motion.div>
 
           <motion.div
