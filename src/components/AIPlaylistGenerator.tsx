@@ -170,6 +170,7 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
           title: playlistTitle,
           description: `AI-generated from YouTube · ${queries[0]}`,
           user_id: user.id,
+          cover_url: picked[0]?.cover_url || null,
           is_public: false,
         })
         .select()
