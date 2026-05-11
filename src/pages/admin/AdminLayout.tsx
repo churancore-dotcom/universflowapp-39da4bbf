@@ -42,6 +42,7 @@ const navItems = [
   { icon: Crown, label: 'Payment Requests', path: '/admin/payments' },
   { icon: Zap, label: 'Engagement', path: '/admin/engagement' },
   { icon: Bell, label: 'Push Notifications', path: '/admin/notifications' },
+  { icon: Smartphone, label: 'Registered Devices', path: '/admin/devices' },
   { icon: FlaskConical, label: 'A/B Testing', path: '/admin/ab-testing' },
   { icon: Key, label: 'API Management', path: '/admin/api' },
   { icon: Lock, label: 'Security', path: '/admin/security' },
