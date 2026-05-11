@@ -11,7 +11,8 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const APP_ORIGIN = 'https://universflow.in';
-const FROM_ADDRESS = 'Universflow <onboarding@resend.dev>';
+const FROM_ADDRESS = 'Universflow <noreply@universflow.in>';
+const REPLY_TO = 'support@universflow.in';
 
 function escape(s: string): string {
   return s.replace(/[&<>"']/g, (c) =>
