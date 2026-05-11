@@ -293,6 +293,8 @@ const Home = () => {
             <EmptyState />
           ) : (
             <div className="space-y-3">
+              {/* Live admin announcement banner */}
+              <AnnouncementBanner />
               {/* Hero Quick-Listen Banner */}
               {currentSong && (
                 <motion.div
