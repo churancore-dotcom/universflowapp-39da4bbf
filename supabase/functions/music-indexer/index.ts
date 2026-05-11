@@ -734,7 +734,7 @@ async function searchForCandidates(artist: string, title: string): Promise<Recor
     if (r.status === 'fulfilled' && Array.isArray(r.value)) {
       const ranked = r.value
         .map((item: any) => ({ item, score: scoreVideo({ title: item.title, author: item.uploaderName || item.uploader, lengthSeconds: item.duration || item.lengthSeconds }, artist, title) }))
-        .filter((e: any) => e.item.videoId)
+        .filter((e: any) => e.item.videoId && e.score > -8 && !isBadVideoCandidate({ title: e.item.title, author: e.item.uploaderName || e.item.uploader, lengthSeconds: e.item.duration || e.item.lengthSeconds }, artist, title))
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, 4);
       ranked.forEach((e: any) => addCandidate(e.item));
@@ -757,6 +757,7 @@ async function searchForCandidates(artist: string, title: string): Promise<Recor
               videoId: vid,
               title: item?.snippet?.title || '',
               author: item?.snippet?.channelTitle || '',
+              published: item?.snippet?.publishedAt ? Math.floor(new Date(item.snippet.publishedAt).getTime() / 1000) : 0,
               _source: 'youtube-api',
             });
           }
@@ -786,7 +787,7 @@ async function searchForCandidates(artist: string, title: string): Promise<Recor
     if (r.status === 'fulfilled' && Array.isArray(r.value)) {
       const ranked = r.value
         .map((item: any) => ({ item, score: scoreVideo(item, artist, title) }))
-        .filter((e: any) => e.item.videoId)
+        .filter((e: any) => e.item.videoId && e.score > -8 && !isBadVideoCandidate(e.item, artist, title))
         .sort((a: any, b: any) => b.score - a.score)
         .slice(0, 4);
       ranked.forEach((e: any) => addCandidate(e.item));
