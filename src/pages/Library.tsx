@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Music, Heart, ListMusic, Download, CloudOff, Trash2, User, Plus } from 'lucide-react';
+import { Music, Heart, ListMusic, Download, CloudOff, Trash2, User, Plus, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePlayer, Song } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import BottomNav from '@/components/BottomNav';
 import CreatePlaylistModal from '@/components/CreatePlaylistModal';
+import AIPlaylistGenerator from '@/components/AIPlaylistGenerator';
 import FollowedArtistSongsSection from '@/components/FollowedArtistSongsSection';
 import LikeButton from '@/components/LikeButton';
 import DownloadButton from '@/components/DownloadButton';
@@ -83,6 +84,7 @@ const Library = () => {
   const { downloads, removeSong, getDownloadedUrl, totalStorageUsed, clearAllDownloads } = useDownloads();
   const [activeTab, setActiveTab] = useState(isOffline ? 'downloads' : 'liked');
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
+  const [showAIPlaylist, setShowAIPlaylist] = useState(false);
 
   const libraryQueryKey = ['library', user?.id] as const;
   const initialCached = user ? readLibraryCache(user.id) : undefined;
@@ -432,23 +434,42 @@ const Library = () => {
               </TabsContent>
 
               <TabsContent value="playlists" className="mt-0">
-                <motion.button
-                  className="w-full flex items-center gap-3 p-3.5 rounded-xl mb-3"
-                  style={{
-                    background: 'rgba(255,255,255,0.03)',
-                    border: '0.5px solid rgba(255,255,255,0.06)',
-                  }}
-                  onClick={() => setShowCreatePlaylist(true)}
-                  whileTap={{ scale: 0.97 }}
-                >
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center"
-                    style={{ background: 'hsl(var(--primary) / 0.15)' }}
+                <div className="grid grid-cols-2 gap-2.5 mb-3">
+                  <motion.button
+                    className="flex items-center gap-3 p-3.5 rounded-xl"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '0.5px solid rgba(255,255,255,0.06)',
+                    }}
+                    onClick={() => setShowCreatePlaylist(true)}
+                    whileTap={{ scale: 0.97 }}
                   >
-                    <Plus className="w-5 h-5 text-primary" />
-                  </div>
-                  <span className="text-sm font-semibold">Create Playlist</span>
-                </motion.button>
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'hsl(var(--primary) / 0.15)' }}
+                    >
+                      <Plus className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-sm font-semibold text-left leading-tight">Create Playlist</span>
+                  </motion.button>
+                  <motion.button
+                    className="flex items-center gap-3 p-3.5 rounded-xl"
+                    style={{
+                      background: 'linear-gradient(135deg, hsl(var(--primary) / 0.18), hsl(var(--accent) / 0.10))',
+                      border: '0.5px solid hsl(var(--primary) / 0.22)',
+                    }}
+                    onClick={() => setShowAIPlaylist(true)}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ background: 'hsl(var(--primary) / 0.18)' }}
+                    >
+                      <Sparkles className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-sm font-semibold text-left leading-tight">Auto Generate</span>
+                  </motion.button>
+                </div>
                 {playlists.length === 0 ? (
                   <div className="text-center py-6">
                     <p className="text-muted-foreground text-xs">No playlists yet</p>
@@ -509,6 +530,7 @@ const Library = () => {
 
         <BottomNav />
         {showCreatePlaylist && <CreatePlaylistModal isOpen={showCreatePlaylist} onClose={() => setShowCreatePlaylist(false)} onCreated={() => queryClient.invalidateQueries({ queryKey: libraryQueryKey })} />}
+        {showAIPlaylist && <AIPlaylistGenerator isOpen={showAIPlaylist} onClose={() => setShowAIPlaylist(false)} onPlaylistCreated={() => { setActiveTab('playlists'); queryClient.invalidateQueries({ queryKey: libraryQueryKey }); }} />}
       </div>
     </TabTransition>
   );

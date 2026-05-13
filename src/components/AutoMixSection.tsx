@@ -38,13 +38,13 @@ function rowToSong(s: any): Song {
   } as Song;
 }
 
-// Require at least 5 total plays before generating any auto-mix
-const MIN_TOTAL_PLAYS = 5;
+// Generate as soon as there is listening history; never add random songs.
+const MIN_TOTAL_PLAYS = 1;
 
 function buildMixes(played: { song: Song; count: number; lastTs: number }[]): Mix[] {
   const totalPlays = played.reduce((sum, p) => sum + p.count, 0);
   if (totalPlays < MIN_TOTAL_PLAYS) return [];
-  if (played.length < 3) return [];
+  if (played.length < 1) return [];
   const mixes: Mix[] = [];
   let accentIdx = 0;
   const nextAccent = () => ACCENTS[accentIdx++ % ACCENTS.length];
@@ -55,7 +55,7 @@ function buildMixes(played: { song: Song; count: number; lastTs: number }[]): Mi
     .sort((a, b) => b.count - a.count)
     .slice(0, 30)
     .map(p => p.song);
-  if (onRepeat.length >= 3) {
+  if (onRepeat.length >= 1) {
     mixes.push({
       id: 'mix-on-repeat',
       title: 'On Repeat',
@@ -79,7 +79,7 @@ function buildMixes(played: { song: Song; count: number; lastTs: number }[]): Mi
       total: items.reduce((s, i) => s + i.count, 0),
       songs: items.sort((a, b) => b.count - a.count).map(i => i.song),
     }))
-    .filter(a => a.songs.length >= 3)
+    .filter(a => a.songs.length >= 2)
     .sort((a, b) => b.total - a.total)
     .slice(0, 2);
   topArtists.forEach(a => {
@@ -101,7 +101,7 @@ function buildMixes(played: { song: Song; count: number; lastTs: number }[]): Mi
     byGenre.get(g)!.push(p.song);
   });
   const topGenre = Array.from(byGenre.entries())
-    .filter(([, s]) => s.length >= 3)
+    .filter(([, s]) => s.length >= 2)
     .sort((a, b) => b[1].length - a[1].length)[0];
   if (topGenre) {
     mixes.push({
@@ -118,7 +118,7 @@ function buildMixes(played: { song: Song; count: number; lastTs: number }[]): Mi
     .sort((a, b) => b.lastTs - a.lastTs)
     .slice(0, 25)
     .map(p => p.song);
-  if (recent.length >= 5) {
+  if (recent.length >= 1) {
     mixes.push({
       id: 'mix-recent',
       title: 'Daily Replay',

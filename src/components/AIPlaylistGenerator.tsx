@@ -7,8 +7,16 @@ import { iosSpring } from '@/lib/animations';
 import { toast } from 'sonner';
 import { usePremium } from '@/hooks/usePremium';
 import PremiumLockOverlay from './PremiumLockOverlay';
-import { searchYTMusic, type YTMusicResult } from '@/lib/ytMusicSearch';
+import type { IndexedTrack } from '@/lib/musicIndexer';
 import { persistStreamSong } from '@/lib/streamSongs';
+
+const searchPlaylistTracks = async (query: string): Promise<IndexedTrack[]> => {
+  const { data, error } = await supabase.functions.invoke('yt-music-search', {
+    body: { query, limit: 20 },
+  });
+  if (error || !data?.success || !Array.isArray(data.results)) return [];
+  return data.results;
+};
 
 interface AIPlaylistGeneratorProps {
   isOpen: boolean;
@@ -116,20 +124,21 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
 
       // Run searches in parallel across all queries
       const searchResults = await Promise.all(
-        queries.map((q) => searchYTMusic(q).catch(() => [] as YTMusicResult[])),
+        queries.map((q) => searchPlaylistTracks(q).catch(() => [] as IndexedTrack[])),
       );
 
       // Interleave results so the playlist mixes from each query, then dedupe
       const seen = new Set<string>();
-      const interleaved: YTMusicResult[] = [];
+      const interleaved: IndexedTrack[] = [];
       const maxLen = Math.max(...searchResults.map((r) => r.length), 0);
       for (let i = 0; i < maxLen; i++) {
         for (const list of searchResults) {
           const item = list[i];
-          if (!item || seen.has(item.videoId)) continue;
+          const trackKey = item?.videoId || item?.id;
+          if (!item || !trackKey || seen.has(trackKey)) continue;
           // Skip very short clips (per content sourcing preference)
           if (item.duration && item.duration < 120) continue;
-          seen.add(item.videoId);
+          seen.add(trackKey);
           interleaved.push(item);
         }
       }
@@ -143,7 +152,8 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
 
       setGenerationStep('Saving tracks...');
 
-      // Persist as stream songs (audio_url resolved on play)
+      // Edge search already caches stream songs server-side; this is a harmless
+      // fallback for older results that may still be in memory during the session.
       await Promise.all(
         picked.map((r) =>
           persistStreamSong({
@@ -151,7 +161,7 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
             title: r.title,
             artist: r.artist,
             cover_url: r.cover_url,
-            audio_url: 'resolving',
+            audio_url: r.audio_url || 'resolving',
             duration: r.duration,
             source: 'indexed',
           } as any),
