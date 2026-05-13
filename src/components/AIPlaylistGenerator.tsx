@@ -7,8 +7,16 @@ import { iosSpring } from '@/lib/animations';
 import { toast } from 'sonner';
 import { usePremium } from '@/hooks/usePremium';
 import PremiumLockOverlay from './PremiumLockOverlay';
-import { searchYouTubeMusicTracks, type IndexedTrack } from '@/lib/musicIndexer';
+import type { IndexedTrack } from '@/lib/musicIndexer';
 import { persistStreamSong } from '@/lib/streamSongs';
+
+const searchPlaylistTracks = async (query: string): Promise<IndexedTrack[]> => {
+  const { data, error } = await supabase.functions.invoke('yt-music-search', {
+    body: { query, limit: 20 },
+  });
+  if (error || !data?.success || !Array.isArray(data.results)) return [];
+  return data.results;
+};
 
 interface AIPlaylistGeneratorProps {
   isOpen: boolean;
@@ -116,7 +124,7 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
 
       // Run searches in parallel across all queries
       const searchResults = await Promise.all(
-        queries.map((q) => searchYouTubeMusicTracks(q, 20).catch(() => [] as IndexedTrack[])),
+        queries.map((q) => searchPlaylistTracks(q).catch(() => [] as IndexedTrack[])),
       );
 
       // Interleave results so the playlist mixes from each query, then dedupe
@@ -144,7 +152,8 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
 
       setGenerationStep('Saving tracks...');
 
-      // Persist as stream songs (audio_url resolved on play)
+      // Edge search already caches stream songs server-side; this is a harmless
+      // fallback for older results that may still be in memory during the session.
       await Promise.all(
         picked.map((r) =>
           persistStreamSong({
