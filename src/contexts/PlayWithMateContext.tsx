@@ -614,20 +614,27 @@ export const PlayWithMateProvider = ({ children }: { children: ReactNode }) => {
 
       setLoading(true);
       try {
+        // Use SECURITY DEFINER RPC — bypasses RLS so guests (who aren't
+        // members yet) can find & join the room by code in one shot.
+        const { data: joinedId, error: joinErr } = await supabase
+          .rpc('join_listening_session', { p_session_code: sessionCode });
+
+        if (joinErr || !joinedId) {
+          toast.error('That room code is not active');
+          return;
+        }
+
+        // Now we're a member — RLS allows reading the session row.
         const { data: session, error } = await supabase
           .from('listening_sessions')
           .select('*')
-          .eq('session_code', sessionCode)
-          .eq('is_active', true)
+          .eq('id', joinedId as string)
           .maybeSingle();
 
         if (error || !session) {
           toast.error('That room code is not active');
           return;
         }
-
-        await supabase.from('listening_session_members').delete().eq('session_id', session.id).eq('user_id', user.id);
-        await supabase.from('listening_session_members').insert({ session_id: session.id, user_id: user.id });
 
         const nextRoom: ActiveRoom = {
           sessionId: session.id,

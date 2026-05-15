@@ -213,6 +213,7 @@ export const applyTheme = (theme: ThemeMode) => {
 
   document.body.style.background = t.bodyBg;
   document.documentElement.style.background = t.bodyBg;
+  root.dataset.theme = theme;
 
   // Update status-bar / browser theme color
   try {

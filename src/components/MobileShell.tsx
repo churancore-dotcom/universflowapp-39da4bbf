@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import ThemeAura from './ThemeAura';
 
 interface MobileShellProps {
   children: ReactNode;
@@ -10,7 +11,8 @@ interface MobileShellProps {
  */
 const MobileShell = ({ children }: MobileShellProps) => {
   return (
-    <div 
+    <div
+      data-mobile-shell
       className="fixed inset-0 w-full h-full bg-background overflow-y-auto overflow-x-hidden"
       style={{
         touchAction: 'manipulation',
@@ -19,7 +21,8 @@ const MobileShell = ({ children }: MobileShellProps) => {
         WebkitOverflowScrolling: 'touch',
       }}
     >
-      {children}
+      <ThemeAura />
+      <div className="relative z-10">{children}</div>
     </div>
   );
 };
