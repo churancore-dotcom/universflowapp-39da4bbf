@@ -355,6 +355,7 @@ const AllArtists = () => {
       }}>
         <div className="flex items-center gap-3">
           <motion.button onClick={() => { triggerHaptic('impactLight'); selectedArtist ? setSelectedArtist(null) : navigate(-1); }}
+            aria-label="Go back"
             className="w-9 h-9 rounded-xl flex items-center justify-center"
             style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.10)' }}
             whileTap={{ scale: 0.85 }}>
@@ -374,10 +375,11 @@ const AllArtists = () => {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search artists..."
+                aria-label="Search artists"
                 className="w-full h-10 pl-9 pr-9 rounded-xl bg-white/5 border border-white/10 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/40"
               />
               {query && (
-                <button onClick={() => setQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                <button onClick={() => setQuery('')} aria-label="Clear search" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                   <X className="w-4 h-4" />
                 </button>
               )}

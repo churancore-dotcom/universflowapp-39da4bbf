@@ -180,12 +180,14 @@ const Profile = () => {
                         onChange={(e) => setNewUsername(e.target.value)}
                         className="h-8 text-sm bg-white/10 border-white/20"
                         placeholder="Enter username"
+                        aria-label="Username"
                         maxLength={20}
                         autoFocus
                       />
                       <button
                         onClick={handleSaveUsername}
                         disabled={isSaving}
+                        aria-label="Save username"
                         className="w-7 h-7 rounded-full bg-green-500/20 flex items-center justify-center"
                       >
                         <Check className="w-4 h-4 text-green-400" />
@@ -195,6 +197,7 @@ const Profile = () => {
                           setIsEditingUsername(false);
                           setNewUsername(profileData.username || '');
                         }}
+                        aria-label="Cancel editing username"
                         className="w-7 h-7 rounded-full bg-red-500/20 flex items-center justify-center"
                       >
                         <X className="w-4 h-4 text-red-400" />
@@ -206,6 +209,7 @@ const Profile = () => {
                       {canChangeUsername && (
                         <button
                           onClick={() => setIsEditingUsername(true)}
+                          aria-label="Edit username"
                           className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center"
                         >
                           <Edit2 className="w-3 h-3 text-muted-foreground" />

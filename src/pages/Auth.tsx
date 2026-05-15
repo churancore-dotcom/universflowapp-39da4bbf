@@ -176,6 +176,7 @@ const Auth = () => {
                 <Input
                   type="email"
                   placeholder="Email address"
+                  aria-label="Email address"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-10 h-12 text-sm rounded-xl border-0"
@@ -190,6 +191,7 @@ const Auth = () => {
                   <Input
                     type="text"
                     placeholder="Username (permanent)"
+                    aria-label="Username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, '').slice(0, 20))}
                     className="pl-10 h-12 text-sm rounded-xl border-0"
@@ -207,6 +209,7 @@ const Auth = () => {
                 <Input
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Password"
+                  aria-label="Password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-10 pr-10 h-12 text-sm rounded-xl border-0"
@@ -218,6 +221,7 @@ const Auth = () => {
                   type="button"
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground active:scale-90 transition-transform"
                   onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>

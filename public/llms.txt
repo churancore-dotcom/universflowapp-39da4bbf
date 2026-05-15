@@ -1,0 +1,22 @@
+# Univers Flow
+
+> Univers Flow is a free music streaming app — discover millions of songs, build playlists, follow artists, and listen offline on web and Android.
+
+Univers Flow is a mobile-first music experience that lets anyone stream and download music for free. It is available as a web app at https://universflow.in and as a native Android app. Premium upgrades unlock ad-free listening, exclusive content, and advanced audio settings.
+
+## Pages
+
+- [Home](/home): Personalized music feed — featured artists, trending tracks worldwide, auto-generated mixes, and your now-playing card.
+- [Search](/search): Search any song, artist, or album worldwide across the catalog and global indexer.
+- [Library](/library): Your saved songs, downloads, and personal playlists with one-tap auto-generated mixes.
+- [Discover Artists](/artists): Browse curated artists by category and follow the ones you love.
+- [Premium](/premium): Upgrade for ad-free playback, exclusive premium-only releases, advanced equalizer, and priority support.
+- [Profile](/profile): Manage your account, username, and listening preferences.
+- [Settings](/settings): Theme, audio, playback, and notification preferences.
+- [Support](/support): Help center, donations, and contact options.
+- [Sign in](/auth): Email and password sign-in or registration.
+
+## Optional
+
+- [Offline](/offline): Songs available without an internet connection.
+- [Downloads](/downloads): Manage your offline downloads.

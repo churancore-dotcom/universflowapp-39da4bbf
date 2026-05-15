@@ -255,6 +255,7 @@ const Search = () => {
             <Input value={query} onChange={(e) => setQuery(e.target.value)}
               onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
               placeholder="Any song, artist, or album worldwide"
+              aria-label="Search songs, artists, or albums"
               className="pl-10 pr-8 h-11 text-sm rounded-xl border-0"
               style={{
                 background: 'rgba(255, 255, 255, 0.06)',
@@ -263,6 +264,7 @@ const Search = () => {
               }} />
             {query && (
               <button onClick={() => { setQuery(''); setIndexedResults([]); }}
+                aria-label="Clear search"
                 className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full"
                 style={{ background: 'rgba(255,255,255,0.15)' }}>
                 <X className="w-3 h-3" />
