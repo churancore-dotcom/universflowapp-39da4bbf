@@ -1,66 +1,76 @@
-# What we're shipping (7 tracks)
+# Premium Value + Stability Plan
 
-## 1. Playlist sharing via link + import-to-own (Premium)
+A 3-phase plan, ordered by impact-per-hour. We ship phase 1 first (stabilize), then phase 2 (irresistible Premium), then phase 3 (polish + conversion).
 
-**DB migration**
-- Add `share_token TEXT UNIQUE` and `is_public BOOLEAN DEFAULT false` to `playlists`.
-- New RLS policy: anyone can `SELECT` a playlist row when `share_token IS NOT NULL` (read-only public access).
-- Same idea for `playlist_songs` — public select when parent playlist has a share_token.
-- RPC `import_shared_playlist(p_share_token text)` (SECURITY DEFINER): creates a copy of the source playlist for `auth.uid()` plus all its songs. Premium gate enforced inside the function via `has_premium_subscription(auth.uid())`.
+---
 
-**Frontend**
-- `PlaylistDetail.tsx`: add a "Share link" button (owner only). Generates share_token if missing, copies `https://universflow.in/p/{token}` to clipboard, native share on mobile.
-- New route `/p/:token` → loads playlist via share_token (no auth required to view), shows tracks, with a big "Save to my library" button that calls the RPC. If not premium, redirect to `/premium` with toast.
-- Add "Shareable Playlists" entry to the Premium FEATURES list.
+## Phase 1 — Kill the bugs (ship first)
 
-## 2. Premium page cleanup
-- Remove the "I have a redeem code" button and `RedeemCodeModal` import from `Premium.tsx` (keeps redeem flow available inside checkout sheet only).
-- Audit FEATURES: the listed items are all real (Zero Ads, Spatial 3D, EQ, Studio Spaces, Late Night, Play With Mate, Downloads, AI Playlist, Crossfade/Gapless, Premium Tracks, Badge, Priority Support). Add new "Shareable Playlists" entry. Drop "Premium Badge" since it's cosmetic vapor — replace with the new Share entry.
+Known issues from current logs/usage:
 
-## 3. Crossfade / Gapless / Autoplay actually working
-- **Autoplay**: confirmed working via `handleEnded` → `playSongAtIndex(nextIdx)`. No change.
-- **Crossfade**: currently gated by `isPremiumUser && !isEqProcessingEnabled() && queue.length > 1`. Bug: EQ is enabled by default for catalog songs, so crossfade silently no-ops. Fix: when crossfade is on, route the second audio element through a separate Web Audio chain OR temporarily bypass EQ during the fade. Simplest reliable fix: drop the EQ guard and run crossfade on raw audio elements — accept that EQ won't apply to the outgoing tail (acceptable). Also verify both audio elements share `crossOrigin="anonymous"` so the fade doesn't blow up on CORS streams.
-- **Gapless**: existing `preloadNextSong` only sets `src` on `nextAudioRef`. Fix: actually start it `paused` with `currentTime = 0` and swap on `ended` instead of fetching a fresh element. This eliminates the 200–800ms gap.
-- Add a small toast / settings indicator confirming each is active so user can verify.
+1. `MEDIA_ELEMENT_ERROR: Empty src attribute` — player auto-skip storm when a track has no resolved URL. Fix: in `PlayerContext`, skip *before* assigning empty src; mark dead tracks for the session so we don't loop on them.
+2. `Failed to fetch dynamically imported module: DownloadQueuePanel.tsx / nativeMusicControls.ts` — stale chunk after deploy. Fix: wrap dynamic imports with a one-time `window.location.reload()` retry, and add a version query to chunk URLs.
+3. `fetchPriority` React warning on `<img>` — switch to lowercase `fetchpriority` or drop the prop on non-supporting React.
+4. "Username is locked (can only be set once)" shown as scary `ERROR MATRIX` — downgrade to a soft inline hint, not a red error.
+5. Profile flashing "not premium" for premium users (already patched in `usePremium`) — verify on slow network and add a "checking…" skeleton instead of the free-tier UI as default.
+6. APK auto-logout on cold start without internet (already patched in `AuthContext`) — add a regression test path: launch APK in airplane mode, confirm session persists and Downloads page works.
 
-## 4. Followed Artists section in Library
-- The Library `artists` tab already shows followed artists. The user wants the **songs from followed artists** rail too. Add `<FollowedArtistSongsSection songs={...} />` at the top of the Library page (above the tabs) — but only when there are followed-artist songs.
-- Source the songs from the Library liked + downloaded pool already loaded; if not enough, lazy-load the catalog via `loadLibrarySongs`-style fetch already in scope.
+Estimated: 1 short pass, no new tables.
 
-## 5. Remove Gemma AI / Donations / Song Requests (full purge)
-**Files deleted:**
-- `src/pages/admin/AIAssistant.tsx`
-- `src/pages/admin/DonationHistory.tsx`
-- `src/pages/admin/SongRequests.tsx`
-- `src/pages/SongRequest.tsx`
-- `supabase/functions/gemma-chat/` (and call `delete_edge_functions` for `gemma-chat`)
+---
 
-**References scrubbed in:**
-- `src/App.tsx`: drop the three lazy imports + 3 routes.
-- `src/pages/admin/AdminLayout.tsx`: remove navItems for Donations, Song Requests, Gemma 4 AI; drop unused icon imports (`Heart`, `Inbox`, `Bot`).
-- Any user-facing nav linking to `/song-request` or admin donations: remove.
-- Memory: update mem://index.md to drop song-request / donation / Gemma references.
+## Phase 2 — Make Premium actually worth paying for
 
-## 6. Admin sidebar reopening fix
-The `useEffect` already closes on `pathname` change, but each admin page is lazy-loaded → during `Suspense` fallback the layout re-renders with `sidebarOpen=true` from the click handler timing. Fix: switch `setSidebarOpen(false)` to fire **before** `navigate()` in `handleNavigation` (already does) — true root cause is each admin page's own `<Sheet>`/`Drawer` mounting. Audit: any admin page using shadcn `Sheet` with `defaultOpen` or controlled open derived from URL? If yes, fix that page. Otherwise, replace `useState` with `useState(false)` reset on mount and add `key={location.pathname}` to `<Outlet />` to force remount, which guarantees no leftover open state.
+Right now Premium = "no ads + downloads + EQ". That's table stakes. Add **3 features users can't get free anywhere else** in our niche:
 
-## 7. "From Your Artists" placement + Top 30 rework
-- Remove `FollowedArtistSongsSection` usage from `Home.tsx` (line 369) and confirm it's not on Search.
-- Replace "Global Top 30" with "Top 30 from Your Artists":
-  - Rename `GlobalTopTracksSection` → `Top30ArtistsSection`.
-  - Source: pull the user's followed artists, fetch their top tracks (via existing `getTopIndexedTracks` filtered by artist, or a new `getTopTracksForArtists(names)`).
-  - Empty state: "Follow artists to see their Top 30 here" with CTA to `/artists`.
-- Update Home to render only this new section in place of the global one.
+### 2A. Lossless / Hi-Fi Audio toggle (Premium only)
+- Settings → Playback → "Hi-Fi (Lossless when available)" switch, gated by `usePremium`.
+- For catalog songs, prefer the highest-bitrate URL we have; for YouTube streams, pick the best `itag`.
+- Show a small "HiFi" chip on the MiniPlayer when active. This is the single biggest reason audiophiles pay for Tidal/Apple Music.
+
+### 2B. Premium-only Early Releases shelf on Home
+- New section "Premium First" on Home, only visible to premium users (free users see a teaser card → upgrade).
+- Backed by existing `is_premium_only` flag on `songs` (already in schema). Admin can mark any song.
+- This makes Premium *visible* every time they open the app.
+
+### 2C. Unlimited Skips + No Pre-roll Ads (already exists) + Background Downloads
+- Free tier: cap skips at 6/hour (industry standard), show "Skip limit — upgrade for unlimited".
+- Cap simultaneous downloads at 3 for free, unlimited for Premium.
+- Cap offline library at 30 songs for free, unlimited for Premium.
+
+These three create a *daily* friction point that converts.
+
+### 2D. Studio EQ Presets (Premium)
+- Free users get the 8-band EQ but only "Flat". Premium unlocks 8 named presets (Bass Boost, Vocal, Late Night, Cinema, etc.) + ability to save custom presets to their account.
+
+---
+
+## Phase 3 — Polish + conversion UX
+
+1. **Premium badge everywhere** — small crown next to username on Profile, in comments, on shared playlist cards. Social proof.
+2. **Upgrade CTA placement** — when free user hits a gated action (skip limit, HiFi toggle, premium-only song), show a slick bottom-sheet with the 3 top benefits + price, not a generic toast.
+3. **`/premium` page rewrite** — lead with "What you unlock today" (concrete, with screenshots/icons of HiFi chip, Premium First shelf, unlimited skips), then price, then FAQ. Drop any feature we don't actually ship.
+4. **First-week trial** — 7-day free trial promo code auto-applied on signup (uses existing `redeem_promo_code` RPC). Massive conversion lever.
+5. **Renewal nudges** — 3-day and 1-day expiry pushes already exist in `process_premium_expiry_notifications`. Add an in-app banner too.
 
 ---
 
 ## Technical notes
-- Premium gate for share-import lives in the RPC, not just the UI, so curl can't bypass it.
-- New `/p/:token` route must be unauthenticated (move outside `ProtectedRoute`).
-- Crossfade fix touches `PlayerContext.tsx` lines 827, 884–955.
-- Sidebar fix is one line: add `key={location.pathname}` to `<Outlet />` in AdminLayout.
-- All deletions must include `delete_edge_functions(["gemma-chat"])`.
 
-## Out of scope
-- I will not redesign the admin dashboard, only remove the 3 entries.
-- I will not migrate existing playlists; share_token is generated lazily on first share.
+- Schema additions needed for Phase 2:
+  - `songs.is_premium_only boolean default false` — confirm exists, else migration.
+  - `user_subscriptions` already has expiry + status; reuse `is_premium_user(uid)` RPC for all gating.
+  - Free-tier skip counter: client-side rolling 60-min window in `localStorage`, server-side `api_rate_limits` row for abuse.
+- All gating goes through one hook: `usePremium()` — no scattered checks.
+- No new payment provider needed — existing UPI flow + promo codes stay as-is.
+
+---
+
+## Order of execution
+
+1. Phase 1 fixes (1 pass)
+2. Phase 2A Hi-Fi toggle + 2C skip/download caps (highest conversion lever)
+3. Phase 2B Premium First shelf + 2D EQ presets
+4. Phase 3 polish + 7-day trial
+
+Reply "go" to start with Phase 1, or tell me to jump straight to a specific item.
