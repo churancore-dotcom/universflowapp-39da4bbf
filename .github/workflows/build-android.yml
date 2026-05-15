@@ -242,10 +242,45 @@ jobs:
               cp "$ICON" "$DIR/ic_launcher_round.png"
               cp "$ICON" "$DIR/ic_launcher_foreground.png"
             done
-            echo "Custom launcher icon applied."
+            # Remove any adaptive-icon XMLs so the raw PNG is used directly
+            # (no zoom / no inset clipping by the system).
+            rm -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
+                  android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml || true
+            echo "Custom launcher icon applied (raw, no adaptive crop)."
           else
             echo "No custom icon found, using Capacitor default."
           fi
+
+      - name: Install notification status-bar icon (white silhouette)
+        run: |
+          declare -A SIZES=( [mdpi]=24 [hdpi]=36 [xhdpi]=48 [xxhdpi]=72 [xxxhdpi]=96 )
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            SRC="android-config/notif-${d}.png"
+            DIR="android/app/src/main/res/drawable-${d}"
+            mkdir -p "$DIR"
+            if [ -f "$SRC" ]; then
+              cp "$SRC" "$DIR/ic_stat_notify.png"
+            fi
+          done
+
+          # Tell FCM to use this icon for incoming push notifications,
+          # plus an accent color so Android tints it correctly.
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q "default_notification_icon" "$MANIFEST"; then
+            sed -i 's|</application>|    <meta-data android:name="com.google.firebase.messaging.default_notification_icon" android:resource="@drawable/ic_stat_notify" />\n        <meta-data android:name="com.google.firebase.messaging.default_notification_color" android:resource="@color/notification_color" />\n    </application>|' "$MANIFEST"
+          fi
+
+          # Define the accent color resource
+          COLORS="android/app/src/main/res/values/colors.xml"
+          mkdir -p "$(dirname "$COLORS")"
+          if [ ! -f "$COLORS" ]; then
+            echo '<?xml version="1.0" encoding="utf-8"?><resources></resources>' > "$COLORS"
+          fi
+          if ! grep -q "notification_color" "$COLORS"; then
+            sed -i 's|</resources>|    <color name="notification_color">#FF2D55</color>\n</resources>|' "$COLORS"
+          fi
+          echo "Notification icon installed."
+
 
       - name: Build Debug APK
         working-directory: android

@@ -277,8 +277,14 @@ public class MediaNotificationService extends Service {
             PendingIntent.FLAG_UPDATE_CURRENT | piFlagImmutable()
         );
 
+        // Resolve a transparent white silhouette icon for the status bar.
+        // Android requires monochrome icons (Lollipop+); a colored launcher icon
+        // shows as a white square. Falls back to launcher if drawable missing.
+        int smallIconRes = getResources().getIdentifier("ic_stat_notify", "drawable", getPackageName());
+        if (smallIconRes == 0) smallIconRes = getApplicationInfo().icon;
+
         NotificationCompat.Builder b = new NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(getApplicationInfo().icon)
+            .setSmallIcon(smallIconRes)
             .setColor(0xFFFF2D55)
             .setColorized(true)
             .setContentTitle(title.isEmpty() ? "Now Playing" : title)
