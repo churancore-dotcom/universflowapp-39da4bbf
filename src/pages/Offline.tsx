@@ -250,6 +250,7 @@ const Offline = memo(function Offline() {
       {/* Bottom Navigation */}
       <BottomNav />
     </div>
+    </>
   );
 });
 
