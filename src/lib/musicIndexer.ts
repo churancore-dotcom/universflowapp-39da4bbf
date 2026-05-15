@@ -268,9 +268,30 @@ export async function getTopIndexedTracks(limit = 30): Promise<IndexedTrack[]> {
   }
 }
 
-export async function resolveIndexedTrack(artist: string, title: string): Promise<ResolveTrackResponse> {
+/**
+ * Drop the cached stream URL for a track (memory + localStorage). Use this
+ * when a previously cached URL has gone stale (e.g. the audio element fired
+ * MEDIA_ERR_SRC_NOT_SUPPORTED) so the next resolve hits the network instead
+ * of returning the dead URL.
+ */
+export function invalidateStreamCache(artist: string, title: string) {
   const cacheKey = makeCacheKey(artist, title);
-  const cached = getCachedStream(cacheKey);
+  streamCache.delete(cacheKey);
+  inFlightResolutions.delete(cacheKey);
+  persistCache();
+}
+
+export async function resolveIndexedTrack(
+  artist: string,
+  title: string,
+  opts: { forceRefresh?: boolean } = {},
+): Promise<ResolveTrackResponse> {
+  const cacheKey = makeCacheKey(artist, title);
+  if (opts.forceRefresh) {
+    streamCache.delete(cacheKey);
+    inFlightResolutions.delete(cacheKey);
+  }
+  const cached = opts.forceRefresh ? null : getCachedStream(cacheKey);
   if (cached) {
     return {
       success: true,
