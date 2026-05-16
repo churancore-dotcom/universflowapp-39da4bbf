@@ -13,7 +13,19 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    sourcemap: true,
+    sourcemap: mode === "development",
+    cssCodeSplit: true,
+    minify: "esbuild",
+    target: "es2020",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom", "react-router-dom"],
+          "ui-vendor": ["framer-motion", "@tanstack/react-query"],
+          "supabase-vendor": ["@supabase/supabase-js"],
+        },
+      },
+    },
   },
   plugins: [
     react(),
