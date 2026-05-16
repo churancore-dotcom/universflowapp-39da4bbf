@@ -190,7 +190,8 @@ const buildStreamProxyUrl = (sourceUrl: string) => {
 
 const isEqProcessingEnabled = () => {
   try {
-    if (localStorage.getItem('uf_audio_fx_allowed') !== '1' && !getRuntimePremium()) return false;
+    // EQ DSP gating reads the server-verified runtime flag, not localStorage.
+    if (!getRuntimePremium()) return false;
     const raw = localStorage.getItem(EQ_SETTINGS_KEY);
     if (!raw) return false;
 
