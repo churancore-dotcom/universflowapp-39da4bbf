@@ -40,44 +40,45 @@ Deno.serve(async (req) => {
     const email = String(body?.email ?? '').trim().toLowerCase();
     const username = String(body?.username ?? '').trim().slice(0, 40) || 'there';
 
+    // Uniform success response — never reveal whether the email is registered,
+    // verified, or rate-limited. This prevents account enumeration attacks.
+    const UNIFORM_OK = new Response(
+      JSON.stringify({ success: true }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
     if (!isEmail(email)) {
-      return new Response(JSON.stringify({ error: 'Invalid email' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // Still return uniform success for invalid emails — don't leak validity either.
+      return UNIFORM_OK;
     }
 
-    // Look up the auth user (anti-abuse: must be a real user we just created)
+    // Look up the auth user. If not found, return success without sending anything.
     const lookup = await fetch(
       `${SUPABASE_URL}/auth/v1/admin/users?email=${encodeURIComponent(email)}`,
       { headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` } }
     );
     if (!lookup.ok) {
-      return new Response(JSON.stringify({ error: 'Lookup failed' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      console.error('user lookup failed', lookup.status);
+      return UNIFORM_OK;
     }
     const lookupData = await lookup.json().catch(() => ({}));
     const u = (lookupData?.users ?? []).find((x: any) => String(x?.email ?? '').toLowerCase() === email);
     if (!u) {
-      return new Response(JSON.stringify({ error: 'No account found for this email' }), {
-        status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return UNIFORM_OK;
     }
     const userId = u.id as string;
 
-    // Already verified?
+    // Already verified? Silently succeed.
     const profRes = await fetch(
       `${SUPABASE_URL}/rest/v1/profiles?user_id=eq.${userId}&select=email_verified`,
       { headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` } }
     );
     const prof = await profRes.json().catch(() => []);
     if (prof?.[0]?.email_verified) {
-      return new Response(JSON.stringify({ success: true, already: true }), {
-        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return UNIFORM_OK;
     }
 
-    // Cooldown: 60s between sends
+    // Cooldown: 60s between sends — silently succeed (don't reveal account exists).
     const existingRes = await fetch(
       `${SUPABASE_URL}/rest/v1/email_verifications?user_id=eq.${userId}&select=last_sent_at`,
       { headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` } }
@@ -86,9 +87,7 @@ Deno.serve(async (req) => {
     if (existing?.[0]?.last_sent_at) {
       const ageMs = Date.now() - new Date(existing[0].last_sent_at).getTime();
       if (ageMs < 60_000) {
-        return new Response(JSON.stringify({
-          error: `Please wait ${Math.ceil((60_000 - ageMs) / 1000)}s before requesting another email`,
-        }), { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        return UNIFORM_OK;
       }
     }
 
@@ -120,9 +119,7 @@ Deno.serve(async (req) => {
     if (!upsert.ok) {
       const t = await upsert.text();
       console.error('upsert verification failed', upsert.status, t);
-      return new Response(JSON.stringify({ error: 'Could not create verification' }), {
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      return UNIFORM_OK;
     }
 
     const verifyUrl = `${APP_ORIGIN}/verify?token=${token}`;
@@ -186,18 +183,15 @@ Deno.serve(async (req) => {
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       console.error('Resend failed', r.status, data);
-      return new Response(JSON.stringify({ error: data?.message || 'Email send failed' }), {
-        status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // Don't leak failure status — return uniform success.
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return UNIFORM_OK;
   } catch (err) {
     console.error('send-verification-link error', err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    // Uniform response on errors too.
+    return new Response(JSON.stringify({ success: true }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
