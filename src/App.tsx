@@ -84,7 +84,6 @@ const ABTesting = lazy(() => import("./pages/admin/ABTesting"));
 const SecurityCenter = lazy(() => import("./pages/admin/SecurityCenter"));
 
 const SupportInbox = lazy(() => import("./pages/admin/SupportInbox"));
-const SharedPlaylist = lazy(() => import("./pages/SharedPlaylist"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -172,8 +171,6 @@ const AnimatedRoutes = () => {
           <Route path="/subscription" element={<ProtectedRoute><ManageSubscription /></ProtectedRoute>} />
           <Route path="/premium" element={<Premium />} />
           <Route path="/downloads" element={<ProtectedRoute><Downloads /></ProtectedRoute>} />
-          <Route path="/p/:token" element={<SharedPlaylist />} />
-
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route index element={<AdminDashboard />} />
             <Route path="upload" element={<UploadMusic />} />
