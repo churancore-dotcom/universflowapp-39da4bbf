@@ -212,7 +212,7 @@ const Home = () => {
   // Pull-to-refresh — re-fetches home feed on overscroll
   const pullToRefresh = usePullToRefresh({
     onRefresh: async () => {
-      triggerHaptic('medium');
+      triggerHaptic('impactMedium');
       await queryClient.invalidateQueries({ queryKey: HOME_SONGS_QUERY_KEY });
       await queryClient.refetchQueries({ queryKey: HOME_SONGS_QUERY_KEY });
     },
