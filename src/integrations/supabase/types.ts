@@ -301,6 +301,51 @@ export type Database = {
         }
         Relationships: []
       }
+      chart_tracks: {
+        Row: {
+          artist: string
+          chart_type: string
+          country_code: string
+          cover_url: string | null
+          created_at: string
+          external_id: string | null
+          fetched_at: string
+          id: string
+          metadata: Json
+          rank: number
+          source: string
+          title: string
+        }
+        Insert: {
+          artist: string
+          chart_type: string
+          country_code?: string
+          cover_url?: string | null
+          created_at?: string
+          external_id?: string | null
+          fetched_at?: string
+          id?: string
+          metadata?: Json
+          rank: number
+          source: string
+          title: string
+        }
+        Update: {
+          artist?: string
+          chart_type?: string
+          country_code?: string
+          cover_url?: string | null
+          created_at?: string
+          external_id?: string | null
+          fetched_at?: string
+          id?: string
+          metadata?: Json
+          rank?: number
+          source?: string
+          title?: string
+        }
+        Relationships: []
+      }
       code_redemptions: {
         Row: {
           id: string

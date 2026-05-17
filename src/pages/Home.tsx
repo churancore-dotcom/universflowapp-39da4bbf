@@ -15,6 +15,7 @@ import PremiumFirstSection from '@/components/PremiumFirstSection';
 
 
 import CountryViralSection from '@/components/CountryViralSection';
+import ChartSection from '@/components/ChartSection';
 import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
 import BottomNav from '@/components/BottomNav';
@@ -399,6 +400,11 @@ const Home = () => {
 
                   {/* Artist discovery */}
                   <FeaturedArtistsSection />
+
+                  {/* Real-time global charts (auto-refreshed every 6h from Apple, Last.fm, YouTube, Deezer) */}
+                  <ChartSection chartType="trending" perCountry />
+                  <ChartSection chartType="latest" perCountry />
+                  <ChartSection chartType="viral" />
 
                   {/* Real per-country viral chart (Last.fm geo.getTopTracks) */}
                   <CountryViralSection />
