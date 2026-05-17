@@ -120,6 +120,7 @@ async function cachedSearch(key: string, fetcher: () => Promise<IndexedTrack[]>)
 function getCachedStream(key: string): { url: string; meta?: Partial<ResolveTrackResponse> } | null {
   const hit = streamCache.get(key);
   if (!hit || hit.expiresAt < Date.now()) { streamCache.delete(key); return null; }
+  if (!isSafeSharedCachedStream(hit.url)) { streamCache.delete(key); return null; }
   if (isKnownBrokenStreamUrl(hit.url)) { streamCache.delete(key); return null; }
   return { url: hit.url, meta: hit.meta };
 }
