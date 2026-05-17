@@ -124,6 +124,7 @@ const LASTFM_BASE_URL = 'https://ws.audioscrobbler.com/2.0/';
 // ── Instance lists (verified working May 2026) ──
 
 const PIPED_INSTANCES = [
+  'https://pipedapi.kavin.rocks',
   'https://api.piped.private.coffee',
   'https://api.piped.projectsegfau.lt',
   'https://pipedapi.in.projectsegfau.lt',
