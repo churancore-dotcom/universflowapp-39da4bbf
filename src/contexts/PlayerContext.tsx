@@ -216,6 +216,15 @@ const getYouTubeFallbackVideoId = (url?: string | null) => {
   return url?.replace('yt-video:', '').trim() || null;
 };
 
+const isKnownBrokenStreamUrl = (url?: string | null) => {
+  if (!url || isYouTubeFallbackUrl(url)) return false;
+  try {
+    return new URL(url, window.location.href).hostname.toLowerCase().startsWith('proxy.piped.');
+  } catch {
+    return false;
+  }
+};
+
 let youtubeIframeApiPromise: Promise<typeof window.YT> | null = null;
 
 const loadYouTubeIframeApi = (): Promise<typeof window.YT> => {
@@ -531,6 +540,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const isPlayableUrl = useCallback((url?: string) => {
     if (!url) return false;
     if (url === '' || url === 'pending' || url === 'resolving') return false;
+    if (isKnownBrokenStreamUrl(url)) return false;
     if (isYouTubeFallbackUrl(url)) return true;
     return url.startsWith('http') || url.startsWith('blob:') || url.startsWith('data:');
   }, []);
