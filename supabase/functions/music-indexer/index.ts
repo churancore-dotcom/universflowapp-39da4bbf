@@ -29,7 +29,9 @@ function dbCacheKey(artist: string, title: string) {
 function isKnownBrokenStreamUrl(url?: string | null) {
   // Only obvious placeholders; per-URL liveness is determined by probing
   if (!url) return false;
-  if (url.startsWith('yt-video:')) return false;
+  if (url.startsWith('yt-video:')) return true;
+  if (url.includes('adminforge.destreams') || url.includes('adminforge.desearch')) return true;
+  if (url.includes('pipedapi.adminforge.de')) return true;
   return false;
 }
 
@@ -1031,7 +1033,7 @@ async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; dur
 async function resolveStream(artist: string, title: string, forceRefresh = false): Promise<ResolveResult> {
   const ck = `resolve:${artist}:${title}`;
   const cached = getCached<ResolveResult>(ck);
-  if (!forceRefresh && cached) return cached;
+  if (!forceRefresh && cached && !isKnownBrokenStreamUrl(cached.streamUrl)) return cached;
 
   // ── Persistent DB cache (survives cold starts; shared across users) ──
   const dbCached = forceRefresh ? null : await getDbCachedStream(artist, title);
