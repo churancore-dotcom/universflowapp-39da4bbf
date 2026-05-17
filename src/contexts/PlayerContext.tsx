@@ -741,14 +741,17 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       nextAudioRef.current.src = '';
     }
 
+    // Pick up any URL that the early-resolution step upgraded.
+    const resolvedSong = songQueue[index] ?? song;
+
     // Update state first for instant UI response
-    setCurrentSong(song);
+    setCurrentSong(resolvedSong);
     setCurrentIndex(index);
     setProgress(0);
     setIsPlaying(true);
 
     // Resolve audio URL if needed
-    let audioUrl = song.audio_url;
+    let audioUrl = resolvedSong.audio_url;
     if (!isPlayableUrl(audioUrl)) {
       try {
         const resolved = await resolveAudioUrl(song);
