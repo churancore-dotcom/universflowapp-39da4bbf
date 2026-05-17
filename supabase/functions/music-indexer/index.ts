@@ -934,7 +934,47 @@ async function pickBestPipedStream(data: Record<string, any>, instance: string) 
   return undefined;
 }
 
+// Cobalt API — extracts direct audio URL from a YouTube videoId.
+// Tries co.wuk.sh first, then cobalt.tools as fallback. Silent on failure.
+async function resolveViaCobalt(videoId: string): Promise<{ streamUrl: string } | null> {
+  const endpoints = ['https://co.wuk.sh/api/json', 'https://cobalt.tools/api/json'];
+  const body = JSON.stringify({
+    url: `https://www.youtube.com/watch?v=${videoId}`,
+    isAudioOnly: true,
+    aFormat: 'mp3',
+    isNoTTWatermark: true,
+  });
+  for (const ep of endpoints) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 8000);
+      const res = await fetch(ep, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body,
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      if (!res.ok) continue;
+      const data = await res.json().catch(() => null) as any;
+      const url = data?.url;
+      if (typeof url === 'string' && /^https?:\/\//.test(url)) {
+        console.log(`[resolve] ✓ ${videoId} via cobalt (${ep})`);
+        return { streamUrl: url };
+      }
+    } catch (e) {
+      console.warn(`[resolve] cobalt ${ep} failed for ${videoId}:`, (e as Error).message);
+    }
+  }
+  return null;
+}
+
 async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
+  // FAST PATH: Cobalt API extracts a direct CDN audio URL — works when
+  // Piped/Invidious instances are rate-limited or returning bot-check HTML.
+  const cobalt = await resolveViaCobalt(videoId);
+  if (cobalt) return { streamUrl: cobalt.streamUrl };
+
   // Priority: try piped.private.coffee FIRST (most reliable), then race others
   const piped = getPipedInstances().filter(isHealthy);
   const inv = getInvidiousInstances().filter(isHealthy);
