@@ -706,7 +706,8 @@ function isBadVideoCandidate(item: Record<string, unknown>, artist: string, titl
   const normalizedWanted = normalizeText(`${artist} ${title}`);
   const normalizedRaw = normalizeText(raw);
   const dur = Number(item.lengthSeconds || item.duration || 0);
-  if (dur && (dur < 75 || dur > 540)) return true;
+  const isLongFormWanted = /\b(lofi|mix|playlist|live|concert|podcast|mashup|medley|jukebox)\b/.test(normalizedWanted);
+  if (dur && (dur < 45 || (!isLongFormWanted && dur > 720) || dur > 7200)) return true;
   if (BAD_VIDEO_PATTERNS.some((pattern) => pattern.test(raw))) return true;
   if (!normalizedWanted.includes('lofi') && normalizedRaw.includes('lofi')) return true;
   return false;
@@ -727,7 +728,7 @@ function scoreVideo(item: Record<string, unknown>, artist: string, title: string
   s += wTitle.split(' ').filter(w => w.length > 2 && iTitle.includes(w)).length * 1.5;
   ['karaoke','sped up','slowed','reverb','8d audio','nightcore','live','cover','remix','instrumental','jukebox','mashup','playlist','non stop']
     .forEach(t => { if (iTitle.includes(t) && !wTitle.includes(t)) s -= 8; });
-  if (dur >= 120 && dur <= 360) s += 5; else if (dur >= 75 && dur <= 540) s += 1; else s -= 8;
+  if (dur >= 120 && dur <= 420) s += 5; else if (dur >= 45 && dur <= 720) s += 1; else s -= 4;
   if (ageDays <= 365) s += 3; else if (published > 0) s -= 6;
   if (isBadVideoCandidate(item, artist, title)) s -= 20;
   return s;
