@@ -11,6 +11,10 @@ interface SEOHeadProps {
   /** Path override when a parent doesn't have a router context. */
   path?: string;
   type?: string;
+  /** Optional JSON-LD structured data (object or array of objects). Injected into <head>. */
+  jsonLd?: Record<string, unknown> | Record<string, unknown>[];
+  /** Stable id for the JSON-LD <script> tag so it can be replaced on re-render. */
+  jsonLdId?: string;
 }
 
 const SITE_ORIGIN = 'https://universflow.in';
