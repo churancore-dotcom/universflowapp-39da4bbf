@@ -56,6 +56,18 @@ function primaryArtists(song: any): string {
   return song?.artist || '';
 }
 
+const clean = (value = '') => decodeEntities(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+function scoreSong(song: any, title: string, artist = ''): number {
+  const songTitle = clean(song?.name || song?.title || '');
+  const songArtist = clean(primaryArtists(song));
+  const wantedTitle = clean(title);
+  const wantedArtist = clean(artist);
+  return (songTitle === wantedTitle ? 100 : songTitle.includes(wantedTitle) ? 65 : 0)
+    + (wantedArtist && songArtist.includes(wantedArtist) ? 35 : 0)
+    + Math.min(20, Math.log10(Math.max(1, Number(song?.playCount) || 1)) * 4);
+}
+
 /**
  * Search JioSaavn and return results in IndexedTrack shape so the existing
  * Search UI and ranking code can consume them unchanged.
@@ -113,6 +125,34 @@ export async function getSongStreamUrl(songId: string, opts: { forceRefresh?: bo
   } catch {
     return null;
   }
+}
+
+export async function findSongStreamUrl(title: string, artist = '', opts: { forceRefresh?: boolean } = {}) {
+  const query = [title, artist].filter(Boolean).join(' ').trim();
+  if (query.length < 2) return null;
+
+  const results = await searchSongs(query, 8);
+  const best = (results || [])
+    .filter((song: any) => song?.id)
+    .sort((a: any, b: any) => scoreSong(b, title, artist) - scoreSong(a, title, artist))[0];
+  if (!best?.id) return null;
+
+  const direct = bestAudio(best.downloadUrl);
+  if (direct && !opts.forceRefresh) {
+    const result = {
+      streamUrl: direct,
+      id: best.id,
+      title: decodeEntities(best.name || best.title || title),
+      artist: decodeEntities(primaryArtists(best) || artist),
+      album: decodeEntities(best.album?.name || best.album || ''),
+      duration: best.duration,
+      image: bestImage(best.image),
+    };
+    cache.set(best.id, result);
+    return result;
+  }
+
+  return getSongStreamUrl(best.id, opts);
 }
 
 export function prefetchSong(songId: string) {
