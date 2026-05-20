@@ -85,6 +85,9 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
   const [showCreatePlaylist, setShowCreatePlaylist] = useState(false);
   const [showEqualizer, setShowEqualizer] = useState(false);
   const [direction, setDirection] = useState(0);
+  // Local seek-drag state — prevents the live `progress` updates from snapping
+  // the slider thumb back while the user is dragging it.
+  const [dragProgress, setDragProgress] = useState<number | null>(null);
   const { isPremium } = usePremium();
   const prevSongIdRef = useRef<string | null>(null);
   const navigate = useNavigate();
@@ -145,7 +148,8 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
 
   if (!currentSong || !isExpanded) return null;
 
-  const safeProgress = isFinite(progress) ? progress : 0;
+  const liveProgress = isFinite(progress) ? progress : 0;
+  const safeProgress = dragProgress !== null ? dragProgress : liveProgress;
   const safeDuration = isFinite(duration) && duration > 0 ? duration : 100;
   const timeRemaining = safeDuration - safeProgress;
   const showLikeAction = canLikeSong(currentSong);
@@ -325,7 +329,8 @@ const FullscreenPlayer = memo(function FullscreenPlayer() {
                   value={[safeProgress]} 
                   max={safeDuration} 
                   step={0.1} 
-                  onValueChange={([value]) => seek(value)} 
+                  onValueChange={([value]) => setDragProgress(value)}
+                  onValueCommit={([value]) => { seek(value); setDragProgress(null); }}
                   className="[&_[role=slider]]:w-[18px] [&_[role=slider]]:h-[18px] [&_[role=slider]]:bg-white [&_[role=slider]]:border-0 [&_[data-radix-slider-track]]:h-[5px] [&_[data-radix-slider-track]]:bg-white/15 [&_[data-radix-slider-range]]:bg-rose-500" 
                 />
                 <div className="flex justify-between mt-1.5 text-[11px] font-semibold text-white/50 tabular-nums">

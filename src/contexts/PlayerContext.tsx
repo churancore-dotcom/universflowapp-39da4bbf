@@ -251,7 +251,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     playerProgressStore.setProgress(next);
   };
   const setDuration = (v: number) => playerProgressStore.setDuration(v);
-  const [volume, setVolumeState] = useState(0.8);
+  const [volume, setVolumeState] = useState<number>(() => {
+    try {
+      const v = parseFloat(localStorage.getItem('uf_volume') || '');
+      return Number.isFinite(v) && v > 0 ? Math.min(1, v) : 0.8;
+    } catch { return 0.8; }
+  });
   const [queue, setQueueState] = useState<Song[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [shuffle, setShuffle] = useState(false);
@@ -775,7 +780,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Set source and play immediately
     configureAudioElementSource(audioRef.current, buildStreamProxyUrl(audioUrl));
-    audioRef.current.volume = volume;
+    audioRef.current.muted = false;
+    audioRef.current.volume = volume > 0 ? volume : 0.8;
     audioRef.current.currentTime = 0;
     
     audioRef.current.load();
@@ -816,6 +822,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (repeat === 'one') {
         audio.currentTime = 0;
         audio.play().catch(console.warn);
+        return;
+      }
+
+      // Respect the user's Autoplay setting from Settings.
+      const autoplayEnabled = (() => {
+        try { return localStorage.getItem('uf_autoplay') !== 'false'; } catch { return true; }
+      })();
+      if (!autoplayEnabled) {
+        setIsPlaying(false);
+        setProgress(0);
         return;
       }
 
@@ -1082,7 +1098,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Set audio source - use offline URL if available
       const playbackUrl = offlineUrl || buildStreamProxyUrl(playbackSource);
       configureAudioElementSource(audioRef.current, playbackUrl);
-      audioRef.current.volume = volume;
+      audioRef.current.muted = false;
+      audioRef.current.volume = volume > 0 ? volume : 0.8;
       audioRef.current.currentTime = 0;
 
       // Load and play immediately
@@ -1323,6 +1340,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const setVolume = useCallback((vol: number) => {
     setVolumeState(vol);
+    try { localStorage.setItem('uf_volume', String(vol)); } catch { /* ignore */ }
   }, []);
 
   const setQueue = useCallback((songs: Song[]) => {
