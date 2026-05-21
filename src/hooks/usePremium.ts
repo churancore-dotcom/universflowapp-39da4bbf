@@ -58,18 +58,19 @@ export const usePremium = (): UsePremiumReturn => {
   const authContext = useContext(AuthContext);
   const user = authContext?.user ?? null;
 
-  // Hydrate from cache SYNCHRONOUSLY so premium users never flash the
-  // "Upgrade to Premium" UI on mount.
+  // Hydrate subscription details from cache for display only. The actual
+  // premium unlock flag below is NEVER taken from localStorage; it is verified
+  // through the server RPC on every app start/refetch.
   const cached = readCache(user?.id);
   const [subscription, setSubscription] = useState<Subscription | null>(cached ?? null);
-  // If we have a cached value we're effectively "ready" — only show loading
-  // when there's truly nothing to render with.
-  const [isLoading, setIsLoading] = useState(cached === undefined);
+  const [verifiedPremium, setVerifiedPremium] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   const fetchSubscription = useCallback(async () => {
     if (!user) {
       setSubscription(null);
+      setVerifiedPremium(false);
       setIsLoading(false);
       try { localStorage.removeItem(CACHE_KEY); } catch { /* ignore */ }
       return;
@@ -78,30 +79,38 @@ export const usePremium = (): UsePremiumReturn => {
     try {
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('user_subscriptions')
-        .select('*')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      const [premiumResult, subscriptionResult] = await Promise.all([
+        supabase.rpc('has_premium_subscription', { _user_id: user.id }),
+        supabase
+          .from('user_subscriptions')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+      ]);
 
-      if (fetchError) throw fetchError;
+      if (premiumResult.error) throw premiumResult.error;
+      setVerifiedPremium(premiumResult.data === true);
+
+      if (subscriptionResult.error) throw subscriptionResult.error;
 
       let next: Subscription | null = null;
-      if (data) {
-        const isExpired = data.expires_at && new Date(data.expires_at) < new Date();
+      if (subscriptionResult.data) {
+        const isExpired = subscriptionResult.data.expires_at && new Date(subscriptionResult.data.expires_at) < new Date();
         next = {
-          id: data.id,
-          subscription_type: data.subscription_type as SubscriptionType,
-          status: isExpired ? 'expired' : (data.status as SubscriptionStatus),
-          expires_at: data.expires_at,
-          platform: data.platform,
+          id: subscriptionResult.data.id,
+          subscription_type: subscriptionResult.data.subscription_type as SubscriptionType,
+          status: isExpired ? 'expired' : (subscriptionResult.data.status as SubscriptionStatus),
+          expires_at: subscriptionResult.data.expires_at,
+          platform: subscriptionResult.data.platform,
         };
       }
       setSubscription(next);
       writeCache(user.id, next);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch subscription'));
-      // Don't clobber cached value on transient errors — keeps the UI stable
+      // Fail closed for unlocks. Cached subscription text may remain visible,
+      // but paid capabilities are not enabled unless the server verified them.
+      setVerifiedPremium(false);
     } finally {
       setIsLoading(false);
     }
@@ -111,10 +120,7 @@ export const usePremium = (): UsePremiumReturn => {
     fetchSubscription();
   }, [fetchSubscription]);
 
-  const isPremium =
-    subscription?.status === 'active' &&
-    subscription?.subscription_type !== 'free' &&
-    (!subscription?.expires_at || new Date(subscription.expires_at) > new Date());
+  const isPremium = verifiedPremium;
 
   // Mirror the server-verified value into a runtime flag that other modules
   // (PlayerContext, useGlobalAudioEngine) read instead of localStorage —
