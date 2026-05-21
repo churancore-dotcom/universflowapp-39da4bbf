@@ -1183,6 +1183,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [pendingSong, playActualSong]);
 
+  // NOTE: isPlaying is the single source of truth shared by MiniPlayer +
+  // FullscreenPlayer. We update it OPTIMISTICALLY here so the UI flips
+  // instantly on tap (sub-frame), then the audio element's native
+  // 'play'/'pause' listeners (see effect above) re-confirm the value — so
+  // both surfaces stay in lockstep even if the OS, media session, or
+  // hardware buttons drive the transport.
   const togglePlay = useCallback(() => {
     if (!currentSong) return;
 
@@ -1196,34 +1202,40 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (!audioRef.current) return;
     if (audioRef.current.paused) {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(err => console.warn('Play failed:', err.message));
+      setIsPlaying(true); // optimistic — listener will revert if play() rejects
+      audioRef.current.play().catch(err => {
+        setIsPlaying(false);
+        console.warn('Play failed:', err?.message);
+      });
     } else {
-      audioRef.current.pause();
       setIsPlaying(false);
+      audioRef.current.pause();
     }
   }, [currentSong, isPlaying]);
 
   const pause = useCallback(() => {
+    setIsPlaying(false);
     if (youtubeActiveRef.current && youtubePlayerRef.current) {
       try { youtubePlayerRef.current.pauseVideo(); } catch { /* ignore */ }
-      setIsPlaying(false);
       return;
     }
     if (audioRef.current) {
       audioRef.current.pause();
-      setIsPlaying(false);
     }
   }, []);
 
   const play = useCallback(() => {
     if (!currentSong) return;
+    setIsPlaying(true); // optimistic
     if (youtubeActiveRef.current && youtubePlayerRef.current) {
       try { youtubePlayerRef.current.playVideo(); } catch { /* ignore */ }
-      setIsPlaying(true);
       return;
     }
     if (audioRef.current) {
-      audioRef.current.play().then(() => setIsPlaying(true)).catch(console.warn);
+      audioRef.current.play().catch((err) => {
+        setIsPlaying(false);
+        console.warn('Play failed:', err?.message);
+      });
     }
   }, [currentSong]);
 
