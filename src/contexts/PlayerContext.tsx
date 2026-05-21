@@ -278,6 +278,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const animationFrameRef = useRef<number | null>(null);
   const recentlyPlayedTimerRef = useRef<number | null>(null);
   const queueRestoredRef = useRef(false);
+  // Monotonic request id — increments on every playActualSong / playSongAtIndex
+  // call. Any async work that completes after a newer request must abort,
+  // otherwise an old `audio.src = ...` can win the race and the WRONG song
+  // ends up playing while the UI shows the song the user actually tapped.
+  const playRequestSeqRef = useRef(0);
+
 
   // YouTube IFrame fallback
   const youtubePlayerRef = useRef<YouTubePlayer | null>(null);
@@ -470,6 +476,48 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Wire the global EQ/audio engine to the live audio element. Persists across modal open/close.
   useGlobalAudioEngine(audioElement);
+
+  // ── EQ requires a CORS-safe source. When the user turns EQ on AFTER a song
+  // has started, the current <audio> src is the raw external stream (not the
+  // supabase-proxied URL), so connectAudioElement fails and EQ silently does
+  // nothing. Listen for the EQ-change event, and if the current src isn't
+  // already going through our proxy, re-source it via the proxy while
+  // preserving currentTime + playing state. The engine's `canplay` listener
+  // will then successfully build the processed chain.
+  useEffect(() => {
+    const onEqChanged = () => {
+      const a = audioRef.current;
+      if (!a || !a.src) return;
+      if (!getRuntimePremium()) return;
+      if (!isEqProcessingEnabled()) return;
+      // Already going through our edge-function proxy → already CORS-safe.
+      if (a.src.includes('/functions/v1/music-indexer?audio=')) return;
+      // Same-origin or already-CORS-safe hosts also work.
+      if (!shouldProxyStreamUrl(a.src)) return;
+
+      const wasPlaying = !a.paused;
+      const at = a.currentTime;
+      const original = currentSong?.audio_url;
+      if (!original) return;
+      try {
+        configureAudioElementSource(a, buildStreamProxyUrl(original));
+        a.load();
+        const restore = () => {
+          try { a.currentTime = at; } catch { /* ignore */ }
+          a.removeEventListener('loadedmetadata', restore);
+          if (wasPlaying) a.play().catch(() => {});
+        };
+        a.addEventListener('loadedmetadata', restore, { once: true });
+      } catch { /* ignore */ }
+    };
+    window.addEventListener('uf-eq-changed', onEqChanged);
+    window.addEventListener('storage', (e) => { if (e.key === EQ_SETTINGS_KEY) onEqChanged(); });
+    return () => {
+      window.removeEventListener('uf-eq-changed', onEqChanged);
+    };
+  }, [currentSong?.audio_url]);
+
+
 
 
   // Progress is pushed via the audio element's native `timeupdate` event
@@ -691,12 +739,27 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const song = songQueue[index];
     if (!song || !audioRef.current) return;
 
+    // Claim this play request — any earlier in-flight playback must abort.
+    const mySeq = ++playRequestSeqRef.current;
+
+    // Stop whatever is currently playing IMMEDIATELY so we never have two
+    // <audio> elements racing to set src and emit events.
+    try {
+      audioRef.current.pause();
+      if (nextAudioRef.current) {
+        nextAudioRef.current.pause();
+        nextAudioRef.current.src = '';
+      }
+      preloadedNextIdRef.current = null;
+    } catch { /* ignore */ }
+
     // Try to upgrade YT-iframe placeholders to a direct audio stream before play,
     // so we only fall back to the (often blocked) YouTube iframe when needed.
     const needsResolution = !isPlayableUrl(song.audio_url) || isYouTubeFallbackUrl(song.audio_url);
     if (needsResolution) {
       try {
         const resolved = await resolveAudioUrl(song);
+        if (mySeq !== playRequestSeqRef.current) return; // user tapped another song
         if (!resolved) {
           toast.error('This song is still preparing. Try again in a second.');
           setIsPlaying(false);
@@ -704,11 +767,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         songQueue[index] = { ...song, audio_url: resolved };
       } catch {
+        if (mySeq !== playRequestSeqRef.current) return;
         setIsPlaying(false);
         toast.error('This song could not be prepared for playback.');
         return;
       }
     }
+
 
     // Cancel any ongoing crossfade
     if (crossfadeIntervalRef.current) {
@@ -736,6 +801,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!isPlayableUrl(audioUrl)) {
       try {
         const resolved = await resolveAudioUrl(song);
+        if (mySeq !== playRequestSeqRef.current) return; // superseded by newer tap
         if (resolved) {
           audioUrl = resolved;
           // Update the song in queue with resolved URL
@@ -749,10 +815,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return;
         }
       } catch {
+        if (mySeq !== playRequestSeqRef.current) return;
         setIsPlaying(false);
         return;
       }
     }
+
+    // Final race guard before we actually touch the <audio> element.
+    if (mySeq !== playRequestSeqRef.current) return;
 
     // ── YouTube IFrame fallback path ──
     if (isYouTubeFallbackUrl(audioUrl)) {
@@ -775,6 +845,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Set source and play immediately
     configureAudioElementSource(audioRef.current, buildStreamProxyUrl(audioUrl));
+
     audioRef.current.volume = volume;
     audioRef.current.currentTime = 0;
     
@@ -1034,12 +1105,25 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const playActualSong = useCallback(async (song: Song, offlineUrl?: string | null, songsQueue?: Song[]) => {
     if (!audioRef.current) return;
 
-    // Cancel any ongoing crossfade
+    // Claim this play request. If the user taps another song before resolveAudioUrl
+    // resolves, this seq will be stale and we MUST abort — otherwise the late
+    // resolver wins and a different song plays than the one the user tapped.
+    const mySeq = ++playRequestSeqRef.current;
+
+    // Cancel any ongoing crossfade and stale preloaded next-track audio
     if (crossfadeIntervalRef.current) {
       clearInterval(crossfadeIntervalRef.current);
       crossfadeIntervalRef.current = null;
     }
     isCrossfading.current = false;
+    try {
+      audioRef.current.pause();
+      if (nextAudioRef.current) {
+        nextAudioRef.current.pause();
+        nextAudioRef.current.src = '';
+      }
+      preloadedNextIdRef.current = null;
+    } catch { /* ignore */ }
 
     // Update state immediately to prevent UI flicker
     setCurrentSong(song);
@@ -1050,6 +1134,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (!offlineUrl && !isPlayableUrl(playbackSource)) {
       const resolved = await resolveAudioUrl(song);
+      if (mySeq !== playRequestSeqRef.current) return; // user tapped another song first
       if (!resolved) {
         setIsPlaying(false);
         toast.error('This song could not start right now.');
@@ -1060,6 +1145,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       song = { ...song, audio_url: resolved };
       setCurrentSong(song);
     }
+
+    // Final guard before mutating <audio> — bail if a newer tap has taken over.
+    if (mySeq !== playRequestSeqRef.current) return;
 
     const normalizedQueue = songsQueue?.map((queuedSong) =>
       queuedSong.id === song.id ? { ...queuedSong, audio_url: playbackSource } : queuedSong,
@@ -1084,6 +1172,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       configureAudioElementSource(audioRef.current, playbackUrl);
       audioRef.current.volume = volume;
       audioRef.current.currentTime = 0;
+
 
       // Load and play immediately
       audioRef.current.load();

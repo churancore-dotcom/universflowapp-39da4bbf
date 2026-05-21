@@ -113,8 +113,13 @@ function loadSettings() {
 function saveSettings(data: any) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // Notify PlayerContext so it can re-source the current track through the
+    // CORS-safe proxy if EQ just became active mid-song. Without this, the
+    // engine stays in "direct" mode and EQ does nothing until the next track.
+    try { window.dispatchEvent(new CustomEvent('uf-eq-changed')); } catch {}
   } catch {}
 }
+
 
 const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   const { audioElement, currentSong } = usePlayer();
