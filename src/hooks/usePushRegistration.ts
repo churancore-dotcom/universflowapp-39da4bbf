@@ -12,17 +12,18 @@
 //     token in-memory and re-upsert it whenever auth state becomes
 //     authenticated.
 import { useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 
 const isNative = () =>
-  typeof (window as any).Capacitor !== 'undefined' &&
-  (window as any).Capacitor.isNativePlatform?.() === true;
+  Capacitor.isNativePlatform?.() === true;
 
 // Module-level so other callers (e.g. a "Re-register device" button) can
 // trigger a manual retry without needing to remount the hook.
 let lastToken: string | null = null;
 let lastDeviceMeta: Record<string, unknown> = {};
 let listenersReady = false;
+type PushRegisterResult = 'granted' | 'denied' | 'unsupported';
 
 async function upsertToken(token: string, meta: Record<string, unknown>) {
   const { data } = await supabase.auth.getUser();
@@ -107,6 +108,76 @@ async function setupPushListeners(
   });
 }
 
+async function registerAndWaitForSavedToken(
+  PushNotifications: typeof import('@capacitor/push-notifications').PushNotifications,
+  deviceMeta: Record<string, unknown>,
+): Promise<PushRegisterResult> {
+  if (lastToken) {
+    try {
+      await upsertToken(lastToken, deviceMeta);
+      return 'granted';
+    } catch (err) {
+      console.warn('[Push] cached token save failed', err);
+    }
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let registrationHandle: { remove?: () => Promise<void> | void } | null = null;
+    let errorHandle: { remove?: () => Promise<void> | void } | null = null;
+
+    const cleanup = () => {
+      try { registrationHandle?.remove?.(); } catch { /* ignore */ }
+      try { errorHandle?.remove?.(); } catch { /* ignore */ }
+    };
+    const finish = (result: PushRegisterResult) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeoutId);
+      cleanup();
+      resolve(result);
+    };
+
+    const timeoutId = window.setTimeout(async () => {
+      if (lastToken) {
+        try {
+          await upsertToken(lastToken, deviceMeta);
+          finish('granted');
+          return;
+        } catch (err) {
+          console.warn('[Push] late token save failed', err);
+        }
+      }
+      console.warn('[Push] registration timed out before a saved FCM token was confirmed');
+      finish('denied');
+    }, 12000);
+
+    Promise.all([
+      PushNotifications.addListener('registration', async (t) => {
+        lastToken = t.value;
+        try {
+          await upsertToken(t.value, deviceMeta);
+          finish('granted');
+        } catch (err) {
+          console.warn('[Push] token save failed during manual register', err);
+          finish('denied');
+        }
+      }),
+      PushNotifications.addListener('registrationError', (e) => {
+        console.warn('[Push] registrationError during manual register', e);
+        finish('denied');
+      }),
+    ]).then(([reg, err]) => {
+      registrationHandle = reg;
+      errorHandle = err;
+      return PushNotifications.register();
+    }).catch((err) => {
+      console.warn('[Push] register call failed', err);
+      finish('denied');
+    });
+  });
+}
+
 export function usePushRegistration() {
   useEffect(() => {
     if (!isNative()) return;
@@ -171,7 +242,7 @@ export function usePushRegistration() {
  * Useful from a "Re-register device" button in Settings when the user
  * denied permission the first time or didn't see the prompt.
  */
-export async function requestPushPermissionAndRegister(): Promise<'granted' | 'denied' | 'unsupported'> {
+export async function requestPushPermissionAndRegister(): Promise<PushRegisterResult> {
   if (!isNative()) return 'unsupported';
   try {
     const { PushNotifications } = await import('@capacitor/push-notifications');
@@ -195,8 +266,7 @@ export async function requestPushPermissionAndRegister(): Promise<'granted' | 'd
 
     const deviceMeta = await collectDeviceMeta();
     await setupPushListeners(PushNotifications, deviceMeta);
-    await PushNotifications.register();
-    return 'granted';
+    return await registerAndWaitForSavedToken(PushNotifications, deviceMeta);
   } catch (e) {
     console.warn('[Push] manual register failed', e);
     return 'denied';

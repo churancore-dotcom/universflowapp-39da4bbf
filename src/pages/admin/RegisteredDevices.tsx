@@ -12,13 +12,16 @@ interface DeviceRow {
   user_id: string;
   token: string;
   platform: string | null;
-  device_info: Record<string, any> | null;
+  device_info: Record<string, unknown> | null;
   created_at: string;
   updated_at: string;
   username?: string | null;
   email?: string | null;
   avatar_url?: string | null;
 }
+
+type DeviceTokenRow = Pick<DeviceRow, 'id' | 'user_id' | 'token' | 'platform' | 'device_info' | 'created_at' | 'updated_at'>;
+type ProfileRow = { user_id: string; username: string | null; email: string | null; avatar_url: string | null };
 
 const formatRelative = (iso: string): string => {
   const d = new Date(iso).getTime();
@@ -58,13 +61,13 @@ const RegisteredDevices = () => {
         .from('profiles')
         .select('user_id, username, email, avatar_url')
         .in('user_id', userIds);
-      (profs ?? []).forEach((p: any) => {
+      ((profs ?? []) as ProfileRow[]).forEach((p) => {
         profiles[p.user_id] = { username: p.username, email: p.email, avatar_url: p.avatar_url };
       });
     }
     setRows(
-      (tokens ?? []).map((t) => ({
-        ...(t as any),
+      ((tokens ?? []) as DeviceTokenRow[]).map((t) => ({
+        ...t,
         ...profiles[t.user_id],
       })),
     );
@@ -128,6 +131,13 @@ const RegisteredDevices = () => {
       return;
     }
     if (data?.success) {
+      if ((data.failure_count ?? 0) > 0 && (data.success_count ?? 0) === 0) {
+        const diagnostic = Array.isArray(data.diagnostics) && data.diagnostics[0]?.body
+          ? String(data.diagnostics[0].body)
+          : 'FCM rejected the registered device token.';
+        toast.error('Push failed at Firebase delivery', { description: diagnostic.slice(0, 160) });
+        return;
+      }
       toast.success(`Sent → ${data.success_count}/${data.sent} devices`);
       setComposeFor(null);
       setDraft({ title: '', body: '', deep_link: '/home' });
@@ -192,9 +202,11 @@ const RegisteredDevices = () => {
           {filtered.map((d) => {
             const isOnline = Date.now() - new Date(d.updated_at).getTime() < ONLINE_THRESHOLD;
             const info = d.device_info ?? {};
-            const model = info.model || 'Unknown device';
-            const mfr = info.manufacturer || '';
-            const os = info.os ? `${info.os} ${info.os_version ?? ''}`.trim() : d.platform || 'unknown';
+            const model = typeof info.model === 'string' ? info.model : 'Unknown device';
+            const mfr = typeof info.manufacturer === 'string' ? info.manufacturer : '';
+            const osName = typeof info.os === 'string' ? info.os : '';
+            const osVersion = typeof info.os_version === 'string' ? info.os_version : '';
+            const os = osName ? `${osName} ${osVersion}`.trim() : d.platform || 'unknown';
             return (
               <motion.div
                 key={d.id}

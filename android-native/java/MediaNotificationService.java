@@ -108,37 +108,14 @@ public class MediaNotificationService extends Service {
     }
 
     private void requestAudioFocus() {
-        try {
-            if (audioManager == null) audioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
-            if (audioManager == null) return;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (focusRequest == null) {
-                    AudioAttributes attrs = new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                        .build();
-                    focusRequest = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                        .setAudioAttributes(attrs)
-                        .setOnAudioFocusChangeListener(focusListener, mainHandler)
-                        .setWillPauseWhenDucked(true)
-                        .build();
-                }
-                audioManager.requestAudioFocus(focusRequest);
-            } else {
-                audioManager.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
-            }
-        } catch (Exception ignore) {}
+        // The real player is the WebView HTMLAudioElement. This foreground
+        // notification service must NOT request audio focus too: on several
+        // Android builds that makes the service compete with the WebView from
+        // the same app, immediately emitting a pause command after every play.
     }
 
     private void abandonAudioFocus() {
-        try {
-            if (audioManager == null) return;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                if (focusRequest != null) audioManager.abandonAudioFocusRequest(focusRequest);
-            } else {
-                audioManager.abandonAudioFocus(focusListener);
-            }
-        } catch (Exception ignore) {}
+        // No-op because this service intentionally never owns audio focus.
     }
 
     private void acquireWakeLockIfNeeded() {

@@ -370,6 +370,7 @@ Deno.serve(async (req) => {
     let successCount = 0;
     let failureCount = 0;
     const invalidTokens: string[] = [];
+    const failureSamples: Array<{ status: number; body: string }> = [];
 
     // Send sequentially per token (FCM v1 has no batch endpoint; for small lists this is fine)
     // For very large lists we'd switch to multicast via legacy or chunked Promise.all.
@@ -410,12 +411,15 @@ Deno.serve(async (req) => {
             const txt = await res.text();
             // 404 / UNREGISTERED / INVALID_ARGUMENT means stale token
             if (res.status === 404 || /UNREGISTERED|INVALID_ARGUMENT/i.test(txt)) {
+              if (failureSamples.length < 3) failureSamples.push({ status: res.status, body: txt.slice(0, 500) });
               return { ok: false as const, token, invalid: true };
             }
+            if (failureSamples.length < 3) failureSamples.push({ status: res.status, body: txt.slice(0, 500) });
             console.error("FCM send error", res.status, txt);
             return { ok: false as const, token, invalid: false };
           } catch (e) {
             console.error("FCM fetch threw", e);
+            if (failureSamples.length < 3) failureSamples.push({ status: 0, body: e instanceof Error ? e.message : String(e) });
             return { ok: false as const, token, invalid: false };
           }
         }),
@@ -453,6 +457,7 @@ Deno.serve(async (req) => {
         success_count: successCount,
         failure_count: failureCount,
         invalid_removed: invalidTokens.length,
+        diagnostics: failureSamples,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

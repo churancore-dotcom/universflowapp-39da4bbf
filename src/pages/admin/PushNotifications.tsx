@@ -51,6 +51,7 @@ interface UserHit {
 }
 
 interface KPI { delivered: number; opened: number; clicked: number; }
+interface AnnouncementEventRow { announcement_id: string; event_type: string; }
 
 const getFunctionErrorMessage = async (error: unknown) => {
   const context = (error as { context?: Response })?.context;
@@ -112,7 +113,7 @@ const PushNotifications = () => {
   const fetchKPIs = useCallback(async () => {
     const { data } = await supabase.from('announcement_events').select('announcement_id, event_type');
     const map: Record<string, KPI> = {};
-    (data || []).forEach((row: any) => {
+    ((data || []) as AnnouncementEventRow[]).forEach((row) => {
       const k = map[row.announcement_id] ||= { delivered: 0, opened: 0, clicked: 0 };
       if (row.event_type === 'delivered') k.delivered++;
       else if (row.event_type === 'opened') k.opened++;
@@ -219,6 +220,12 @@ const PushNotifications = () => {
             'Push not delivered: 0 devices registered for this audience',
             { description: 'Users must open the Android app at least once before they can receive push notifications.' },
           );
+        } else if ((data.failure_count ?? 0) > 0 && (data.success_count ?? 0) === 0) {
+          pushOk = false;
+          const diagnostic = Array.isArray(data.diagnostics) && data.diagnostics[0]?.body
+            ? String(data.diagnostics[0].body)
+            : 'FCM rejected the registered device token.';
+          toast.error('Push failed at Firebase delivery', { description: diagnostic.slice(0, 160) });
         } else {
           toast.success(
             `Push delivered${who} → ${data.success_count}/${data.sent} devices` +
@@ -231,7 +238,7 @@ const PushNotifications = () => {
     setSaving(false);
     if (inAppOk && pushOk) {
       if (effectiveChannel === 'in_app' && draft.target_audience !== 'specific') {
-        toast.success(`Banner sent to ${(reach as any)[draft.target_audience]?.toLocaleString?.() ?? '?'} users`);
+        toast.success(`Banner sent to ${reach[draft.target_audience]?.toLocaleString?.() ?? '?'} users`);
       }
       setDraft({
         title: '', message: '', target_audience: 'all', type: 'info',
@@ -398,7 +405,7 @@ const PushNotifications = () => {
                       }`}>
                       {audienceLabels[key]}
                       {key !== 'specific' && (
-                        <span className="opacity-60"> ({(reach as any)[key]?.toLocaleString?.() ?? 0})</span>
+                        <span className="opacity-60"> ({reach[key]?.toLocaleString?.() ?? 0})</span>
                       )}
                     </button>
                   ))}
