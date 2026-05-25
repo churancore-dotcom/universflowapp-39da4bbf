@@ -149,7 +149,7 @@ function isConfidentMatch(song: SaavnSong, title: string, artist = ''): boolean 
 export async function searchSongsAsTracks(query: string, limit = 30): Promise<IndexedTrack[]> {
   const results = await searchSongs(query, limit);
   return (results || [])
-    .map((song: any): IndexedTrack | null => {
+    .map((song): IndexedTrack | null => {
       if (!song?.id) return null;
       const audio = bestAudio(song.downloadUrl);
       return {
@@ -234,7 +234,7 @@ export function prefetchSong(songId: string) {
   if (!cache.has(id)) getSongStreamUrl(id);
 }
 
-export function preloadNext(queue: any[], currentIndex: number) {
+export function preloadNext(queue: Array<{ id?: string }>, currentIndex: number) {
   const next = queue[currentIndex + 1];
   if (next?.id) prefetchSong(next.id);
 }
