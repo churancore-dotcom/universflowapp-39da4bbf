@@ -36,6 +36,15 @@ declare global {
   }
 }
 
+interface CapacitorAppModule {
+  App?: {
+    addListener: (
+      eventName: 'appStateChange',
+      callback: (state: { isActive: boolean }) => void,
+    ) => Promise<{ remove?: () => void }>;
+  };
+}
+
 export interface Song {
   id: string;
   title: string;
@@ -52,6 +61,9 @@ export interface Song {
   created_at?: string;
   source?: 'library' | 'audius' | 'indexed';
 }
+
+const getSongIdentity = (song: Pick<Song, 'id' | 'title' | 'artist'>) =>
+  `${song.id}::${song.artist.trim().toLowerCase()}::${song.title.trim().toLowerCase()}`;
 
 interface PlayerContextType {
   currentSong: Song | null;
@@ -282,6 +294,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // otherwise an old `audio.src = ...` can win the race and the WRONG song
   // ends up playing while the UI shows the song the user actually tapped.
   const playRequestSeqRef = useRef(0);
+  const activeSongIdentityRef = useRef<string | null>(null);
 
 
   // YouTube IFrame fallback
@@ -364,7 +377,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     keepAliveRef.current = window.setInterval(() => {
       if (audioRef.current && !audioRef.current.paused && audioRef.current.readyState >= 2) {
         // Touch the currentTime to keep the audio pipeline active
-        const _ = audioRef.current.currentTime;
+        void audioRef.current.currentTime;
       }
     }, 5000);
 
@@ -374,7 +387,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setTimeout(() => {
           if (audioRef.current && audioRef.current.readyState < 3 && !audioRef.current.paused) {
             // Nudge currentTime slightly to unstall
-            audioRef.current.currentTime = audioRef.current.currentTime;
+            const at = audioRef.current.currentTime;
+            if (Number.isFinite(at) && at > 0) audioRef.current.currentTime = Math.max(0, at - 0.001);
           }
         }, 2000);
       }
@@ -389,7 +403,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     (async () => {
       try {
         const modName = '@capacitor/app';
-        const mod: any = await import(/* @vite-ignore */ modName).catch(() => null);
+        const mod = await import(/* @vite-ignore */ modName).catch(() => null) as CapacitorAppModule | null;
         if (!mod?.App) return;
         const handle = await mod.App.addListener('appStateChange', (state: { isActive: boolean }) => {
           if (!state?.isActive) return;
@@ -401,14 +415,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const a = audioRef.current;
           if (!a) return;
           if (a.src && a.readyState < 2) {
-            try { a.currentTime = a.currentTime; } catch {}
+            try { void a.currentTime; } catch { /* ignore */ }
           }
           if (wasPlayingRef.current && a.src && a.paused) {
             a.play().catch(() => {});
           }
         });
-        appResumeRemove = () => { try { handle.remove?.(); } catch {} };
-      } catch {}
+        appResumeRemove = () => { try { handle.remove?.(); } catch { /* ignore */ } };
+      } catch { /* ignore */ }
     })();
 
     return () => {
@@ -634,8 +648,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return mount;
   }, []);
 
-  const playYouTubeFallback = useCallback(async (videoId: string, onEnded: () => void) => {
+  const playYouTubeFallback = useCallback(async (videoId: string, onEnded: () => void, requestSeq?: number, songIdentity?: string) => {
+    const isStillCurrent = () =>
+      (requestSeq === undefined || requestSeq === playRequestSeqRef.current) &&
+      (!songIdentity || activeSongIdentityRef.current === songIdentity);
     try {
+      if (!isStillCurrent()) return;
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.removeAttribute('src');
@@ -644,6 +662,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       const YT = await loadYouTubeIframeApi();
       if (!YT) throw new Error('YouTube API unavailable');
+      if (!isStillCurrent()) return;
 
       youtubeActiveRef.current = true;
       youtubeEndCallbackRef.current = onEnded;
@@ -653,7 +672,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           youtubePlayerRef.current.loadVideoById(videoId);
           youtubePlayerRef.current.setVolume?.(Math.round(volume * 100));
           startYouTubeProgressLoop();
-          setIsPlaying(true);
+          if (isStillCurrent()) setIsPlaying(true);
           return;
         } catch { /* recreate below */ }
       }
@@ -671,6 +690,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         playerVars: { autoplay: 1, controls: 0, modestbranding: 1, playsinline: 1, rel: 0 },
         events: {
           onReady: (e: { target: YouTubePlayer }) => {
+            if (!isStillCurrent()) return;
             try {
               e.target.setVolume?.(Math.round(volume * 100));
               e.target.playVideo();
@@ -681,6 +701,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             setIsPlaying(true);
           },
           onStateChange: (e: { data: number }) => {
+            if (!isStillCurrent()) return;
             const states = YT.PlayerState;
             if (e.data === states.PLAYING) setIsPlaying(true);
             else if (e.data === states.PAUSED) setIsPlaying(false);
@@ -690,6 +711,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             }
           },
           onError: () => {
+            if (!isStillCurrent()) return;
             toast.info('Trying another source…');
             youtubeEndCallbackRef.current?.();
           },
@@ -710,6 +732,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // Claim this play request — any earlier in-flight playback must abort.
     const mySeq = ++playRequestSeqRef.current;
+    const intendedIdentity = getSongIdentity(song);
+    activeSongIdentityRef.current = intendedIdentity;
 
     // Stop whatever is currently playing IMMEDIATELY so we never have two
     // <audio> elements racing to set src and emit events.
@@ -728,7 +752,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (needsResolution) {
       try {
         const resolved = await resolveAudioUrl(song);
-        if (mySeq !== playRequestSeqRef.current) return; // user tapped another song
+        if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return; // user tapped another song
         if (!resolved) {
           toast.error('This song is still preparing. Try again in a second.');
           setIsPlaying(false);
@@ -736,7 +760,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
         songQueue[index] = { ...song, audio_url: resolved };
       } catch {
-        if (mySeq !== playRequestSeqRef.current) return;
+        if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return;
         setIsPlaying(false);
         toast.error('This song could not be prepared for playback.');
         return;
@@ -770,7 +794,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!isPlayableUrl(audioUrl)) {
       try {
         const resolved = await resolveAudioUrl(song);
-        if (mySeq !== playRequestSeqRef.current) return; // superseded by newer tap
+        if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return; // superseded by newer tap
         if (resolved) {
           audioUrl = resolved;
           // Update the song in queue with resolved URL
@@ -784,14 +808,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return;
         }
       } catch {
-        if (mySeq !== playRequestSeqRef.current) return;
+        if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return;
         setIsPlaying(false);
         return;
       }
     }
 
     // Final race guard before we actually touch the <audio> element.
-    if (mySeq !== playRequestSeqRef.current) return;
+    if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return;
 
     // ── YouTube IFrame fallback path ──
     if (isYouTubeFallbackUrl(audioUrl)) {
@@ -805,7 +829,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Trigger normal "ended" pipeline
         const evt = new Event('ended');
         try { audioRef.current?.dispatchEvent(evt); } catch { /* ignore */ }
-      });
+      }, mySeq, intendedIdentity);
       return;
     }
 
@@ -927,12 +951,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       //    once with a forced cache-bust, then retry the same song. Only skip
       //    if the refreshed URL also fails. ──
       const cur = queue[currentIndex];
+      const activeIdentity = activeSongIdentityRef.current;
+      const errorBelongsToActiveSong = cur && activeIdentity === getSongIdentity(cur);
       const looksStale =
         errorCode === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED ||
         errorCode === MediaError.MEDIA_ERR_NETWORK ||
         errorCode === MediaError.MEDIA_ERR_DECODE;
       if (
         cur &&
+        errorBelongsToActiveSong &&
         looksStale &&
         cur.artist &&
         cur.title &&
@@ -940,7 +967,9 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       ) {
         recoveryAttempted.add(cur.id);
         try {
+          const seqAtRecoveryStart = playRequestSeqRef.current;
           const fresh = await resolveAudioUrl(cur, { forceRefresh: true });
+          if (seqAtRecoveryStart !== playRequestSeqRef.current || activeSongIdentityRef.current !== activeIdentity) return;
           if (fresh && fresh !== cur.audio_url) {
             const refreshed = { ...cur, audio_url: fresh };
             const newQueue = [...queue];
@@ -952,7 +981,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               if (videoId) {
                 await playYouTubeFallback(videoId, () => {
                   try { audioRef.current?.dispatchEvent(new Event('ended')); } catch { /* ignore */ }
-                });
+                }, seqAtRecoveryStart, activeIdentity ?? undefined);
                 return;
               }
             }
@@ -973,10 +1002,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (nextIdx === null && repeat === 'all') nextIdx = 0;
       if (nextIdx === null && queue.length > 1) nextIdx = (currentIndex + 1) % queue.length;
 
-      if (nextIdx !== null && nextIdx !== currentIndex) {
-        toast.info('Trying another source…');
-        playSongAtIndex(nextIdx, queue);
-      } else {
+      if (errorBelongsToActiveSong) {
         setIsPlaying(false);
         toast.error('This song could not start right now.');
       }
@@ -1078,6 +1104,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // resolves, this seq will be stale and we MUST abort — otherwise the late
     // resolver wins and a different song plays than the one the user tapped.
     const mySeq = ++playRequestSeqRef.current;
+    const intendedIdentity = getSongIdentity(song);
+    activeSongIdentityRef.current = intendedIdentity;
 
     // Cancel any ongoing crossfade and stale preloaded next-track audio
     if (crossfadeIntervalRef.current) {
@@ -1103,7 +1131,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     if (!offlineUrl && !isPlayableUrl(playbackSource)) {
       const resolved = await resolveAudioUrl(song);
-      if (mySeq !== playRequestSeqRef.current) return; // user tapped another song first
+      if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return; // user tapped another song first
       if (!resolved) {
         setIsPlaying(false);
         toast.error('This song could not start right now.');
@@ -1116,10 +1144,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     // Final guard before mutating <audio> — bail if a newer tap has taken over.
-    if (mySeq !== playRequestSeqRef.current) return;
+    if (mySeq !== playRequestSeqRef.current || activeSongIdentityRef.current !== intendedIdentity) return;
 
     const normalizedQueue = songsQueue?.map((queuedSong) =>
-      queuedSong.id === song.id ? { ...queuedSong, audio_url: playbackSource } : queuedSong,
+      getSongIdentity(queuedSong) === intendedIdentity ? { ...queuedSong, audio_url: playbackSource } : queuedSong,
     );
 
     // ── YouTube IFrame fallback path ──
@@ -1128,7 +1156,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       if (videoId) {
         await playYouTubeFallback(videoId, () => {
           try { audioRef.current?.dispatchEvent(new Event('ended')); } catch { /* ignore */ }
-        });
+        }, mySeq, intendedIdentity);
       } else {
         setIsPlaying(false);
         toast.error('This song could not start right now.');
@@ -1158,11 +1186,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     // If a queue is provided, use it
     if (normalizedQueue && normalizedQueue.length > 0) {
       setQueueState(normalizedQueue);
-      const songIndex = normalizedQueue.findIndex(s => s.id === song.id);
+      const songIndex = normalizedQueue.findIndex(s => getSongIdentity(s) === intendedIdentity);
       setCurrentIndex(songIndex >= 0 ? songIndex : 0);
     } else {
       // Update queue - add song if not exists
-      const existingIndex = queue.findIndex(s => s.id === song.id);
+      const existingIndex = queue.findIndex(s => getSongIdentity(s) === intendedIdentity);
       if (existingIndex === -1) {
         setQueueState(prev => [...prev, song]);
         setCurrentIndex(queue.length);
@@ -1291,6 +1319,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setQueueState([]);
     setCurrentIndex(0);
     setExpanded(false);
+    activeSongIdentityRef.current = null;
   }, [teardownYouTubePlayback]);
 
   const nextSong = useCallback(async () => {
