@@ -295,6 +295,11 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // ends up playing while the UI shows the song the user actually tapped.
   const playRequestSeqRef = useRef(0);
   const activeSongIdentityRef = useRef<string | null>(null);
+  const queueRef = useRef<Song[]>([]);
+
+  useEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
 
 
   // YouTube IFrame fallback
@@ -1185,15 +1190,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     // If a queue is provided, use it
     if (normalizedQueue && normalizedQueue.length > 0) {
+      queueRef.current = normalizedQueue;
       setQueueState(normalizedQueue);
       const songIndex = normalizedQueue.findIndex(s => getSongIdentity(s) === intendedIdentity);
       setCurrentIndex(songIndex >= 0 ? songIndex : 0);
     } else {
       // Update queue - add song if not exists
-      const existingIndex = queue.findIndex(s => getSongIdentity(s) === intendedIdentity);
+      const activeQueue = queueRef.current;
+      const existingIndex = activeQueue.findIndex(s => getSongIdentity(s) === intendedIdentity);
       if (existingIndex === -1) {
-        setQueueState(prev => [...prev, song]);
-        setCurrentIndex(queue.length);
+        setQueueState(prev => {
+          const next = [...prev, song];
+          queueRef.current = next;
+          return next;
+        });
+        setCurrentIndex(activeQueue.length);
       } else {
         setCurrentIndex(existingIndex);
       }
@@ -1221,7 +1232,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }).catch(() => {});
       }, 30000);
     }
-  }, [isPlayableUrl, queue, resolveAudioUrl, volume, playYouTubeFallback, teardownYouTubePlayback]);
+  }, [isPlayableUrl, resolveAudioUrl, volume, playYouTubeFallback, teardownYouTubePlayback]);
 
   const playSong = useCallback((song: Song, offlineUrl?: string | null, songsQueue?: Song[]) => {
     // Spotify-like behavior: a tap must start playback immediately. Ads/premium
@@ -1396,6 +1407,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const setQueue = useCallback((songs: Song[]) => {
+    queueRef.current = songs;
     setQueueState(songs);
     setCurrentIndex(0);
   }, []);
