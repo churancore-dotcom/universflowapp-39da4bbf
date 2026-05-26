@@ -230,7 +230,7 @@ const ReviewsSheet = ({ isOpen, onClose, onWriteReview }: Props) => {
 
                       {/* Reaction bar */}
                       <div className="flex items-center gap-2 pt-1.5 border-t border-border/30">
-                        {user?.id === r.user_id && (
+                        {user && ownReviewIds.has(r.id) && (
                           <button
                             onClick={async () => {
                               if (!confirm('Delete your review?')) return;
