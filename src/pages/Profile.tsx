@@ -21,54 +21,69 @@ interface ProfileData {
 }
 
 const Profile = () => {
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, isLoading: authLoading, signOut } = useAuth();
   const { isPremium, isLoading: premiumLoading } = usePremium();
   const navigate = useNavigate();
   const [stats, setStats] = useState({ likedSongs: 0, recentPlays: 0, playlists: 0 });
+  const [statsReady, setStatsReady] = useState(false);
   const [showRedeemCode, setShowRedeemCode] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showReviewsList, setShowReviewsList] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData>({ username: null, username_changed: false });
+  const [profileReady, setProfileReady] = useState(false);
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (user) {
+      setProfileReady(false);
+      setStatsReady(false);
       fetchStats();
       fetchProfile();
+    } else {
+      setProfileReady(true);
+      setStatsReady(true);
     }
   }, [user]);
 
   const fetchProfile = async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from('profiles')
-      .select('username, username_changed')
-      .eq('user_id', user.id)
-      .single();
-    
-    if (data) {
-      setProfileData({
-        username: data.username,
-        username_changed: (data as any).username_changed || false,
-      });
-      setNewUsername(data.username || '');
+    if (!user) { setProfileReady(true); return; }
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('username, username_changed')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (data) {
+        setProfileData({
+          username: data.username,
+          username_changed: (data as any).username_changed || false,
+        });
+        setNewUsername(data.username || '');
+      }
+    } finally {
+      setProfileReady(true);
     }
   };
 
   const fetchStats = async () => {
-    if (!user) return;
-    const [liked, recent, playlists] = await Promise.all([
-      supabase.from('user_library').select('id').eq('user_id', user.id),
-      supabase.from('recently_played').select('id').eq('user_id', user.id),
-      supabase.from('playlists').select('id').eq('user_id', user.id),
-    ]);
-    setStats({
-      likedSongs: liked.data?.length || 0,
-      recentPlays: recent.data?.length || 0,
-      playlists: playlists.data?.length || 0,
-    });
+    if (!user) { setStatsReady(true); return; }
+    try {
+      const [liked, recent, playlists] = await Promise.all([
+        supabase.from('user_library').select('id').eq('user_id', user.id),
+        supabase.from('recently_played').select('id').eq('user_id', user.id),
+        supabase.from('playlists').select('id').eq('user_id', user.id),
+      ]);
+      setStats({
+        likedSongs: liked.data?.length || 0,
+        recentPlays: recent.data?.length || 0,
+        playlists: playlists.data?.length || 0,
+      });
+    } finally {
+      setStatsReady(true);
+    }
   };
 
   const handleSaveUsername = async () => {
@@ -123,6 +138,7 @@ const Profile = () => {
 
   const displayName = profileData.username || user?.email?.split('@')[0] || 'User';
   const canChangeUsername = !profileData.username_changed;
+  const profileSettled = !authLoading && !premiumLoading && profileReady && statsReady;
 
   return (
     <TabTransition>
@@ -154,7 +170,7 @@ const Profile = () => {
               border: '1px solid rgba(255, 255, 255, 0.08)',
             }}
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 min-h-[86px]">
               <div
                 className="relative w-14 h-14 rounded-full flex items-center justify-center"
                 style={{
@@ -174,7 +190,15 @@ const Profile = () => {
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
+                {!profileSettled ? (
+                  <div className="space-y-2 animate-pulse">
+                    <div className="h-4 w-32 rounded bg-muted/50" />
+                    <div className="h-3 w-44 rounded bg-muted/35" />
+                    <div className="h-2.5 w-36 rounded bg-muted/25" />
+                  </div>
+                ) : (
+                <>
+                  <div className="flex items-center gap-2">
                   {isEditingUsername ? (
                     <div className="flex items-center gap-2 flex-1">
                       <Input
@@ -228,7 +252,7 @@ const Profile = () => {
                 {!isEditingUsername && (
                   <p className="text-[10px] text-muted-foreground/60 mt-0.5">
                     {profileData.username_changed
-                      ? 'Username is locked (can only be set once)'
+                      ? 'Username saved for this account'
                       : 'Tap pencil to set your username (one-time only)'}
                   </p>
                 )}
@@ -236,6 +260,8 @@ const Profile = () => {
                   <span className="inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: 'hsl(211 100% 50% / 0.2)', color: 'hsl(211 100% 60%)' }}>
                     <Shield className="w-2.5 h-2.5" /> Admin
                   </span>
+                )}
+                </>
                 )}
               </div>
             </div>
@@ -254,7 +280,7 @@ const Profile = () => {
                   <div className={`w-8 h-8 rounded-lg mx-auto mb-1.5 flex items-center justify-center bg-gradient-to-br ${stat.color}`}>
                     <Icon className="w-4 h-4 text-white" />
                   </div>
-                  <p className="text-lg font-bold">{stat.value}</p>
+                  <p className="text-lg font-bold">{profileSettled ? stat.value : '—'}</p>
                   <p className="text-[10px] text-muted-foreground">{stat.label}</p>
                 </div>
               );
@@ -263,7 +289,7 @@ const Profile = () => {
 
           {/* Menu Items */}
           <div className="rounded-xl overflow-hidden" style={{ background: 'rgba(28, 28, 30, 0.8)', border: '1px solid rgba(255, 255, 255, 0.06)' }}>
-            {isAdmin && (
+            {profileSettled && isAdmin && (
               <button onClick={() => navigate('/admin')} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-white/[0.06] active:bg-white/5">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/20"><Shield className="w-4 h-4 text-primary" /></div>
                 <span className="flex-1 text-sm font-medium">Admin Panel</span>
@@ -275,7 +301,7 @@ const Profile = () => {
               <span className="flex-1 text-sm font-medium">Settings</span>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
-            {isPremium && (
+            {profileSettled && isPremium && (
               <button onClick={() => navigate('/listen-together')} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-white/[0.06] active:bg-white/5">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/20"><Heart className="w-4 h-4 text-primary" /></div>
                 <span className="flex-1 text-sm font-medium">Play with Mate ❤️</span>
@@ -302,7 +328,7 @@ const Profile = () => {
           <RenewalNudge />
 
           {/* Premium Section */}
-          {!premiumLoading && !isPremium && (
+          {profileSettled && !isPremium && (
             <button
               onClick={() => navigate('/premium')}
               className="w-full mt-4 rounded-xl p-4 text-left"

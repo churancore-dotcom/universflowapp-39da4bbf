@@ -42,6 +42,20 @@ public class MediaNotificationPlugin extends Plugin {
 
     private static MediaNotificationPlugin instance;
 
+    private void startMediaService(Intent intent) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                getContext().startForegroundService(intent);
+            } else {
+                getContext().startService(intent);
+            }
+        } catch (Exception ignored) {
+            // Background service starts can be rejected on aggressive Android builds.
+            // The JS audio engine keeps playing; the next foreground/notification
+            // update will resync the MediaSession instead of crashing the APK.
+        }
+    }
+
     @Override
     public void load() {
         instance = this;
@@ -66,11 +80,7 @@ public class MediaNotificationPlugin extends Plugin {
         i.putExtra("duration", call.getInt("duration", 0).longValue() * 1000L);
         i.putExtra("isPlaying", call.getBoolean("isPlaying", false));
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            getContext().startForegroundService(i);
-        } else {
-            getContext().startService(i);
-        }
+        startMediaService(i);
         call.resolve();
     }
 
@@ -82,7 +92,7 @@ public class MediaNotificationPlugin extends Plugin {
         if (call.getInt("position") != null) {
             i.putExtra("position", call.getInt("position", 0).longValue() * 1000L);
         }
-        getContext().startService(i);
+        startMediaService(i);
         call.resolve();
     }
 
@@ -90,7 +100,7 @@ public class MediaNotificationPlugin extends Plugin {
     public void destroy(PluginCall call) {
         Intent i = new Intent(getContext(), MediaNotificationService.class);
         i.setAction(MediaNotificationService.ACTION_STOP);
-        getContext().startService(i);
+        startMediaService(i);
         call.resolve();
     }
 

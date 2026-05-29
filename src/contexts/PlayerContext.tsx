@@ -339,6 +339,13 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Track whether audio was playing before going to background
   const wasPlayingRef = useRef(false);
   const keepAliveRef = useRef<number | null>(null);
+  const intentionalPauseRef = useRef(false);
+  const backgroundRecoveryTimerRef = useRef<number | null>(null);
+
+  const markIntentionalPause = useCallback(() => {
+    intentionalPauseRef.current = true;
+    window.setTimeout(() => { intentionalPauseRef.current = false; }, 900);
+  }, []);
 
   // Create audio element once
   useEffect(() => {
@@ -365,6 +372,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // Entering background — remember if we were playing
         wasPlayingRef.current = !!(audioRef.current && !audioRef.current.paused);
       } else if (document.visibilityState === 'visible') {
+        if (backgroundRecoveryTimerRef.current) {
+          window.clearTimeout(backgroundRecoveryTimerRef.current);
+          backgroundRecoveryTimerRef.current = null;
+        }
         // Returning to foreground — resume if was playing
         if (wasPlayingRef.current && audioRef.current && audioRef.current.paused && audioRef.current.src) {
           audioRef.current.play().catch(() => {});
@@ -411,7 +422,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         const mod = await import(/* @vite-ignore */ modName).catch(() => null) as CapacitorAppModule | null;
         if (!mod?.App) return;
         const handle = await mod.App.addListener('appStateChange', (state: { isActive: boolean }) => {
-          if (!state?.isActive) return;
+          if (!state?.isActive) {
+            wasPlayingRef.current = !!(audioRef.current && !audioRef.current.paused);
+            return;
+          }
           // Returning to foreground from native background:
           // 1) resume the Web Audio context (Android suspends it while backgrounded)
           // 2) clear any stale 'error' UI state by re-checking the audio element
@@ -436,6 +450,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       window.removeEventListener('focus', handleFocus);
       if (appResumeRemove) appResumeRemove();
       if (keepAliveRef.current) clearInterval(keepAliveRef.current);
+      if (backgroundRecoveryTimerRef.current) clearTimeout(backgroundRecoveryTimerRef.current);
       audio.pause();
       audio.src = '';
       nextAudio.pause();
@@ -930,6 +945,23 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const handlePause = () => {
       if (!isCrossfading.current) {
+        if (intentionalPauseRef.current) {
+          wasPlayingRef.current = false;
+          setIsPlaying(false);
+          return;
+        }
+
+        if (document.visibilityState === 'hidden' && wasPlayingRef.current && audio.src) {
+          if (backgroundRecoveryTimerRef.current) window.clearTimeout(backgroundRecoveryTimerRef.current);
+          backgroundRecoveryTimerRef.current = window.setTimeout(() => {
+            const a = audioRef.current;
+            if (document.visibilityState === 'hidden' && wasPlayingRef.current && a?.src && a.paused) {
+              a.play().catch(() => {});
+            }
+          }, 700);
+          return;
+        }
+
         setIsPlaying(false);
       }
     };
@@ -1304,12 +1336,14 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       });
     } else {
       setIsPlaying(false);
+      markIntentionalPause();
       audioRef.current.pause();
     }
-  }, [currentSong, isPlaying]);
+  }, [currentSong, isPlaying, markIntentionalPause]);
 
   const pause = useCallback(() => {
     setIsPlaying(false);
+    markIntentionalPause();
     if (youtubeActiveRef.current && youtubePlayerRef.current) {
       try { youtubePlayerRef.current.pauseVideo(); } catch { /* ignore */ }
       return;
@@ -1317,7 +1351,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (audioRef.current) {
       audioRef.current.pause();
     }
-  }, []);
+  }, [markIntentionalPause]);
 
   const play = useCallback(() => {
     if (!currentSong) return;
@@ -1344,6 +1378,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     teardownYouTubePlayback();
 
     if (audioRef.current) {
+      markIntentionalPause();
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
       audioRef.current.src = '';
@@ -1361,7 +1396,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentIndex(0);
     setExpanded(false);
     activeSongIdentityRef.current = null;
-  }, [teardownYouTubePlayback]);
+  }, [teardownYouTubePlayback, markIntentionalPause]);
 
   const nextSong = useCallback(async () => {
     if (queue.length === 0) return;
@@ -1484,6 +1519,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     },
     onPause: () => {
       if (audioRef.current) {
+        markIntentionalPause();
         audioRef.current.pause();
       }
     },
@@ -1512,7 +1548,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setProgress(time);
       }
     },
-  }), [currentSong, queue, currentIndex, shuffle, repeat, getNextIndex, playSongAtIndex]);
+  }), [currentSong, queue, currentIndex, shuffle, repeat, getNextIndex, playSongAtIndex, markIntentionalPause]);
 
   const { progress: liveProgress, duration: liveDuration } = usePlayerProgress();
 

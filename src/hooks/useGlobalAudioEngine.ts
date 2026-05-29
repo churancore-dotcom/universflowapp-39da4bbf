@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { bypassAudioElement, connectAudioElement, setBands, setReverb, setSpatial, setLateNight, setStudioSpace as engineSetStudioSpace, resume, subscribe, type StudioSpaceId } from '@/lib/audioEngine';
 import { usePremium } from '@/hooks/usePremium';
 
@@ -44,6 +45,11 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
   useEffect(() => {
     if (!audioElement) return;
 
+    const isNativeApk = (() => {
+      try { return Capacitor.isNativePlatform?.() === true; }
+      catch { return false; }
+    })();
+
     // NOTE: premium status flows through the runtime flag in
     // src/lib/premiumState.ts (set by usePremium after a server fetch).
     // We intentionally no longer write `uf_audio_fx_allowed` to
@@ -55,6 +61,16 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     let processedWanted = false;
 
     const reapply = () => {
+      // APK priority: Spotify-like background reliability beats Web Audio DSP.
+      // Android can suspend AudioContext while the app is minimized; keeping the
+      // stream on the native <audio> path avoids background pause/error loops.
+      if (isNativeApk) {
+        bypassAudioElement(audioElement);
+        audioElement.playbackRate = 1;
+        processedWanted = false;
+        return;
+      }
+
       if (!isPremium) {
         bypassAudioElement(audioElement);
         audioElement.playbackRate = 1;
