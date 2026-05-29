@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
 import { setRuntimePremium } from '@/lib/premiumState';
+import { scheduleExpiryNotifications, cancelExpiryNotifications } from '@/lib/expiryNotifications';
 
 export type SubscriptionType = 'free' | 'premium_monthly' | 'premium_yearly';
 export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'pending';
@@ -171,7 +172,12 @@ export const usePremium = (): UsePremiumReturn => {
   // be flipped without also patching the JS bundle.
   useEffect(() => {
     setRuntimePremium(!!isPremium);
-  }, [isPremium]);
+    if (isPremium && subscription?.expires_at) {
+      scheduleExpiryNotifications(subscription.expires_at);
+    } else {
+      cancelExpiryNotifications();
+    }
+  }, [isPremium, subscription?.expires_at]);
 
   return {
     isPremium,

@@ -7,7 +7,7 @@ import { usePremium } from '@/hooks/usePremium';
 import BottomNav from '@/components/BottomNav';
 import RedeemCodeModal from '@/components/RedeemCodeModal';
 import PremiumBadge from '@/components/PremiumBadge';
-import RenewalNudge from '@/components/RenewalNudge';
+
 import ReviewModal from '@/components/ReviewModal';
 import ReviewsSheet from '@/components/ReviewsSheet';
 import { TabTransition } from '@/components/PageTransition';
@@ -324,8 +324,8 @@ const Profile = () => {
             </button>
           </div>
 
-          {/* Renewal nudge (premium users within 7 days of expiry) */}
-          <RenewalNudge />
+          {/* Expiry reminders are delivered as a real device notification (see src/lib/expiryNotifications.ts) — no inline UI. */}
+
 
           {/* Premium Section */}
           {profileSettled && !isPremium && (
