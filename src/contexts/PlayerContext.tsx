@@ -945,6 +945,23 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
     const handlePause = () => {
       if (!isCrossfading.current) {
+        if (intentionalPauseRef.current) {
+          wasPlayingRef.current = false;
+          setIsPlaying(false);
+          return;
+        }
+
+        if (document.visibilityState === 'hidden' && wasPlayingRef.current && audio.src) {
+          if (backgroundRecoveryTimerRef.current) window.clearTimeout(backgroundRecoveryTimerRef.current);
+          backgroundRecoveryTimerRef.current = window.setTimeout(() => {
+            const a = audioRef.current;
+            if (document.visibilityState === 'hidden' && wasPlayingRef.current && a?.src && a.paused) {
+              a.play().catch(() => {});
+            }
+          }, 700);
+          return;
+        }
+
         setIsPlaying(false);
       }
     };
