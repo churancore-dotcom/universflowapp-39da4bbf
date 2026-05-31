@@ -363,7 +363,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (song.cover_url && /^https?:\/\//i.test(song.cover_url)) {
         try {
-          const coverResponse = await fetch(song.cover_url, { mode: 'cors', credentials: 'omit' });
+          const coverResponse = await robustFetch(song.cover_url, { mode: 'cors', credentials: 'omit' });
           if (coverResponse.ok) {
             coverBlob = await coverResponse.blob();
             offlineCoverUrl = URL.createObjectURL(coverBlob);
