@@ -12,9 +12,13 @@ import AllSongsSection from '@/components/AllSongsSection';
 import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
 import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
 import PremiumFirstSection from '@/components/PremiumFirstSection';
+import TrendingNowSection from '@/components/TrendingNowSection';
+import FreshReleasesSection from '@/components/FreshReleasesSection';
+import AlbumsShelf from '@/components/AlbumsShelf';
 
 
 import CountryViralSection from '@/components/CountryViralSection';
+
 
 import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
@@ -407,10 +411,19 @@ const Home = () => {
                   {/* Premium-only / early-access shelf (teaser for free users) */}
                   <PremiumFirstSection />
 
+                  {/* Trending Now — admin-curated trending catalog */}
+                  <TrendingNowSection songs={allSongs} />
+
+                  {/* Fresh Releases — newest drops */}
+                  <FreshReleasesSection songs={allSongs} />
+
+                  {/* Albums — full records, one tap to play */}
+                  <AlbumsShelf songs={allSongs} />
+
                   {/* Artist discovery */}
                   <FeaturedArtistsSection />
 
-                  {/* Viral Right Now — bundles per-country Last.fm viral + global charts (trending/latest/viral) */}
+                  {/* Viral Right Now — per-country viral + global charts */}
                   <CountryViralSection />
 
                   {/* Top 30 from your followed artists */}
@@ -418,6 +431,7 @@ const Home = () => {
 
                 </>
               )}
+
 
               {/* Saved songs only when offline — uploaded catalog is hidden from online Home */}
               {isOffline && allSongs.length > 0 && (

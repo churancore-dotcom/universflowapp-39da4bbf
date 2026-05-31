@@ -163,8 +163,8 @@ const Search = () => {
         const literalJob = pureBrowse
           ? Promise.resolve([] as IndexedTrack[])
           : searchIndexedTracks(trimmedQuery, 200);
-        const youtubeJob = searchYouTubeMusicTracks(smartQuery, 50);
-        const saavnJob = searchJioSaavnTracks(trimmedQuery, 30).catch(() => [] as IndexedTrack[]);
+        const youtubeJob = searchYouTubeMusicTracks(smartQuery, 120);
+        const saavnJob = searchJioSaavnTracks(trimmedQuery, 60).catch(() => [] as IndexedTrack[]);
 
         const [youtube, literal, saavn, ...tagSets] = await Promise.all([youtubeJob, literalJob, saavnJob, ...tagJobs]);
         if (cancelled) return;
@@ -174,7 +174,8 @@ const Search = () => {
         const literalMerged = [...saavn, ...literal];
         const merged = rankAndDedupeResults(trimmedQuery, youtube, literalMerged, tagSets, pureBrowse)
           .filter((track) => !isHiddenTrack(track, hiddenResults))
-          .slice(0, 120);
+          .slice(0, 300);
+
         setCached(SEARCH_CACHE_NAMESPACE, trimmedQuery, merged);
 
         setIndexedResults(merged);
