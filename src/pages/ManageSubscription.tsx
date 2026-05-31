@@ -73,16 +73,8 @@ const ManageSubscription = () => {
     refetch,
   } = usePremium();
 
-  const debugPanel = (
-    <PremiumDebugPanel
-      verifiedStatus={verifiedStatus}
-      subscriptionRow={subscriptionRow}
-      lastRealtimeUpdate={lastRealtimeUpdate}
-      lastCheckedAt={lastCheckedAt}
-      errorMessage={error?.message ?? null}
-      onRefresh={refetch}
-    />
-  );
+  void subscriptionRow; void verifiedStatus; void lastRealtimeUpdate; void lastCheckedAt; void error; void refetch;
+
 
   const memberSince = subscription?.expires_at
     ? null
