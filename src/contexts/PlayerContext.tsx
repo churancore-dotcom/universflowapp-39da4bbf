@@ -650,6 +650,21 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     autoMixSeenRef.current = new Set(queue.map((s) => s.id));
   }, [queue.length === 0]);
 
+  // Proactive YouTube-style auto-queue refill: when the user is within 2 tracks
+  // of the end and repeat is off, fetch more in the background BEFORE the
+  // current song finishes — no gap, infinite playback.
+  useEffect(() => {
+    if (repeat !== 'off') return;
+    if (queue.length === 0) return;
+    const remaining = queue.length - currentIndex - 1;
+    if (remaining > 2) return;
+    if (autoMixInFlightRef.current) return;
+    const seed = queue[currentIndex] || currentSong;
+    if (!seed) return;
+    void extendQueueWithMix(seed);
+  }, [currentIndex, queue, repeat, currentSong, extendQueueWithMix]);
+
+
 
   // Progress is pushed via the audio element's native `timeupdate` event
   // (handled in the main audio listener below). No React state interval needed.
