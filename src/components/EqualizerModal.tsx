@@ -420,7 +420,7 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
                   <Slider
                     value={[bassBoost]}
                     min={0}
-                    max={60}
+                    max={100}
                     step={5}
                     onValueChange={([value]) => { setBassBoost(value); setActivePreset('custom'); }}
                     className="w-full [&_[role=slider]]:bg-rose-500 [&_[role=slider]]:border-rose-400 [&_[data-radix-slider-range]]:bg-rose-500/60"
