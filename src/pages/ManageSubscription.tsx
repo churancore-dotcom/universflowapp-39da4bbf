@@ -385,12 +385,18 @@ const PremiumDebugPanel = ({
       <Row label="Last server check" value={formatDebugTime(lastCheckedAt)} />
       {errorMessage && <Row label="Last error" value={errorMessage} valueClass="text-red-400" />}
     </div>
-    <div className="p-4 border-t border-border/60">
-      <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-2">Subscription row</p>
-      <pre className="max-h-44 overflow-auto rounded-xl bg-background/70 border border-border/50 p-3 text-[11px] leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
-        {subscriptionRow ? JSON.stringify(subscriptionRow, null, 2) : 'No subscription row returned by the server.'}
-      </pre>
-    </div>
+    <details className="group border-t border-border/60">
+      <summary className="px-4 py-3 text-[12px] text-muted-foreground cursor-pointer select-none list-none flex items-center justify-between">
+        <span>Technical details (for support)</span>
+        <span className="text-[11px] opacity-60 group-open:hidden">Show</span>
+        <span className="text-[11px] opacity-60 hidden group-open:inline">Hide</span>
+      </summary>
+      <div className="p-4 pt-0">
+        <pre className="max-h-44 overflow-auto rounded-xl bg-background/70 border border-border/50 p-3 text-[11px] leading-relaxed whitespace-pre-wrap break-words text-muted-foreground">
+          {subscriptionRow ? JSON.stringify(subscriptionRow, null, 2) : 'No subscription row returned by the server.'}
+        </pre>
+      </div>
+    </details>
   </section>
 );
 
