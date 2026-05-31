@@ -446,19 +446,22 @@ export function bypassAudioElement(el: HTMLAudioElement): boolean {
   return true;
 }
 
-/** Apply 8 band gains in dB. Smoothed via setTargetAtTime. Clamped ±6dB for safety. */
+/** Apply 8 band gains in dB. Smoothed via setTargetAtTime. Clamped ±12dB so the
+ *  user actually hears the EQ they dial in. The brick-wall limiter at the end
+ *  of the graph still protects against clipping at high gains. */
 export function setBands(gainsDb: number[], bassBoostPercent = 0) {
   if (engine.mode !== 'processed' || !engine.ctx || !engine.filters.length) return;
   const ctx = engine.ctx;
   const now = ctx.currentTime;
-  const boost = (Math.min(60, Math.max(0, bassBoostPercent)) / 60) * 4; // safe +4dB max
+  // Bass boost now ramps up to +12dB on the 60Hz shelf — punchy, audible.
+  const boost = (Math.min(100, Math.max(0, bassBoostPercent)) / 100) * 12;
 
   for (let i = 0; i < engine.filters.length; i++) {
     let g = gainsDb[i] ?? 0;
     if (i === 0) g += boost;
-    else if (i === 1) g += boost * 0.6;
-    else if (i === 2) g += boost * 0.25;
-    g = Math.max(-6, Math.min(6, g));
+    else if (i === 1) g += boost * 0.7;
+    else if (i === 2) g += boost * 0.35;
+    g = Math.max(-12, Math.min(12, g));
     const param = engine.filters[i].gain;
     param.cancelScheduledValues(now);
     param.setTargetAtTime(g, now, SMOOTH);
