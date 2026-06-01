@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Mail, Settings, LogOut, Shield, Music, Heart, Clock, ChevronRight, Crown, Edit2, Check, X, Star, Sparkles } from 'lucide-react';
+import { User, Mail, Settings, LogOut, Shield, Music, Heart, Clock, ChevronRight, Crown, Edit2, Check, X, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,7 +7,7 @@ import { usePremium } from '@/hooks/usePremium';
 import BottomNav from '@/components/BottomNav';
 import RedeemCodeModal from '@/components/RedeemCodeModal';
 import PremiumBadge from '@/components/PremiumBadge';
-import VibeCardModal from '@/components/VibeCardModal';
+import ProfileAuraCard from '@/components/ProfileAuraCard';
 
 import ReviewModal from '@/components/ReviewModal';
 import ReviewsSheet from '@/components/ReviewsSheet';
@@ -30,7 +30,7 @@ const Profile = () => {
   const [showRedeemCode, setShowRedeemCode] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showReviewsList, setShowReviewsList] = useState(false);
-  const [showVibeCard, setShowVibeCard] = useState(false);
+  
   const [profileData, setProfileData] = useState<ProfileData>({ username: null, username_changed: false });
   const [profileReady, setProfileReady] = useState(false);
   const [isEditingUsername, setIsEditingUsername] = useState(false);
@@ -269,6 +269,10 @@ const Profile = () => {
             </div>
           </div>
 
+          {/* Live Listening Aura */}
+          {profileSettled && user && <ProfileAuraCard username={displayName} />}
+
+
           {/* Stats */}
           <div className="grid grid-cols-3 gap-2 mb-4">
             {[
@@ -298,16 +302,6 @@ const Profile = () => {
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
-            <button onClick={() => setShowVibeCard(true)} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-white/[0.06] active:bg-white/5">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #FF2D55, #BF5AF2)' }}>
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1">
-                <span className="text-sm font-medium block">Share My Vibe</span>
-                <span className="text-[10px] text-muted-foreground">Your top song this week, as a story card</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-muted-foreground" />
-            </button>
             <button onClick={() => navigate('/settings')} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-white/[0.06] active:bg-white/5">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/10"><Settings className="w-4 h-4 text-foreground" /></div>
               <span className="flex-1 text-sm font-medium">Settings</span>
@@ -355,7 +349,7 @@ const Profile = () => {
 
         <BottomNav />
         {showRedeemCode && <RedeemCodeModal isOpen={showRedeemCode} onClose={() => setShowRedeemCode(false)} />}
-        <VibeCardModal isOpen={showVibeCard} onClose={() => setShowVibeCard(false)} />
+        
         <ReviewModal isOpen={showReview} onClose={() => setShowReview(false)} />
         <ReviewsSheet
           isOpen={showReviewsList}
