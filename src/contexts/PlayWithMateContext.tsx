@@ -153,7 +153,17 @@ export const PlayWithMateProvider = ({ children }: { children: ReactNode }) => {
   const restoringRef = useRef(false);
   const applyingRemoteStateRef = useRef(false);
   const currentSongRef = useRef<Song | null>(currentSong);
-  useEffect(() => { currentSongRef.current = currentSong; }, [currentSong]);
+  useEffect(() => {
+    currentSongRef.current = currentSong;
+    // When the host moves to a new track, drop any pending suggestion that
+    // matches it — keeps the inbox in sync with reality.
+    if (!currentSong) return;
+    const norm = (v: string) => v.toLowerCase().trim().replace(/\s+/g, ' ');
+    const sigCur = `${norm(currentSong.title || '')}|${norm(currentSong.artist || '')}`;
+    setSuggestions((prev) =>
+      prev.filter((s) => `${norm(s.title)}|${norm(s.artist)}` !== sigCur && s.id !== currentSong.id),
+    );
+  }, [currentSong]);
   const progressRef = { get current() { return playerProgressStore.getProgress(); } } as { current: number };
 
   const clearRealtime = useCallback(() => {
@@ -313,7 +323,14 @@ export const PlayWithMateProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        if (Math.abs(localPosition - remotePosition) > 0.9) {
+        // Tolerant drift correction:
+        // - Network broadcasts arrive ~1–2s behind the host clock, so the guest
+        //   is usually slightly AHEAD of the payload. Snapping back every cycle
+        //   is what made the seek bar "reset" mid-song.
+        // - Only re-seek when the guest is meaningfully behind (>3s) or wildly
+        //   ahead (>6s, e.g. host jumped backward).
+        const drift = localPosition - remotePosition;
+        if (drift < -3 || drift > 6) {
           seek(remotePosition);
         }
 
@@ -400,17 +417,22 @@ export const PlayWithMateProvider = ({ children }: { children: ReactNode }) => {
         .on('broadcast', { event: 'suggestion' }, ({ payload }) => {
           const s = payload as MateSuggestion;
           if (!s?.title || !s?.artist) return;
-          // Filter out suggestions for the song already playing in the room.
+          const norm = (v: string) => v.toLowerCase().trim().replace(/\s+/g, ' ');
+          const sigIncoming = `${norm(s.title)}|${norm(s.artist)}`;
+
+          // Drop suggestions that match the currently playing track.
           const cur = currentSongRef.current;
-          const isSameAsPlaying = !!cur && (
-            ((s as any).id && cur.id === (s as any).id) ||
-            (cur.title && s.title.toLowerCase() === cur.title.toLowerCase())
-          );
-          if (isSameAsPlaying) return;
+          if (cur) {
+            const sigCurrent = `${norm(cur.title || '')}|${norm(cur.artist || '')}`;
+            if (sigIncoming === sigCurrent) return;
+            if ((s as any).id && cur.id === (s as any).id) return;
+          }
+
           if (nextRoom.role === 'host' && s.userId !== user.id) {
             setSuggestions((prev) => {
-              const next = [...prev.filter((x) => x.id !== s.id), s];
-              return next.slice(-12);
+              // Dedupe by title+artist so the inbox doesn't fill up with copies.
+              const filtered = prev.filter((x) => `${norm(x.title)}|${norm(x.artist)}` !== sigIncoming);
+              return [...filtered, s].slice(-12);
             });
             toast.info(`💡 ${s.username} suggested "${s.title}"`);
             triggerHaptic('impactLight');
@@ -532,13 +554,15 @@ export const PlayWithMateProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (room?.role !== 'host' || !room.sessionId) return;
 
+    // Lower-frequency heartbeat (every 4s). Drift is corrected lazily on the
+    // guest with a generous threshold, so we don't need to spam updates.
     broadcastIntervalRef.current = window.setInterval(() => {
       void broadcastPlaybackState();
-    }, 2000);
+    }, 4000);
 
     persistIntervalRef.current = window.setInterval(() => {
       void persistSessionState(room.sessionId);
-    }, 10000);
+    }, 15000);
 
     return () => {
       if (broadcastIntervalRef.current) {
