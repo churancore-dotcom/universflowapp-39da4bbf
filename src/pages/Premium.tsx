@@ -2,7 +2,7 @@ import { memo, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Crown, Check, Sparkles, Download, Headphones,
-  Zap, Gift, Copy, Loader2, ShieldCheck, Users, Sliders, Music2, Infinity as InfinityIcon, Clock,
+  Zap, Gift, Copy, Loader2, ShieldCheck, Sliders, Music2, Infinity as InfinityIcon, Clock,
   Moon, Orbit, Building2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -40,7 +40,7 @@ const FEATURES = [
   { icon: Sliders,     title: '8-Band Studio Equalizer', desc: 'Studio-grade tuning with crafted presets — works on every stream.' },
   { icon: Building2,   title: 'Studio Spaces',           desc: 'Hear songs inside a Vinyl Booth, Cathedral, Stadium and more — a Universflow exclusive nobody else offers.' },
   { icon: Moon,        title: 'Late Night Mode',         desc: 'Lifts whispered details and tames loud peaks so quiet listening still sounds full.' },
-  { icon: Users,       title: 'Play With Mate',          desc: 'Premium-only sync rooms — listen together in real time with friends.' },
+  
   { icon: Download,    title: 'Unlimited Downloads',     desc: 'Save anything. Listen offline. Anywhere.' },
   { icon: Music2,      title: 'AI Playlist Generator',   desc: 'Mood-matched playlists, made instantly.' },
   { icon: InfinityIcon, title: 'Crossfade & Gapless',    desc: 'Seamless transitions, end to end.' },
