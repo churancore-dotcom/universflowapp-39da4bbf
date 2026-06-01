@@ -301,10 +301,10 @@ const Profile = () => {
               <span className="flex-1 text-sm font-medium">Settings</span>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
-            {profileSettled && isPremium && (
-              <button onClick={() => navigate('/listen-together')} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-white/[0.06] active:bg-white/5">
+            {profileSettled && (
+              <button onClick={() => navigate('/jam')} className="w-full flex items-center gap-3 px-4 py-3 text-left border-b border-white/[0.06] active:bg-white/5">
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary/20"><Heart className="w-4 h-4 text-primary" /></div>
-                <span className="flex-1 text-sm font-medium">Play with Mate ❤️</span>
+                <span className="flex-1 text-sm font-medium">Jam Queue 🎶</span>
                 <ChevronRight className="w-4 h-4 text-muted-foreground" />
               </button>
             )}

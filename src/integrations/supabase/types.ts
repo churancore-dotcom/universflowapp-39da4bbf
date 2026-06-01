@@ -602,6 +602,118 @@ export type Database = {
         }
         Relationships: []
       }
+      jam_queue_items: {
+        Row: {
+          added_by: string
+          added_by_name: string | null
+          artist: string
+          audio_url: string | null
+          cover_url: string | null
+          created_at: string
+          id: string
+          position: number
+          room_id: string
+          song_id: string | null
+          source: string | null
+          title: string
+        }
+        Insert: {
+          added_by: string
+          added_by_name?: string | null
+          artist: string
+          audio_url?: string | null
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          position?: number
+          room_id: string
+          song_id?: string | null
+          source?: string | null
+          title: string
+        }
+        Update: {
+          added_by?: string
+          added_by_name?: string | null
+          artist?: string
+          audio_url?: string | null
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          position?: number
+          room_id?: string
+          song_id?: string | null
+          source?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jam_queue_items_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "jam_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jam_room_members: {
+        Row: {
+          display_name: string | null
+          joined_at: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          display_name?: string | null
+          joined_at?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          display_name?: string | null
+          joined_at?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jam_room_members_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "jam_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jam_rooms: {
+        Row: {
+          code: string
+          created_at: string
+          host_user_id: string
+          id: string
+          is_active: boolean
+          name: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          host_user_id: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          host_user_id?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       listening_session_members: {
         Row: {
           id: string
@@ -1518,6 +1630,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_jam_host: {
+        Args: { _room_id: string; _user_id: string }
+        Returns: boolean
+      }
+      is_jam_member: {
+        Args: { _room_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_premium_user: { Args: { _user_id: string }; Returns: boolean }
       is_session_host: {
         Args: { _session_id: string; _user_id: string }
@@ -1526,6 +1646,10 @@ export type Database = {
       is_session_member: {
         Args: { _session_id: string; _user_id: string }
         Returns: boolean
+      }
+      join_jam_room: {
+        Args: { p_code: string; p_display_name?: string }
+        Returns: string
       }
       join_listening_session: {
         Args: { p_session_code: string }
