@@ -172,9 +172,40 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose }: AIPlaylistGeneratorProps)
         ...(seedRow ? [seedRow] : []),
         ...playlist.map((p) => byId.get(p.song_id)).filter(Boolean),
       ];
+      const usedIds = new Set(picked.map((s) => s.id));
 
-      if (picked.length <= 1) {
-        toast.error('Not enough similar tracks. Try another seed.');
+      // Fallback 1: same genre / same artist, ordered by popularity
+      const seedGenre = (seed.genre || '').toLowerCase().trim();
+      const seedArtist = (seed.artist || '').toLowerCase().trim();
+      if (picked.length < 20) {
+        const related = [...catalog]
+          .filter((s) => !usedIds.has(s.id))
+          .filter((s) =>
+            (seedGenre && (s.genre || '').toLowerCase().trim() === seedGenre) ||
+            (seedArtist && (s.artist || '').toLowerCase().trim() === seedArtist)
+          )
+          .sort((a, b) => (b.play_count ?? 0) - (a.play_count ?? 0));
+        for (const s of related) {
+          if (picked.length >= 20) break;
+          picked.push(s);
+          usedIds.add(s.id);
+        }
+      }
+
+      // Fallback 2: popular catalog — guarantees mix always plays
+      if (picked.length < 20) {
+        const popular = [...catalog]
+          .filter((s) => !usedIds.has(s.id))
+          .sort((a, b) => (b.play_count ?? 0) - (a.play_count ?? 0));
+        for (const s of popular) {
+          if (picked.length >= 20) break;
+          picked.push(s);
+          usedIds.add(s.id);
+        }
+      }
+
+      if (picked.length === 0) {
+        toast.error('Catalog is empty');
         return;
       }
 
