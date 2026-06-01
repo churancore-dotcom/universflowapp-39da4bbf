@@ -407,17 +407,22 @@ export const PlayWithMateProvider = ({ children }: { children: ReactNode }) => {
         .on('broadcast', { event: 'suggestion' }, ({ payload }) => {
           const s = payload as MateSuggestion;
           if (!s?.title || !s?.artist) return;
-          // Filter out suggestions for the song already playing in the room.
+          const norm = (v: string) => v.toLowerCase().trim().replace(/\s+/g, ' ');
+          const sigIncoming = `${norm(s.title)}|${norm(s.artist)}`;
+
+          // Drop suggestions that match the currently playing track.
           const cur = currentSongRef.current;
-          const isSameAsPlaying = !!cur && (
-            ((s as any).id && cur.id === (s as any).id) ||
-            (cur.title && s.title.toLowerCase() === cur.title.toLowerCase())
-          );
-          if (isSameAsPlaying) return;
+          if (cur) {
+            const sigCurrent = `${norm(cur.title || '')}|${norm(cur.artist || '')}`;
+            if (sigIncoming === sigCurrent) return;
+            if ((s as any).id && cur.id === (s as any).id) return;
+          }
+
           if (nextRoom.role === 'host' && s.userId !== user.id) {
             setSuggestions((prev) => {
-              const next = [...prev.filter((x) => x.id !== s.id), s];
-              return next.slice(-12);
+              // Dedupe by title+artist so the inbox doesn't fill up with copies.
+              const filtered = prev.filter((x) => `${norm(x.title)}|${norm(x.artist)}` !== sigIncoming);
+              return [...filtered, s].slice(-12);
             });
             toast.info(`💡 ${s.username} suggested "${s.title}"`);
             triggerHaptic('impactLight');
