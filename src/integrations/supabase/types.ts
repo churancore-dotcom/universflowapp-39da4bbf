@@ -602,42 +602,6 @@ export type Database = {
         }
         Relationships: []
       }
-      listening_aura: {
-        Row: {
-          aura_color: string
-          aura_label: string
-          aura_type: string
-          is_playing: boolean
-          song_artist: string | null
-          song_cover: string | null
-          song_title: string | null
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          aura_color?: string
-          aura_label?: string
-          aura_type?: string
-          is_playing?: boolean
-          song_artist?: string | null
-          song_cover?: string | null
-          song_title?: string | null
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          aura_color?: string
-          aura_label?: string
-          aura_type?: string
-          is_playing?: boolean
-          song_artist?: string | null
-          song_cover?: string | null
-          song_title?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
       listening_session_members: {
         Row: {
           id: string
@@ -748,6 +712,39 @@ export type Database = {
           updated_at?: string
           user_id?: string
           utr_number?: string
+        }
+        Relationships: []
+      }
+      playback_state: {
+        Row: {
+          device_id: string | null
+          device_label: string | null
+          is_playing: boolean
+          position_seconds: number
+          queue: Json
+          song: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          device_id?: string | null
+          device_label?: string | null
+          is_playing?: boolean
+          position_seconds?: number
+          queue?: Json
+          song?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          device_id?: string | null
+          device_label?: string | null
+          is_playing?: boolean
+          position_seconds?: number
+          queue?: Json
+          song?: Json | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }

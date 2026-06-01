@@ -22,7 +22,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import CheckEmail from "./pages/CheckEmail";
 import NotFound from "./pages/NotFound";
 import { usePushRegistration } from "./hooks/usePushRegistration";
-import { useAuraSync } from "./hooks/useAuraSync";
+import { usePlaybackSync } from "./hooks/usePlaybackSync";
 
 // Eager load main tabs for INSTANT navigation (Spotify-like feel).
 // Admin and rarely-visited pages stay lazy below.
@@ -45,7 +45,7 @@ const AllArtists = lazy(() => import("./pages/AllArtists"));
 const ManageSubscription = lazy(() => import("./pages/ManageSubscription"));
 const Premium = lazy(() => import("./pages/Premium"));
 const Downloads = lazy(() => import("./pages/Downloads"));
-const AuraPage = lazy(() => import("./pages/Aura"));
+
 
 const DownloadQueuePanel = lazy(() => import("./components/DownloadQueuePanel"));
 const PrerollAd = lazy(() => import("./components/ads/PrerollAd"));
@@ -170,7 +170,7 @@ const AnimatedRoutes = () => {
           <Route path="/subscription" element={<ProtectedRoute><ManageSubscription /></ProtectedRoute>} />
           <Route path="/premium" element={<Premium />} />
           <Route path="/downloads" element={<ProtectedRoute><Downloads /></ProtectedRoute>} />
-          <Route path="/aura/:userId" element={<AuraPage />} />
+          
           <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
             <Route index element={<AdminDashboard />} />
             <Route path="upload" element={<UploadMusic />} />
@@ -272,7 +272,7 @@ const AppContent = () => {
   const [showSplash, setShowSplash] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   usePushRegistration();
-  useAuraSync();
+  usePlaybackSync();
 
   const handleSplashComplete = () => {
     const hasSeenOnboarding = localStorage.getItem('uf_onboarding_done');

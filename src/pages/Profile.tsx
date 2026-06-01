@@ -7,7 +7,7 @@ import { usePremium } from '@/hooks/usePremium';
 import BottomNav from '@/components/BottomNav';
 import RedeemCodeModal from '@/components/RedeemCodeModal';
 import PremiumBadge from '@/components/PremiumBadge';
-import ProfileAuraCard from '@/components/ProfileAuraCard';
+import CrossDeviceResumeCard from '@/components/CrossDeviceResumeCard';
 
 import ReviewModal from '@/components/ReviewModal';
 import ReviewsSheet from '@/components/ReviewsSheet';
@@ -269,8 +269,8 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* Live Listening Aura */}
-          {profileSettled && user && <ProfileAuraCard username={displayName} />}
+          {/* Cross-Device Resume */}
+          {profileSettled && user && <CrossDeviceResumeCard />}
 
 
           {/* Stats */}
