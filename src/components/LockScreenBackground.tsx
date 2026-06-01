@@ -8,8 +8,13 @@ interface Props {
   isPlaying: boolean;
 }
 
+/**
+ * Each theme renders a *unique full-screen background* that pairs with
+ * its artwork variant in LockScreenArtwork. Keep effects mobile-friendly.
+ */
 const LockScreenBackground = ({ themeId, coverUrl, isPlaying }: Props) => {
-  if (themeId === 'album') {
+  // CLASSIC + VINYL — blurred album-art background (different artwork on top)
+  if (themeId === 'classic' || themeId === 'vinyl') {
     return (
       <div className="absolute inset-0">
         {coverUrl && (
@@ -24,44 +29,52 @@ const LockScreenBackground = ({ themeId, coverUrl, isPlaying }: Props) => {
             transition={{ duration: 0.8, ease: [0.32, 0.72, 0, 1] }}
           />
         )}
-        <div className="absolute inset-0 backdrop-blur-[80px] bg-black/50" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/70" />
+        <div className="absolute inset-0 backdrop-blur-[80px] bg-black/55" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/75" />
+        {themeId === 'vinyl' && (
+          // subtle aurora layer for the vinyl theme
+          <motion.div
+            className="absolute -inset-1/4"
+            style={{
+              background:
+                'conic-gradient(from 0deg at 50% 50%, rgba(11,30,63,0.5), rgba(31,122,106,0.45), rgba(184,51,168,0.5), rgba(11,30,63,0.5))',
+              filter: 'blur(80px)',
+              mixBlendMode: 'screen',
+            }}
+            animate={{ rotate: isPlaying ? 360 : 0 }}
+            transition={{ duration: 50, repeat: Infinity, ease: 'linear' }}
+          />
+        )}
       </div>
     );
   }
 
-  if (themeId === 'aurora') {
+  if (themeId === 'pulse') {
     return (
-      <div className="absolute inset-0 overflow-hidden bg-[#03060f]">
-        <motion.div
-          className="absolute -inset-1/4"
-          style={{
-            background:
-              'conic-gradient(from 0deg at 50% 50%, #0b1e3f, #1f7a6a, #b833a8, #ff2d55, #1f7a6a, #0b1e3f)',
-            filter: 'blur(80px)',
-          }}
-          animate={{ rotate: isPlaying ? 360 : 0 }}
-          transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-        />
+      <div className="absolute inset-0 overflow-hidden bg-[#06030f]">
+        {coverUrl && (
+          <img
+            src={coverUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover opacity-50"
+          />
+        )}
+        <div className="absolute inset-0 backdrop-blur-[90px] bg-black/55" />
         <motion.div
           className="absolute inset-0"
           style={{
             background:
-              'radial-gradient(ellipse 80% 50% at 50% 30%, rgba(184,51,168,0.4), transparent 70%)',
+              'radial-gradient(circle at 50% 50%, rgba(255,45,85,0.35) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(94,92,230,0.3) 30%, transparent 70%)',
           }}
-          animate={{ opacity: isPlaying ? [0.5, 0.9, 0.5] : 0.5 }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          animate={{ opacity: isPlaying ? [0.55, 1, 0.55] : 0.55 }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         />
         <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70" />
       </div>
     );
   }
 
-  if (themeId === 'starfield') {
-    return <StarfieldBackground isPlaying={isPlaying} />;
-  }
-
-  if (themeId === 'liquid') {
+  if (themeId === 'prism') {
     return (
       <div className="absolute inset-0 overflow-hidden bg-[#06030f]">
         <motion.div
@@ -86,26 +99,18 @@ const LockScreenBackground = ({ themeId, coverUrl, isPlaying }: Props) => {
           animate={{ x: [0, -100, 40, 0], y: [0, -60, -120, 0] }}
           transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
         />
-        <motion.div
-          className="absolute w-[50vw] h-[50vw] rounded-full"
-          style={{
-            background: 'radial-gradient(circle, rgba(255,149,0,0.5) 0%, transparent 60%)',
-            filter: 'blur(70px)',
-            top: '40%',
-            left: '30%',
-          }}
-          animate={{ scale: isPlaying ? [1, 1.2, 1] : 1 }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-black/60" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/65" />
       </div>
     );
   }
 
-  if (themeId === 'neon') {
+  if (themeId === 'orbit') {
+    return <StarfieldBackground isPlaying={isPlaying} />;
+  }
+
+  if (themeId === 'stage') {
     return (
       <div className="absolute inset-0 overflow-hidden bg-gradient-to-b from-[#1b0633] via-[#4a0e6e] to-[#ff2d8a]">
-        {/* sun */}
         <motion.div
           className="absolute left-1/2 -translate-x-1/2 top-[28%] w-[55vw] h-[55vw] rounded-full"
           style={{
@@ -115,7 +120,6 @@ const LockScreenBackground = ({ themeId, coverUrl, isPlaying }: Props) => {
           animate={{ opacity: isPlaying ? [0.85, 1, 0.85] : 0.9 }}
           transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
         />
-        {/* grid floor */}
         <div
           className="absolute bottom-0 left-0 right-0 h-1/2"
           style={{
@@ -125,48 +129,7 @@ const LockScreenBackground = ({ themeId, coverUrl, isPlaying }: Props) => {
             transformOrigin: 'bottom',
           }}
         />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/70" />
-      </div>
-    );
-  }
-
-  if (themeId === 'waves') {
-    return (
-      <div className="absolute inset-0 overflow-hidden bg-[#06030f]">
-        {[0, 1, 2, 3].map(i => (
-          <motion.div
-            key={i}
-            className="absolute left-1/2 top-1/2 rounded-full border"
-            style={{
-              borderColor: 'rgba(255,45,85,0.45)',
-              width: 200,
-              height: 200,
-              marginLeft: -100,
-              marginTop: -100,
-            }}
-            animate={
-              isPlaying
-                ? { scale: [0.4, 4], opacity: [0.7, 0] }
-                : { scale: 1, opacity: 0.3 }
-            }
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: 'easeOut',
-              delay: i * 1,
-            }}
-          />
-        ))}
-        <motion.div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(circle at 50% 50%, rgba(255,45,85,0.4) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(94,92,230,0.3) 30%, transparent 70%)',
-          }}
-          animate={{ opacity: isPlaying ? [0.6, 1, 0.6] : 0.6 }}
-          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/75" />
       </div>
     );
   }
@@ -216,16 +179,7 @@ const StarfieldBackground = ({ isPlaying }: { isPlaying: boolean }) => {
           }}
         />
       ))}
-      <motion.div
-        className="absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(ellipse 60% 40% at 50% 50%, rgba(94,92,230,0.25), transparent 70%)',
-        }}
-        animate={{ opacity: isPlaying ? [0.4, 0.7, 0.4] : 0.4 }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60" />
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/65" />
     </div>
   );
 };
