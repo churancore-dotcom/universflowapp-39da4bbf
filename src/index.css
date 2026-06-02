@@ -701,3 +701,8 @@ html.light [style*="boxShadow: 0 6px 24px rgba(0,0,0,0.4)"] {
 @media (prefers-reduced-motion: reduce) {
   .aura-blob-1, .aura-blob-2, .aura-blob-3 { animation: none; }
 }
+
+@keyframes auroraShift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
