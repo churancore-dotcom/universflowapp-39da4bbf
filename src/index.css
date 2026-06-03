@@ -681,25 +681,15 @@ html.light [style*="boxShadow: 0 6px 24px rgba(0,0,0,0.4)"] {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.10) !important;
 }
 
-/* === ThemeAura — animated radial glows for color-rich themes === */
-@keyframes aura-drift-1 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.85; }
-  50%      { transform: translate3d(40px, 30px, 0) scale(1.12); opacity: 1; }
-}
-@keyframes aura-drift-2 {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.7; }
-  50%      { transform: translate3d(-50px, -25px, 0) scale(1.18); opacity: 0.95; }
-}
-@keyframes aura-pulse {
-  0%, 100% { transform: translate3d(0, 0, 0) scale(0.9); opacity: 0.5; }
-  50%      { transform: translate3d(0, -20px, 0) scale(1.1); opacity: 0.85; }
-}
-.aura-blob-1 { animation: aura-drift-1 14s ease-in-out infinite; }
-.aura-blob-2 { animation: aura-drift-2 18s ease-in-out infinite; }
-.aura-blob-3 { animation: aura-pulse  10s ease-in-out infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .aura-blob-1, .aura-blob-2, .aura-blob-3 { animation: none; }
+/* === ThemeAura — static radial glows ===
+   Continuous drift disabled for mid-range Android perf
+   (memory: performance-optimized-animations + device-optimization-vivo).
+   Animated blobs under backdrop-blur layers caused frame-rate drops + audio jank. */
+.aura-blob-1,
+.aura-blob-2,
+.aura-blob-3 {
+  animation: none !important;
+  transform: translate3d(0, 0, 0);
 }
 
 @keyframes auroraShift {
@@ -707,54 +697,64 @@ html.light [style*="boxShadow: 0 6px 24px rgba(0,0,0,0.4)"] {
   50% { background-position: 100% 50%; }
 }
 
-/* ===== Lock-screen FX (CSS-only, GPU-friendly) ===== */
+/* ===== Lock-screen FX (CSS-only, GPU-friendly) =====
+   Blur ≤60px, opacity ≤0.45 on animated layers; never under backdrop-blur. */
 .lockfx-aurora-a,
 .lockfx-aurora-b {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(80px);
-  opacity: 0.55;
+  filter: blur(60px);
+  opacity: 0.45;
   will-change: transform;
+  transform: translateZ(0);
 }
 .lockfx-aurora-a {
-  width: 70vw; height: 70vw; max-width: 520px; max-height: 520px;
+  width: 70vw; height: 70vw; max-width: 480px; max-height: 480px;
   left: -10vw; top: -10vw;
   background: #ff2d55;
-  animation: lockfxAuroraA 18s ease-in-out infinite alternate;
+  animation: lockfxAuroraA 24s ease-in-out infinite alternate;
 }
 .lockfx-aurora-b {
-  width: 80vw; height: 80vw; max-width: 600px; max-height: 600px;
+  width: 80vw; height: 80vw; max-width: 540px; max-height: 540px;
   right: -20vw; bottom: -20vw;
   background: #7c3aed;
-  animation: lockfxAuroraB 22s ease-in-out infinite alternate;
+  animation: lockfxAuroraB 28s ease-in-out infinite alternate;
 }
 @keyframes lockfxAuroraA {
   0%   { transform: translate3d(0,0,0) scale(1); }
-  100% { transform: translate3d(15vw, 20vh, 0) scale(1.15); }
+  100% { transform: translate3d(10vw, 14vh, 0) scale(1.1); }
 }
 @keyframes lockfxAuroraB {
   0%   { transform: translate3d(0,0,0) scale(1); }
-  100% { transform: translate3d(-12vw, -18vh, 0) scale(1.1); }
+  100% { transform: translate3d(-8vw, -12vh, 0) scale(1.08); }
 }
 
-.lockfx-wave-path-1 { transform-origin: center; animation: lockfxWave1 9s ease-in-out infinite alternate; }
-.lockfx-wave-path-2 { transform-origin: center; animation: lockfxWave2 11s ease-in-out infinite alternate; }
+.lockfx-wave-path-1 { transform-origin: center; animation: lockfxWave1 12s ease-in-out infinite alternate; will-change: transform; }
+.lockfx-wave-path-2 { transform-origin: center; animation: lockfxWave2 14s ease-in-out infinite alternate; will-change: transform; }
 @keyframes lockfxWave1 {
-  0%   { transform: translateY(0) scaleY(1); }
-  100% { transform: translateY(-18px) scaleY(1.05); }
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(-14px); }
 }
 @keyframes lockfxWave2 {
-  0%   { transform: translateY(0) scaleY(1); }
-  100% { transform: translateY(14px) scaleY(0.95); }
+  0%   { transform: translateY(0); }
+  100% { transform: translateY(10px); }
 }
 
 .lockfx-glow {
   position: absolute; inset: 0;
-  background: radial-gradient(circle at 50% 60%, rgba(255,45,85,0.55) 0%, rgba(120,20,60,0.25) 35%, transparent 70%);
-  will-change: transform, opacity;
-  animation: lockfxGlow 5.5s ease-in-out infinite;
+  background: radial-gradient(circle at 50% 60%, rgba(255,45,85,0.45) 0%, rgba(120,20,60,0.2) 35%, transparent 70%);
+  will-change: opacity;
+  transform: translateZ(0);
+  animation: lockfxGlow 6s ease-in-out infinite;
 }
 @keyframes lockfxGlow {
-  0%, 100% { transform: scale(1); opacity: 0.7; }
-  50%      { transform: scale(1.12); opacity: 1; }
+  0%, 100% { opacity: 0.7; }
+  50%      { opacity: 1; }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .lockfx-aurora-a, .lockfx-aurora-b,
+  .lockfx-wave-path-1, .lockfx-wave-path-2,
+  .lockfx-glow { animation: none !important; }
+}
+
