@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
-import { ChevronLeft, Trash2, Info, Headphones, Bell, Palette, ChevronRight, Heart, Crown, Check, MessageSquare, Gauge, RotateCcw, Sliders, Lock } from 'lucide-react';
-import {
-  LOCK_SCREEN_THEMES,
-  getStoredLockScreenTheme,
-  setStoredLockScreenTheme,
-  type LockScreenThemeId,
-} from '@/lib/lockScreenTheme';
+import { ChevronLeft, Trash2, Info, Headphones, Bell, Palette, ChevronRight, Heart, Crown, Check, MessageSquare, Gauge, RotateCcw, Sliders } from 'lucide-react';
+
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
 import PageTransition from '@/components/PageTransition';
@@ -52,18 +47,7 @@ const Settings = () => {
     const s = readEq();
     return typeof s.playbackSpeed === 'number' ? s.playbackSpeed : 1;
   });
-  const [lockTheme, setLockTheme] = useState<LockScreenThemeId>(() => getStoredLockScreenTheme());
 
-  const handleLockTheme = (id: LockScreenThemeId, isLocked: boolean) => {
-    if (isLocked) {
-      toast.info('Animated lock screens are a Premium perk');
-      navigate('/premium');
-      return;
-    }
-    setLockTheme(id);
-    setStoredLockScreenTheme(id);
-    toast.success(`${LOCK_SCREEN_THEMES.find(t => t.id === id)?.label} lock screen applied`);
-  };
 
   
 
@@ -385,61 +369,8 @@ const Settings = () => {
             </div>
           </section>
 
-          {/* Lock Screen Style */}
-          <section>
-            <div className="flex items-center gap-2 mb-2 px-1">
-              <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'hsl(220 90% 60% / 0.9)' }}>
-                <Lock className="w-3 h-3 text-white" />
-              </div>
-              <h2 className="text-xs font-semibold text-muted-foreground uppercase">Lock Screen</h2>
-            </div>
-            <div className="rounded-xl overflow-hidden bg-card border border-border/50">
-              <div className="px-4 py-3">
-                <span className="text-sm mb-3 block">Style</span>
-                <div className="grid grid-cols-2 gap-3">
-                  {LOCK_SCREEN_THEMES.map(t => {
-                    const locked = t.premium && !isPremium;
-                    const selected = lockTheme === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => handleLockTheme(t.id, locked)}
-                        className="flex flex-col items-start gap-1.5 text-left"
-                      >
-                        <div
-                          className="w-full aspect-[16/10] rounded-2xl relative overflow-hidden transition-all"
-                          style={{
-                            background: t.preview,
-                            border: selected ? `2.5px solid hsl(var(--primary))` : '2px solid hsl(var(--border))',
-                            boxShadow: selected ? '0 0 16px hsl(var(--primary) / 0.45)' : 'none',
-                          }}
-                        >
-                          {selected && (
-                            <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-lg">
-                              <Check className="w-3.5 h-3.5 text-primary-foreground" />
-                            </div>
-                          )}
-                          {locked && (
-                            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded-full bg-black/70 backdrop-blur flex items-center gap-1">
-                              <Crown className="w-3 h-3 text-primary" fill="currentColor" />
-                              <span className="text-[9px] font-semibold text-white">PRO</span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 w-full">
-                          <span className="text-[12px] font-medium">{t.label}</span>
-                          {!t.premium && (
-                            <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground">Default</span>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-muted-foreground leading-tight">{t.description}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </section>
+          {/* Lock Screen picker removed — users now change it from the 3-dot menu on the lock screen itself */}
+
 
 
 
