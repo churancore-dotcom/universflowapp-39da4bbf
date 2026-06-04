@@ -70,7 +70,7 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
         });
       });
 
-      // Fallback: pull popular catalog so Start Mix is ALWAYS usable, even
+      // Fallback: pull popular catalog so Auto Generate is ALWAYS usable, even
       // for brand-new users who haven't played anything yet.
       if (list.length === 0) {
         const { data: top } = await supabase
@@ -103,8 +103,8 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
     return (
       <AnimatePresence>
         <PremiumLockOverlay
-          title="Start Mix"
-          description="Pick a song and we'll instantly play an endless radio mix tuned to your taste. Available with Premium."
+          title="Auto Generate"
+          description="Pick a song and we'll create a saved playlist tuned to your taste. Available with Premium."
           onClose={onClose}
         />
       </AnimatePresence>
