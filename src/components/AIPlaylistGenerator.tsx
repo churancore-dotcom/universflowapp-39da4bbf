@@ -241,9 +241,10 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
       playSong(queue[0], null, queue);
       toast.success(`Playlist created · ${queue.length} tracks`);
       onClose();
-    } catch (e) {
+    } catch (e: any) {
       console.error('Playlist generation failed:', e);
-      toast.error('Could not create playlist. Try again.');
+      const msg = e?.message || e?.error_description || 'Unknown error';
+      toast.error(`Could not create playlist: ${msg}`);
     } finally {
       setIsStarting(false);
     }
