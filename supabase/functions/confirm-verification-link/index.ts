@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
     });
   } catch (err) {
     console.error('confirm-verification-link error', err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
+    return new Response(JSON.stringify({ error: 'Verification failed. Please try again.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

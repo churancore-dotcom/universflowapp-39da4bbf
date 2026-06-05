@@ -103,9 +103,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
+    console.error('verify-registered-user error', error);
     return new Response(JSON.stringify({
       success: false,
-      error: error instanceof Error ? error.message : 'Unexpected verification error.',
+      error: 'Unexpected verification error.',
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

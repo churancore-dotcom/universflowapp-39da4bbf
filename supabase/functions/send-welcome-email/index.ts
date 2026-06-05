@@ -137,7 +137,8 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
+    console.error('send-welcome-email error', err);
+    return new Response(JSON.stringify({ error: 'Unable to send welcome email.' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

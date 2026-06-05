@@ -435,11 +435,10 @@ serve(async (req) => {
 
   } catch (error: unknown) {
     console.error('Edge function error:', error);
-    const err = error as Error;
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         success: false,
-        error: err.message || 'An unexpected error occurred',
+        error: 'An unexpected error occurred',
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

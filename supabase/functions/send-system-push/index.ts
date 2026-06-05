@@ -190,9 +190,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ success: true, sent: tokens.length, success_count: success, failure_count: failure }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    console.error("send-system-push error", msg);
-    return new Response(JSON.stringify({ error: msg }),
+    console.error("send-system-push error", e);
+    return new Response(JSON.stringify({ error: "Push delivery failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

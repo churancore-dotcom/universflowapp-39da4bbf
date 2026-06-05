@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
     const tgData = await tgRes.json();
     if (!tgRes.ok) {
       console.error('Telegram error', tgData);
-      return new Response(JSON.stringify({ error: tgData }), {
+      return new Response(JSON.stringify({ error: 'Telegram delivery failed' }), {
         status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -179,8 +179,8 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e) {
-    console.error(e);
-    return new Response(JSON.stringify({ error: String(e) }), {
+    console.error('telegram-notify error', e);
+    return new Response(JSON.stringify({ error: 'Notification failed' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

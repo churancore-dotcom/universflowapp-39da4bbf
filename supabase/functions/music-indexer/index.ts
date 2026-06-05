@@ -1391,12 +1391,45 @@ serve(async (req) => {
     if (action === 'resolve') {
       const artist = typeof body.artist === 'string' ? body.artist.trim() : '';
       const title = typeof body.title === 'string' ? body.title.trim() : '';
-      const forceRefresh = body.forceRefresh === true;
+      let forceRefresh = body.forceRefresh === true;
       if (!artist || !title) {
         return new Response(JSON.stringify({ success: false, error: 'Artist and title are required' }), {
           status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
+
+      // Require auth + rate limit for resolve (burns YT quota + writes to DB).
+      const authHeader = req.headers.get('authorization') || '';
+      const admin = getAdminClient();
+      let userId: string | null = null;
+      if (authHeader.startsWith('Bearer ') && admin) {
+        const jwt = authHeader.slice(7);
+        const { data: u } = await admin.auth.getUser(jwt);
+        userId = u?.user?.id ?? null;
+      }
+      if (!userId) {
+        return new Response(JSON.stringify({ success: false, error: 'Authentication required' }), {
+          status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      if (admin) {
+        const { data: allowed } = await admin.rpc('check_and_increment_rate_limit', {
+          _user_id: userId,
+          _endpoint: 'music-indexer:resolve',
+          _max_per_minute: 30,
+        });
+        if (allowed === false) {
+          return new Response(JSON.stringify({ success: false, error: 'Rate limit exceeded' }), {
+            status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      }
+      // forceRefresh restricted to admins to prevent cache-bust abuse
+      if (forceRefresh && admin) {
+        const { data: isAdmin } = await admin.rpc('has_role', { _user_id: userId, _role: 'admin' });
+        if (!isAdmin) forceRefresh = false;
+      }
+
       const result = await resolveStream(artist, title, forceRefresh);
       return new Response(JSON.stringify(result), {
         status: 200,
@@ -1409,7 +1442,7 @@ serve(async (req) => {
     });
   } catch (error) {
     console.error('music-indexer error:', error);
-    return new Response(JSON.stringify({ success: false, error: error instanceof Error ? error.message : 'Unexpected error', fallback: true }), {
+    return new Response(JSON.stringify({ success: false, error: 'Unexpected error', fallback: true }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
