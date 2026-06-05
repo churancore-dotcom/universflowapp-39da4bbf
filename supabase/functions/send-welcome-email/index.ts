@@ -145,10 +145,27 @@ Deno.serve(async (req) => {
 
     const data = await r.json().catch(() => ({}));
     if (!r.ok) {
-      return new Response(JSON.stringify({ error: data?.message || 'Resend failed', status: r.status }), {
+      return new Response(JSON.stringify({ error: 'Unable to send welcome email.' }), {
         status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+
+    // Record the send for throttling.
+    await fetch(`${SUPABASE_URL}/rest/v1/welcome_email_sends`, {
+      method: 'POST',
+      headers: {
+        apikey: SERVICE_ROLE,
+        Authorization: `Bearer ${SERVICE_ROLE}`,
+        'Content-Type': 'application/json',
+        Prefer: 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({
+        email,
+        last_sent_at: new Date().toISOString(),
+        send_count: ((prev?.send_count ?? 0) + 1),
+      }),
+    }).catch(() => {});
+
     return new Response(JSON.stringify({ success: true, id: data?.id ?? null }), {
       status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
