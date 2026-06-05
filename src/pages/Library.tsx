@@ -209,7 +209,7 @@ const Library = () => {
     <TabTransition>
       <div className="h-[100dvh] bg-background flex flex-col overflow-hidden relative">
         <SEOHead
-          title="Your Library — Liked Songs, Playlists & Downloads | Univers Flow"
+          title="Your Library — Liked Songs & Playlists | Univers Flow"
           description="Your liked songs, downloads, followed artists, and personal playlists — all in one place on Univers Flow."
           path="/library"
           jsonLdId="library-jsonld"
