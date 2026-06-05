@@ -89,7 +89,6 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const FIREBASE_SA = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
-    const SYSTEM_TOKEN = Deno.env.get("SYSTEM_PUSH_TOKEN") ?? SERVICE_ROLE;
 
     if (!FIREBASE_SA) {
       return new Response(JSON.stringify({ error: "FCM not configured" }),
@@ -98,10 +97,18 @@ Deno.serve(async (req) => {
 
     const body = (await req.json()) as SystemPushBody;
 
-    // Auth: either service-role bearer (DB / admin invoke) or matching system_token
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    // Auth: either service-role bearer (admin invoke), or matching dedicated system token
+    // pulled from internal_secrets. The DB trigger sends the token in body.system_token.
     const auth = req.headers.get("Authorization") ?? "";
     const bearer = auth.replace(/^Bearer\s+/i, "");
-    const isAuthorized = bearer === SERVICE_ROLE || body.system_token === SYSTEM_TOKEN;
+    let isAuthorized = bearer === SERVICE_ROLE;
+    if (!isAuthorized && typeof body.system_token === "string" && body.system_token.length > 0) {
+      const { data: secret } = await admin
+        .from("internal_secrets").select("value").eq("key", "system_push_token").maybeSingle();
+      if (secret?.value && body.system_token === secret.value) isAuthorized = true;
+    }
     if (!isAuthorized) {
       return new Response(JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
