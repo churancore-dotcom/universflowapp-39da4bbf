@@ -82,26 +82,6 @@ const defaultBands: EQBand[] = [
 
 const STORAGE_KEY = 'eq_settings';
 
-function hasActiveProcessing(data: {
-  bands: EQBand[];
-  bassBoost: number;
-  reverb: number;
-  playbackSpeed: number;
-  spatialAudio: boolean;
-  studioSpace: StudioSpaceId;
-  lateNight: boolean;
-}) {
-  return Boolean(
-    data.bands.some((band) => Math.abs(band.gain) >= 0.5) ||
-    data.bassBoost > 0 ||
-    data.reverb > 0 ||
-    data.spatialAudio ||
-    data.playbackSpeed !== 1 ||
-    data.studioSpace !== 'off' ||
-    data.lateNight
-  );
-}
-
 function loadSettings() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
