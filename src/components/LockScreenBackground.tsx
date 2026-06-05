@@ -1,8 +1,6 @@
 import { memo, useEffect, useState } from 'react';
-import type { LockScreenThemeId } from '@/lib/lockScreenTheme';
 
 interface Props {
-  themeId?: LockScreenThemeId;
   coverUrl?: string | null;
   isPlaying?: boolean;
 }
@@ -82,72 +80,14 @@ const CachedBlurCover = memo(({ url }: { url: string | null | undefined }) => {
 });
 CachedBlurCover.displayName = 'CachedBlurCover';
 
-const LockScreenBackground = ({ themeId = 'classic', coverUrl }: Props) => {
-  if (themeId === 'aurora') {
-    return (
-      <div className="absolute inset-0 overflow-hidden" style={{ background: 'linear-gradient(180deg, hsl(216 34% 15%), hsl(236 28% 7%))' }}>
-        <CachedBlurCover url={coverUrl} />
-        <div className="lockfx-aurora-a" />
-        <div className="lockfx-aurora-b" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/80" />
-      </div>
-    );
-  }
-
-  if (themeId === 'waves') {
-    return (
-      <div className="absolute inset-0 overflow-hidden" style={{ background: 'linear-gradient(180deg, hsl(220 28% 12%), hsl(235 28% 7%))' }}>
-        <CachedBlurCover url={coverUrl} />
-        <svg
-          className="absolute inset-0 w-full h-full"
-          viewBox="0 0 400 800"
-          preserveAspectRatio="none"
-          aria-hidden
-        >
-          <defs>
-            <linearGradient id="lockfx-wave-1" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="hsl(198 92% 58%)" stopOpacity="0.28" />
-              <stop offset="100%" stopColor="hsl(154 72% 45%)" stopOpacity="0.0" />
-            </linearGradient>
-            <linearGradient id="lockfx-wave-2" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="hsl(154 72% 45%)" stopOpacity="0.32" />
-              <stop offset="100%" stopColor="hsl(198 92% 58%)" stopOpacity="0.0" />
-            </linearGradient>
-          </defs>
-          <path
-            className="lockfx-wave-path-1"
-            d="M0,420 C100,360 200,500 400,420 L400,800 L0,800 Z"
-            fill="url(#lockfx-wave-1)"
-          />
-          <path
-            className="lockfx-wave-path-2"
-            d="M0,520 C120,460 240,600 400,520 L400,800 L0,800 Z"
-            fill="url(#lockfx-wave-2)"
-          />
-        </svg>
-        <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-transparent to-black/80" />
-      </div>
-    );
-  }
-
-  if (themeId === 'glow') {
-    return (
-      <div className="absolute inset-0 overflow-hidden" style={{ background: 'linear-gradient(180deg, hsl(211 40% 18%), hsl(224 42% 8%))' }}>
-        <CachedBlurCover url={coverUrl} />
-        <div className="lockfx-glow" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-transparent to-black/80" />
-      </div>
-    );
-  }
-
-  const bgGradient = 'linear-gradient(180deg, hsl(215 34% 18%) 0%, hsl(224 36% 11%) 58%, hsl(230 38% 6%) 100%)';
-  const tint = 'radial-gradient(120% 80% at 50% 35%, rgba(90,120,170,0.34), transparent 70%)';
+const LockScreenBackground = ({ coverUrl, isPlaying }: Props) => {
+  const bgGradient = 'linear-gradient(180deg, hsl(220 22% 18%) 0%, hsl(222 28% 10%) 56%, hsl(228 34% 5%) 100%)';
 
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: bgGradient }}>
       <CachedBlurCover url={coverUrl} />
-      <div className="lockfx-classic-drift" aria-hidden />
-      <div aria-hidden className="absolute inset-0" style={{ background: tint }} />
+      <div className="lockfx-ios-sheen" aria-hidden style={{ animationPlayState: isPlaying ? 'running' : 'paused' }} />
+      <div className="lockfx-ios-grain" aria-hidden />
       <div
         aria-hidden
         className="absolute inset-0"
