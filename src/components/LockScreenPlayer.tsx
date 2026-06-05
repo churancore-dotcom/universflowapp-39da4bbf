@@ -369,63 +369,6 @@ const LockScreenPlayer = ({ isOpen, onClose }: LockScreenPlayerProps) => {
               />
           </motion.div>
 
-          {/* Theme picker sheet */}
-          <AnimatePresence>
-            {showThemePicker && (
-              <>
-                <motion.div
-                  className="absolute inset-0 z-[210] bg-black/40"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.2 }}
-                  onClick={() => setShowThemePicker(false)}
-                />
-                <motion.div
-                  className="absolute top-12 right-4 z-[220] w-[240px] rounded-2xl overflow-hidden"
-                  style={{
-                    background: 'rgba(28,28,34,0.96)',
-                    border: '0.5px solid rgba(255,255,255,0.1)',
-                    boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
-                  }}
-                  initial={{ opacity: 0, scale: 0.9, y: -10 }}
-                  animate={{ opacity: 1, scale: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95, y: -6 }}
-                  transition={{ duration: 0.18, ease: [0.32, 0.72, 0, 1] }}
-                >
-                  <div className="px-4 pt-3 pb-2 text-[11px] uppercase tracking-wider text-white/45 font-semibold">
-                    Lock Screen Style
-                  </div>
-                  {LOCK_SCREEN_THEMES.map(t => {
-                    const locked = t.premium && !isPremium;
-                    const selected = themeId === t.id;
-                    return (
-                      <button
-                        key={t.id}
-                        onClick={() => handlePickTheme(t.id, locked)}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 active:bg-white/5"
-                      >
-                        <div
-                          className="w-9 h-9 rounded-lg flex-shrink-0"
-                          style={{ background: t.preview }}
-                        />
-                        <div className="flex-1 min-w-0 text-left">
-                          <div className="text-[14px] text-white font-medium leading-tight flex items-center gap-1.5">
-                            {t.label}
-                            {locked && <Crown className="w-3 h-3 text-primary" fill="currentColor" />}
-                          </div>
-                          <div className="text-[11px] text-white/45 leading-tight truncate">
-                            {t.description}
-                          </div>
-                        </div>
-                        {selected && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
-                      </button>
-                    );
-                  })}
-                </motion.div>
-              </>
-            )}
-          </AnimatePresence>
         </motion.div>
         </motion.div>
       )}
