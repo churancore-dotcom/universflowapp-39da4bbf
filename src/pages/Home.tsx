@@ -6,7 +6,7 @@ import { Lock, ListMusic, Music, Pause, Play, Search } from 'lucide-react';
 
 import { supabase } from '@/integrations/supabase/client';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
-import { useSongCache } from '@/hooks/useSongCache';
+import { getCachedSongs, useSongCache } from '@/hooks/useSongCache';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { triggerHaptic } from '@/hooks/useHaptics';
@@ -26,59 +26,80 @@ import appLogo from '@/assets/app-logo.png';
 
 const HOME_SONGS_QUERY_KEY = ['home', 'songs'] as const;
 
+const mapSongRow = (s: any): Song => {
+  const artist = s.artists as { id: string; name: string; photo_url: string | null } | null;
+  return {
+    id: s.id,
+    title: s.title,
+    artist: s.artist,
+    album: s.album || undefined,
+    cover_url: s.cover_url || undefined,
+    audio_url: s.audio_url,
+    duration: s.duration || undefined,
+    artist_id: artist?.id || s.artist_id || undefined,
+    artist_photo_url: artist?.photo_url || undefined,
+    genre: s.genre || undefined,
+    mood: s.mood || undefined,
+    created_at: s.created_at || undefined,
+    show_in_new_releases: s.show_in_new_releases,
+    show_in_trending: s.show_in_trending,
+    is_premium_only: s.is_premium_only,
+    play_count: s.play_count ?? 0,
+  } as Song;
+};
+
 const fetchHomeSongs = async (): Promise<Song[]> => {
-  const { data, error } = await supabase
-    .from('songs')
-    .select('*, artists(id, name, photo_url)')
-    .eq('is_visible', true)
-    .order('created_at', { ascending: false })
-    .limit(1000);
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 8_000);
 
-  if (error) throw error;
+  try {
+    const { data, error } = await supabase
+      .from('songs')
+      .select('*, artists(id, name, photo_url)')
+      .eq('is_visible', true)
+      .order('created_at', { ascending: false })
+      .limit(1000)
+      .abortSignal(controller.signal);
 
-  return (data || []).map((s: any) => {
-    const artist = s.artists as { id: string; name: string; photo_url: string | null } | null;
-    return {
-      id: s.id,
-      title: s.title,
-      artist: s.artist,
-      album: s.album || undefined,
-      cover_url: s.cover_url || undefined,
-      audio_url: s.audio_url,
-      duration: s.duration || undefined,
-      artist_id: artist?.id || s.artist_id || undefined,
-      artist_photo_url: artist?.photo_url || undefined,
-      genre: s.genre || undefined,
-      mood: s.mood || undefined,
-      created_at: s.created_at || undefined,
-      show_in_new_releases: s.show_in_new_releases,
-      show_in_trending: s.show_in_trending,
-      is_premium_only: s.is_premium_only,
-      play_count: s.play_count ?? 0,
-    } as Song;
-  });
+    if (error) {
+      console.error('Home songs failed:', error);
+      return getCachedSongs() || [];
+    }
+
+    return (data || []).map(mapSongRow);
+  } catch (error) {
+    console.error('Home songs unavailable:', error);
+    return getCachedSongs() || [];
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
 };
 
 const fetchRecentlyPlayed = async (userId: string, songs: Song[]): Promise<Song[]> => {
-  const { data } = await supabase
-    .from('recently_played')
-    .select('song_id, played_at')
-    .eq('user_id', userId)
-    .order('played_at', { ascending: false })
-    .limit(24);
+  try {
+    const { data } = await supabase
+      .from('recently_played')
+      .select('song_id, played_at')
+      .eq('user_id', userId)
+      .order('played_at', { ascending: false })
+      .limit(24);
 
-  const seen = new Set<string>();
-  const picked: Song[] = [];
-  for (const row of (data || []) as any[]) {
-    if (seen.has(row.song_id)) continue;
-    const song = songs.find((item) => item.id === row.song_id);
-    if (song) {
-      seen.add(row.song_id);
-      picked.push(song);
+    const seen = new Set<string>();
+    const picked: Song[] = [];
+    for (const row of (data || []) as any[]) {
+      if (seen.has(row.song_id)) continue;
+      const song = songs.find((item) => item.id === row.song_id);
+      if (song) {
+        seen.add(row.song_id);
+        picked.push(song);
+      }
+      if (picked.length >= 8) break;
     }
-    if (picked.length >= 8) break;
+    return picked;
+  } catch (error) {
+    console.error('Recently played unavailable:', error);
+    return [];
   }
-  return picked;
 };
 
 const byNewest = (songs: Song[]) =>
