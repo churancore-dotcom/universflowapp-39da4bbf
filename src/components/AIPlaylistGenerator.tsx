@@ -51,14 +51,15 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
     let cancelled = false;
     setLoadingSeeds(true);
     (async () => {
+      const seen = new Set<string>();
+      const list: SeedRow[] = [];
+
       const { data: rp } = await supabase
         .from('recently_played')
         .select('song_id, played_at, songs(id,title,artist,cover_url,genre,mood,audio_url,duration,album)')
         .eq('user_id', user.id)
         .order('played_at', { ascending: false })
         .limit(40);
-      const seen = new Set<string>();
-      const list: SeedRow[] = [];
       (rp || []).forEach((row: any) => {
         const s = row.songs;
         if (!s || seen.has(s.id)) return;
@@ -70,9 +71,8 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
         });
       });
 
-      // Fallback: pull popular catalog so Auto Generate is ALWAYS usable, even
-      // for brand-new users who haven't played anything yet.
-      if (list.length === 0) {
+      // Fallback A: popular catalog (admin-uploaded songs)
+      if (list.length < 8) {
         const { data: top } = await supabase
           .from('songs')
           .select('id,title,artist,cover_url,genre,mood,audio_url,duration,album,play_count')
@@ -84,6 +84,26 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
           seen.add(s.id);
           list.push({
             id: s.id, title: s.title, artist: s.artist, cover_url: s.cover_url,
+            genre: s.genre, mood: s.mood, audio_url: s.audio_url,
+            duration: s.duration, album: s.album,
+          });
+        });
+      }
+
+      // Fallback B: stream catalog (external indexed songs — the real pool
+      // when the admin catalog is empty).
+      if (list.length < 8) {
+        const { data: streams } = await supabase
+          .from('stream_songs')
+          .select('track_id,title,artist,cover_url,genre,mood,audio_url,duration,album,last_seen_at')
+          .not('audio_url', 'is', null)
+          .order('last_seen_at', { ascending: false })
+          .limit(40);
+        (streams || []).forEach((s: any) => {
+          if (!s.audio_url || seen.has(s.track_id)) return;
+          seen.add(s.track_id);
+          list.push({
+            id: s.track_id, title: s.title, artist: s.artist, cover_url: s.cover_url,
             genre: s.genre, mood: s.mood, audio_url: s.audio_url,
             duration: s.duration, album: s.album,
           });
@@ -111,21 +131,69 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
     try {
       const seed = seeds.find((s) => s.id === seedId)!;
 
-      const { data: catalog } = await supabase
-        .from('songs')
-        .select('id,title,artist,album,cover_url,genre,mood,duration,audio_url,play_count')
-        .eq('is_visible', true)
-        .limit(1000);
-      if (!catalog || catalog.length === 0) {
-        toast.error('Catalog is empty');
+      // Build candidate pool from BOTH the admin catalog and the indexed
+      // stream catalog. The app primarily runs on stream_songs, so the
+      // catalog query is often empty.
+      type PoolRow = {
+        id: string;
+        title: string;
+        artist: string;
+        album: string | null;
+        cover_url: string | null;
+        genre: string | null;
+        mood: string | null;
+        duration: number | null;
+        audio_url: string;
+        play_count: number;
+        source: 'library' | 'indexed';
+      };
+
+      const [catalogRes, streamsRes] = await Promise.all([
+        supabase
+          .from('songs')
+          .select('id,title,artist,album,cover_url,genre,mood,duration,audio_url,play_count')
+          .eq('is_visible', true)
+          .limit(1000),
+        supabase
+          .from('stream_songs')
+          .select('track_id,title,artist,album,cover_url,genre,mood,duration,audio_url,last_seen_at')
+          .not('audio_url', 'is', null)
+          .order('last_seen_at', { ascending: false })
+          .limit(1000),
+      ]);
+
+      const pool: PoolRow[] = [];
+      (catalogRes.data || []).forEach((s: any) => {
+        if (!s.audio_url) return;
+        pool.push({
+          id: s.id, title: s.title, artist: s.artist, album: s.album,
+          cover_url: s.cover_url, genre: s.genre, mood: s.mood,
+          duration: s.duration, audio_url: s.audio_url,
+          play_count: s.play_count ?? 0, source: 'library',
+        });
+      });
+      const seenPool = new Set(pool.map((p) => p.id));
+      (streamsRes.data || []).forEach((s: any) => {
+        if (!s.audio_url || seenPool.has(s.track_id)) return;
+        seenPool.add(s.track_id);
+        pool.push({
+          id: s.track_id, title: s.title, artist: s.artist, album: s.album,
+          cover_url: s.cover_url, genre: s.genre, mood: s.mood,
+          duration: s.duration, audio_url: s.audio_url,
+          play_count: 0, source: 'indexed',
+        });
+      });
+
+      if (pool.length === 0) {
+        toast.error('No songs available to build a mix');
         return;
       }
 
-      const all_songs: CandidateSong[] = catalog.map((s) => ({
+      const all_songs: CandidateSong[] = pool.map((s) => ({
         id: s.id,
         tags: tagsFor(s),
         genre: s.genre,
-        play_count_7d: s.play_count ?? 0,
+        play_count_7d: s.play_count,
       }));
 
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -146,7 +214,6 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
         .eq('user_id', user.id)
         .limit(500);
       const user_song_scores: UserSongScore[] = (lib || [])
-        .filter((r: any) => r.track_source === 'library' || !r.track_source)
         .map((r: any) => ({ user_id: user.id, song_id: r.song_id, score: 1.0 }));
 
       const { playlist } = runPlaylistEngine({
@@ -157,11 +224,11 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
         user_song_scores,
       });
 
-      const byId = new Map(catalog.map((s) => [s.id, s]));
+      const byId = new Map(pool.map((s) => [s.id, s]));
       const seedRow = byId.get(seed.id);
-      const picked: any[] = [
+      const picked: PoolRow[] = [
         ...(seedRow ? [seedRow] : []),
-        ...playlist.map((p) => byId.get(p.song_id)).filter(Boolean),
+        ...playlist.map((p) => byId.get(p.song_id)).filter(Boolean) as PoolRow[],
       ];
       const usedIds = new Set(picked.map((s) => s.id));
 
@@ -169,13 +236,13 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
       const seedGenre = (seed.genre || '').toLowerCase().trim();
       const seedArtist = (seed.artist || '').toLowerCase().trim();
       if (picked.length < 20) {
-        const related = [...catalog]
+        const related = pool
           .filter((s) => !usedIds.has(s.id))
           .filter((s) =>
             (seedGenre && (s.genre || '').toLowerCase().trim() === seedGenre) ||
             (seedArtist && (s.artist || '').toLowerCase().trim() === seedArtist)
           )
-          .sort((a, b) => (b.play_count ?? 0) - (a.play_count ?? 0));
+          .sort((a, b) => b.play_count - a.play_count);
         for (const s of related) {
           if (picked.length >= 20) break;
           picked.push(s);
@@ -183,11 +250,11 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
         }
       }
 
-      // Fallback 2: popular catalog — guarantees mix always plays
+      // Fallback 2: anything from the pool — guarantees mix always plays
       if (picked.length < 20) {
-        const popular = [...catalog]
+        const popular = pool
           .filter((s) => !usedIds.has(s.id))
-          .sort((a, b) => (b.play_count ?? 0) - (a.play_count ?? 0));
+          .sort((a, b) => b.play_count - a.play_count);
         for (const s of popular) {
           if (picked.length >= 20) break;
           picked.push(s);
@@ -196,9 +263,10 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
       }
 
       if (picked.length === 0) {
-        toast.error('Catalog is empty');
+        toast.error('No songs available to build a mix');
         return;
       }
+
 
       const queue: Song[] = picked.map((s) => ({
         id: s.id,
@@ -210,6 +278,7 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
         duration: s.duration ?? 0,
         genre: s.genre ?? undefined,
         mood: s.mood ?? undefined,
+        source: s.source === 'library' ? 'library' : 'indexed',
       }) as Song);
 
       const { data: playlistRow, error: playlistError } = await supabase
@@ -299,7 +368,7 @@ const AIPlaylistGenerator = memo(({ isOpen, onClose, onPlaylistCreated }: AIPlay
                 </div>
               ) : seeds.length === 0 ? (
                 <div className="text-sm text-muted-foreground py-6 text-center">
-                  Play a few catalog songs first, then come back to start a mix.
+                  No songs available yet. Play or index a few tracks, then try again.
                 </div>
               ) : (
                 <div className="space-y-2">
