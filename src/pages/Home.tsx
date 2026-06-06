@@ -474,7 +474,7 @@ const Home = () => {
                     </div>
                     <motion.button
                       whileTap={{ scale: 0.88 }}
-                      onClick={() => { triggerHaptic('selection'); togglePlayPause(); }}
+                      onClick={() => { triggerHaptic('selection'); togglePlay(); }}
                       aria-label={isPlaying ? 'Pause' : 'Play'}
                       className="flex-shrink-0 w-12 h-12 rounded-full flex items-center justify-center"
                       style={{
