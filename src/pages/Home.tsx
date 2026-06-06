@@ -1,480 +1,120 @@
-import React, { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, memo } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { Lock, ListMusic, Music, Pause, Play, Search } from 'lucide-react';
-
 import { supabase } from '@/integrations/supabase/client';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
-import { getCachedSongs, useSongCache } from '@/hooks/useSongCache';
+import { useSongCache } from '@/hooks/useSongCache';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDownloads } from '@/contexts/DownloadContext';
-import { triggerHaptic } from '@/hooks/useHaptics';
 
+import AllSongsSection from '@/components/AllSongsSection';
+
+import GlobalTopTracksSection from '@/components/GlobalTopTracksSection';
+import FeaturedArtistsSection from '@/components/FeaturedArtistsSection';
+import PremiumFirstSection from '@/components/PremiumFirstSection';
+import TrendingNowSection from '@/components/TrendingNowSection';
+import FreshReleasesSection from '@/components/FreshReleasesSection';
+import AlbumsShelf from '@/components/AlbumsShelf';
+
+
+import CountryViralSection from '@/components/CountryViralSection';
+
+
+import SleepTimerModal from '@/components/SleepTimerModal';
 import QueueDrawer from '@/components/QueueDrawer';
 import BottomNav from '@/components/BottomNav';
 import LockScreenPlayer from '@/components/LockScreenPlayer';
+import EqualizerModal from '@/components/EqualizerModal';
 import OfflineIndicator from '@/components/OfflineIndicator';
-import OptimizedImage from '@/components/OptimizedImage';
-import AllSongsSection from '@/components/AllSongsSection';
 import { TabTransition } from '@/components/PageTransition';
+import { Music, Lock, ListMusic, Sliders, Headphones } from 'lucide-react';
+import { triggerHaptic } from '@/hooks/useHaptics';
+import { usePremium } from '@/hooks/usePremium';
+import appLogo from '@/assets/app-logo.png';
 import { HomeSkeleton } from '@/components/PageSkeletons';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
 import SEOHead from '@/components/SEOHead';
 import PullToRefreshIndicator from '@/components/PullToRefresh';
 import { usePullToRefresh } from '@/hooks/usePullToRefresh';
-import appLogo from '@/assets/app-logo.png';
+
+
+// Simple empty state
+const EmptyState = memo(() => (
+  <div className="text-center py-8">
+    <div 
+      className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-3"
+      style={{
+        background: 'linear-gradient(135deg, hsl(211 100% 50% / 0.2), hsl(328 100% 54% / 0.2))',
+      }}
+    >
+      <Music className="w-8 h-8 text-muted-foreground" />
+    </div>
+    <h2 className="text-base font-semibold mb-1">No music yet</h2>
+    <p className="text-muted-foreground text-xs px-4">
+      Music will appear here once uploaded.
+    </p>
+  </div>
+));
+
+EmptyState.displayName = 'EmptyState';
+
+// Simple loading
+const LoadingSkeleton = memo(() => (
+  <div className="flex justify-center py-8">
+    <div className="w-6 h-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+  </div>
+));
+
+LoadingSkeleton.displayName = 'LoadingSkeleton';
 
 const HOME_SONGS_QUERY_KEY = ['home', 'songs'] as const;
 
-const mapSongRow = (s: any): Song => {
-  const artist = s.artists as { id: string; name: string; photo_url: string | null } | null;
-  return {
-    id: s.id,
-    title: s.title,
-    artist: s.artist,
-    album: s.album || undefined,
-    cover_url: s.cover_url || undefined,
-    audio_url: s.audio_url,
-    duration: s.duration || undefined,
-    artist_id: artist?.id || s.artist_id || undefined,
-    artist_photo_url: artist?.photo_url || undefined,
-    genre: s.genre || undefined,
-    mood: s.mood || undefined,
-    created_at: s.created_at || undefined,
-    show_in_new_releases: s.show_in_new_releases,
-    show_in_trending: s.show_in_trending,
-    is_premium_only: s.is_premium_only,
-    play_count: s.play_count ?? 0,
-  } as Song;
-};
-
 const fetchHomeSongs = async (): Promise<Song[]> => {
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(() => controller.abort(), 8_000);
+  const { data, error } = await supabase
+    .from('songs')
+    .select('*, artists(id, name, photo_url)')
+    .eq('is_visible', true)
+    .order('created_at', { ascending: false })
+    .limit(1000);
 
-  try {
-    const { data, error } = await supabase
-      .from('songs')
-      .select('*, artists(id, name, photo_url)')
-      .eq('is_visible', true)
-      .order('created_at', { ascending: false })
-      .limit(1000)
-      .abortSignal(controller.signal);
+  if (error) throw error;
+  if (!data) return [];
 
-    if (error) {
-      console.error('Home songs failed:', error);
-      return getCachedSongs() || [];
-    }
-
-    return (data || []).map(mapSongRow);
-  } catch (error) {
-    console.error('Home songs unavailable:', error);
-    return getCachedSongs() || [];
-  } finally {
-    window.clearTimeout(timeoutId);
-  }
+  return data.map((s: any) => {
+    const artistData = s.artists as { id: string; name: string; photo_url: string | null } | null;
+    return {
+      id: s.id,
+      title: s.title,
+      artist: s.artist,
+      album: s.album || undefined,
+      cover_url: s.cover_url || undefined,
+      audio_url: s.audio_url,
+      duration: s.duration || undefined,
+      artist_id: artistData?.id || s.artist_id || undefined,
+      artist_photo_url: artistData?.photo_url || undefined,
+      genre: s.genre || undefined,
+      mood: s.mood || undefined,
+      created_at: s.created_at || undefined,
+      show_in_new_releases: s.show_in_new_releases,
+      show_in_trending: s.show_in_trending,
+      is_premium_only: s.is_premium_only,
+    } as Song;
+  });
 };
-
-const fetchRecentlyPlayed = async (userId: string, songs: Song[]): Promise<Song[]> => {
-  try {
-    const { data } = await supabase
-      .from('recently_played')
-      .select('song_id, played_at')
-      .eq('user_id', userId)
-      .order('played_at', { ascending: false })
-      .limit(24);
-
-    const seen = new Set<string>();
-    const picked: Song[] = [];
-    for (const row of (data || []) as any[]) {
-      if (seen.has(row.song_id)) continue;
-      const song = songs.find((item) => item.id === row.song_id);
-      if (song) {
-        seen.add(row.song_id);
-        picked.push(song);
-      }
-      if (picked.length >= 8) break;
-    }
-    return picked;
-  } catch (error) {
-    console.error('Recently played unavailable:', error);
-    return [];
-  }
-};
-
-const byNewest = (songs: Song[]) =>
-  [...songs].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-
-const byPlays = (songs: Song[]) =>
-  [...songs].sort((a, b) => ((b as any).play_count || 0) - ((a as any).play_count || 0));
-
-const ArtworkFallback = memo(({ iconSize = 'w-8 h-8' }: { iconSize?: string }) => (
-  <div className="h-full w-full bg-gradient-to-br from-primary/30 via-accent/20 to-secondary flex items-center justify-center">
-    <Music className={`${iconSize} text-foreground/35`} />
-  </div>
-));
-ArtworkFallback.displayName = 'ArtworkFallback';
-
-const TinyBars = memo(({ active }: { active: boolean }) => (
-  <div className="flex h-4 items-end gap-[3px]">
-    {[0, 1, 2, 3].map((bar) => (
-      <span
-        key={bar}
-        className="w-[3px] rounded-full bg-primary animate-audio-wave"
-        style={{ animationDelay: `${bar * 0.11}s`, animationPlayState: active ? 'running' : 'paused' }}
-      />
-    ))}
-  </div>
-));
-TinyBars.displayName = 'TinyBars';
-
-const IconButton = memo(({ label, children, onClick }: { label: string; children: React.ReactNode; onClick: () => void }) => (
-  <motion.button
-    whileTap={{ scale: 0.88 }}
-    aria-label={label}
-    onClick={() => {
-      triggerHaptic('selection');
-      onClick();
-    }}
-    className="grid h-11 w-11 place-items-center rounded-full bg-secondary/80 text-foreground backdrop-blur-xl border border-border/70"
-  >
-    {children}
-  </motion.button>
-));
-IconButton.displayName = 'IconButton';
-
-const Section = memo(({ title, children }: { title: string; children: React.ReactNode }) => (
-  <section className="space-y-3">
-    <h2 className="px-1 text-[19px] font-extrabold leading-none tracking-normal text-foreground">{title}</h2>
-    {children}
-  </section>
-));
-Section.displayName = 'Section';
-
-const Cover = memo(({ song, className = '', eager = false }: { song?: Song; className?: string; eager?: boolean }) => (
-  <div className={`overflow-hidden bg-secondary ${className}`}>
-    {song?.cover_url ? (
-      <OptimizedImage src={song.cover_url} alt={song.title} eager={eager} className="h-full w-full object-cover" />
-    ) : (
-      <ArtworkFallback />
-    )}
-  </div>
-));
-Cover.displayName = 'Cover';
-
-const HeroDeck = memo(({ songs }: { songs: Song[] }) => {
-  const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
-  const hero = songs.find((song) => song.cover_url) || songs[0];
-  const stack = songs.filter((song) => song.id !== hero?.id && song.cover_url).slice(0, 3);
-
-  if (!hero) return null;
-
-  const isCurrent = currentSong?.id === hero.id;
-  const play = () => {
-    triggerHaptic('impactMedium');
-    if (isCurrent) togglePlay();
-    else playSong(hero, undefined, songs);
-  };
-
-  return (
-    <motion.section
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative min-h-[58dvh] rounded-[2rem] overflow-hidden border border-border/60 bg-card"
-      style={{ boxShadow: '0 30px 80px -36px hsl(var(--primary) / 0.6)' }}
-    >
-      {hero.cover_url && (
-        <img
-          src={hero.cover_url}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-75"
-          style={{ filter: 'saturate(1.15)' }}
-        />
-      )}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(180deg, hsl(0 0% 0% / 0.05) 0%, hsl(0 0% 0% / 0.38) 48%, hsl(0 0% 0% / 0.96) 100%)',
-        }}
-      />
-      <div className="absolute left-4 top-4 flex -space-x-3">
-        {stack.map((song, index) => (
-          <Cover
-            key={song.id}
-            song={song}
-            className="h-14 w-14 rounded-2xl border border-border"
-            eager={index === 0}
-          />
-        ))}
-      </div>
-      <div className="absolute inset-x-0 bottom-0 p-5">
-        <p className="mb-2 text-[12px] font-semibold text-foreground/70 line-clamp-1">{hero.artist}</p>
-        <h2 className="max-w-[12ch] text-[42px] font-black leading-[0.92] tracking-normal text-foreground line-clamp-3">
-          {hero.title}
-        </h2>
-        <div className="mt-5 flex items-center gap-3">
-          <motion.button
-            whileTap={{ scale: 0.92 }}
-            onClick={play}
-            aria-label={isCurrent && isPlaying ? 'Pause' : 'Play'}
-            className="grid h-16 w-16 place-items-center rounded-full bg-primary text-primary-foreground"
-            style={{ boxShadow: '0 12px 34px hsl(var(--primary) / 0.5)' }}
-          >
-            {isCurrent && isPlaying ? <Pause className="h-6 w-6" fill="currentColor" /> : <Play className="ml-1 h-6 w-6" fill="currentColor" />}
-          </motion.button>
-          {isCurrent && <TinyBars active={isPlaying} />}
-        </div>
-      </div>
-    </motion.section>
-  );
-});
-HeroDeck.displayName = 'HeroDeck';
-
-const CoverRail = memo(({ title, songs, large = false }: { title: string; songs: Song[]; large?: boolean }) => {
-  const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
-  if (songs.length === 0) return null;
-
-  return (
-    <Section title={title}>
-      <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-1 scrollbar-none">
-        {songs.map((song, index) => {
-          const isCurrent = currentSong?.id === song.id;
-          return (
-            <motion.button
-              key={`${title}-${song.id}`}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                triggerHaptic('selection');
-                if (isCurrent) togglePlay();
-                else playSong(song, undefined, songs);
-              }}
-              className={`${large ? 'w-[42vw] max-w-[180px]' : 'w-[31vw] max-w-[136px]'} flex-shrink-0 snap-start text-left`}
-            >
-              <div className="relative">
-                <Cover song={song} eager={index < 4} className={`${large ? 'rounded-[1.7rem]' : 'rounded-3xl'} aspect-square border border-border/60`} />
-                {isCurrent && (
-                  <div className="absolute inset-0 grid place-items-center rounded-[inherit] bg-background/45">
-                    {isPlaying ? <TinyBars active /> : <Play className="h-6 w-6 text-primary" fill="currentColor" />}
-                  </div>
-                )}
-              </div>
-              <p className="mt-2 text-[13px] font-bold leading-tight text-foreground line-clamp-1">{song.title}</p>
-              <p className="mt-0.5 text-[11px] font-medium leading-tight text-muted-foreground line-clamp-1">{song.artist}</p>
-            </motion.button>
-          );
-        })}
-      </div>
-    </Section>
-  );
-});
-CoverRail.displayName = 'CoverRail';
-
-const RankList = memo(({ songs }: { songs: Song[] }) => {
-  const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
-  if (songs.length === 0) return null;
-
-  return (
-    <Section title="Top played">
-      <div className="rounded-[1.65rem] border border-border/60 bg-card/70 overflow-hidden backdrop-blur-2xl">
-        {songs.slice(0, 6).map((song, index) => {
-          const isCurrent = currentSong?.id === song.id;
-          return (
-            <motion.button
-              key={song.id}
-              whileTap={{ scale: 0.985 }}
-              onClick={() => {
-                triggerHaptic('selection');
-                if (isCurrent) togglePlay();
-                else playSong(song, undefined, songs);
-              }}
-              className="flex w-full items-center gap-3 p-3 text-left active:bg-secondary/60"
-            >
-              <span className="w-7 text-center text-[20px] font-black tabular-nums text-muted-foreground/45">{index + 1}</span>
-              <Cover song={song} eager={index < 3} className="h-14 w-14 rounded-2xl" />
-              <div className="min-w-0 flex-1">
-                <p className={`truncate text-[14px] font-bold leading-tight ${isCurrent ? 'text-primary' : 'text-foreground'}`}>{song.title}</p>
-                <p className="mt-1 truncate text-[12px] font-medium text-muted-foreground">{song.artist}</p>
-              </div>
-              {isCurrent ? <TinyBars active={isPlaying} /> : <Play className="h-4 w-4 text-muted-foreground" fill="currentColor" />}
-            </motion.button>
-          );
-        })}
-      </div>
-    </Section>
-  );
-});
-RankList.displayName = 'RankList';
-
-const AlbumWall = memo(({ songs }: { songs: Song[] }) => {
-  const { playSong } = usePlayer();
-  const albums = useMemo(() => {
-    const map = new Map<string, { name: string; artist: string; cover?: string; tracks: Song[] }>();
-    songs.forEach((song) => {
-      if (!song.album) return;
-      const key = `${song.album.toLowerCase()}::${song.artist.toLowerCase()}`;
-      const item = map.get(key) || { name: song.album, artist: song.artist, cover: song.cover_url, tracks: [] };
-      item.cover = item.cover || song.cover_url;
-      item.tracks.push(song);
-      map.set(key, item);
-    });
-    return Array.from(map.values()).slice(0, 4);
-  }, [songs]);
-
-  if (albums.length === 0) return null;
-
-  return (
-    <Section title="Albums">
-      <div className="grid grid-cols-2 gap-3">
-        {albums.map((album, index) => (
-          <motion.button
-            key={`${album.name}-${album.artist}`}
-            whileTap={{ scale: 0.96 }}
-            onClick={() => {
-              triggerHaptic('selection');
-              playSong(album.tracks[0], undefined, album.tracks);
-            }}
-            className="text-left"
-          >
-            <div className="relative aspect-square overflow-hidden rounded-[1.7rem] border border-border/60 bg-secondary">
-              {album.cover ? <OptimizedImage src={album.cover} alt={album.name} eager={index < 2} className="h-full w-full object-cover" /> : <ArtworkFallback />}
-              <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-background/90 to-transparent" />
-            </div>
-            <p className="mt-2 truncate text-[13px] font-bold text-foreground">{album.name}</p>
-            <p className="mt-0.5 truncate text-[11px] font-medium text-muted-foreground">{album.artist}</p>
-          </motion.button>
-        ))}
-      </div>
-    </Section>
-  );
-});
-AlbumWall.displayName = 'AlbumWall';
-
-const ArtistStrip = memo(({ songs }: { songs: Song[] }) => {
-  const navigate = useNavigate();
-  const artists = useMemo(() => {
-    const map = new Map<string, { name: string; image?: string; count: number }>();
-    songs.forEach((song) => {
-      const key = song.artist.toLowerCase();
-      const item = map.get(key) || { name: song.artist, image: song.artist_photo_url || song.cover_url, count: 0 };
-      item.image = item.image || song.artist_photo_url || song.cover_url;
-      item.count += 1;
-      map.set(key, item);
-    });
-    return Array.from(map.values()).sort((a, b) => b.count - a.count).slice(0, 10);
-  }, [songs]);
-
-  if (artists.length === 0) return null;
-
-  return (
-    <Section title="Artists">
-      <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-1 scrollbar-none">
-        {artists.map((artist) => (
-          <motion.button
-            key={artist.name}
-            whileTap={{ scale: 0.92 }}
-            onClick={() => {
-              triggerHaptic('selection');
-              navigate(`/artist/${encodeURIComponent(artist.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''))}`);
-            }}
-            className="w-[78px] flex-shrink-0 text-center"
-          >
-            <div className="mx-auto h-[74px] w-[74px] overflow-hidden rounded-full border border-border/70 bg-secondary">
-              {artist.image ? <img src={artist.image} alt={artist.name} loading="lazy" className="h-full w-full object-cover" /> : <ArtworkFallback iconSize="w-6 h-6" />}
-            </div>
-            <p className="mt-2 truncate text-[11px] font-bold text-foreground">{artist.name}</p>
-          </motion.button>
-        ))}
-      </div>
-    </Section>
-  );
-});
-ArtistStrip.displayName = 'ArtistStrip';
-
-const EmptyState = memo(() => {
-  const navigate = useNavigate();
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-      className="pb-8"
-    >
-      <section
-        className="relative overflow-hidden rounded-[2rem] border border-border/60 p-7"
-        style={{
-          minHeight: '70dvh',
-          boxShadow: '0 30px 80px -38px hsl(var(--primary) / 0.55)',
-          background:
-            'radial-gradient(120% 80% at 50% 0%, hsl(var(--primary) / 0.35), transparent 55%), linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)))',
-        }}
-      >
-        <motion.div
-          aria-hidden="true"
-          className="absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full"
-          style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), transparent 70%)', filter: 'blur(40px)' }}
-          animate={{ scale: [1, 1.08, 1], opacity: [0.7, 0.9, 0.7] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-        />
-
-        <div className="relative flex h-full flex-col">
-          <div className="flex flex-1 flex-col items-center justify-center pt-8 text-center">
-            <motion.div
-              animate={{ y: [0, -6, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              className="grid h-28 w-28 place-items-center rounded-[2rem] border border-border/70 bg-card/80 backdrop-blur-2xl"
-              style={{ boxShadow: '0 18px 50px -16px hsl(var(--primary) / 0.6)' }}
-            >
-              <img src={appLogo} alt="Universflow" className="h-14 w-14 object-contain" />
-            </motion.div>
-            <h2 className="mt-7 text-[34px] font-black leading-[0.95] tracking-tight text-foreground">
-              Welcome to<br />Universflow
-            </h2>
-            <p className="mt-3 max-w-[28ch] text-[14px] font-medium leading-relaxed text-muted-foreground">
-              Your music library is empty. Search to start streaming, or open the library to explore downloads.
-            </p>
-          </div>
-
-          <div className="mt-8 space-y-3">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => { triggerHaptic('impactMedium'); navigate('/search'); }}
-              className="flex w-full items-center justify-center gap-2 rounded-full bg-primary py-4 text-[15px] font-bold text-primary-foreground"
-              style={{ boxShadow: '0 14px 38px -10px hsl(var(--primary) / 0.7)' }}
-            >
-              <Search className="h-5 w-5" />
-              Find music
-            </motion.button>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => { triggerHaptic('selection'); navigate('/library'); }}
-              className="flex w-full items-center justify-center gap-2 rounded-full border border-border/70 bg-card/70 py-4 text-[15px] font-bold text-foreground backdrop-blur-2xl"
-            >
-              <ListMusic className="h-5 w-5" />
-              Open library
-            </motion.button>
-          </div>
-        </div>
-      </section>
-    </motion.div>
-  );
-});
-EmptyState.displayName = 'EmptyState';
 
 const Home = () => {
-  const navigate = useNavigate();
-  const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
+  const { currentSong, playSong } = usePlayer();
   const { cachedSongs, updateCache } = useSongCache();
-  const { isOffline, user } = useAuth();
+  const { isOffline } = useAuth();
   const { downloads } = useDownloads();
+  const { isPremium } = usePremium();
   const queryClient = useQueryClient();
-
   const [showLockScreen, setShowLockScreen] = useState(false);
+  const [showSleepTimer, setShowSleepTimer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
+  const [showEqualizer, setShowEqualizer] = useState(false);
 
-  const { data: onlineSongs = cachedSongs || [], isLoading } = useQuery({
+  const { data: onlineSongs = (cachedSongs || []), isLoading } = useQuery({
     queryKey: HOME_SONGS_QUERY_KEY,
     queryFn: fetchHomeSongs,
     initialData: cachedSongs && cachedSongs.length > 0 ? cachedSongs : undefined,
@@ -483,27 +123,36 @@ const Home = () => {
     enabled: !isOffline,
   });
 
+  // When offline → ONLY show downloaded songs. When online → full catalog.
   const songs: Song[] = useMemo(() => {
-    if (!isOffline) return onlineSongs;
-    return downloads.map((download) => ({
-      id: download.id,
-      title: download.title,
-      artist: download.artist,
-      album: download.album,
-      cover_url: download.cover_url,
-      audio_url: download.blobUrl || download.audio_url,
-      duration: download.duration,
-    } as Song));
-  }, [downloads, isOffline, onlineSongs]);
+    if (isOffline) {
+      return downloads.map((d) => ({
+        id: d.id,
+        title: d.title,
+        artist: d.artist,
+        album: d.album,
+        cover_url: d.cover_url,
+        audio_url: d.blobUrl || d.audio_url,
+        duration: d.duration,
+      } as Song));
+    }
+    return onlineSongs;
+  }, [isOffline, downloads, onlineSongs]);
 
+  // Persist to local song cache for instant boot next time
   useEffect(() => {
-    if (!isOffline && onlineSongs.length > 0) updateCache(onlineSongs);
-  }, [isOffline, onlineSongs, updateCache]);
+    if (!isOffline && onlineSongs && onlineSongs.length > 0) updateCache(onlineSongs);
+  }, [onlineSongs, updateCache, isOffline]);
 
+  const loading = isLoading && songs.length === 0 && !isOffline;
+
+  const allSongs = useMemo(() => songs, [songs]);
+
+  // Realtime: DIFF-based cache patch — only mutate the affected row instead of refetching
   useEffect(() => {
     if (isOffline) return;
     const channel = supabase
-      .channel('home-song-updates')
+      .channel('songs-realtime-diff')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'songs' }, (payload) => {
         const eventType = payload.eventType as 'INSERT' | 'UPDATE' | 'DELETE';
         const newRow = payload.new as any;
@@ -511,8 +160,17 @@ const Home = () => {
 
         queryClient.setQueryData<Song[]>(HOME_SONGS_QUERY_KEY, (current) => {
           if (!current) return current;
-          if (eventType === 'DELETE') return current.filter((song) => song.id !== oldRow?.id);
-          if (!newRow || newRow.is_visible === false) return current.filter((song) => song.id !== newRow?.id);
+
+          if (eventType === 'DELETE') {
+            return current.filter((s) => s.id !== oldRow?.id);
+          }
+
+          if (!newRow) return current;
+
+          // Hide if no longer visible
+          if (newRow.is_visible === false) {
+            return current.filter((s) => s.id !== newRow.id);
+          }
 
           const mapped: Song = {
             id: newRow.id,
@@ -523,19 +181,19 @@ const Home = () => {
             audio_url: newRow.audio_url,
             duration: newRow.duration || undefined,
             artist_id: newRow.artist_id || undefined,
-            genre: newRow.genre || undefined,
-            mood: newRow.mood || undefined,
-            created_at: newRow.created_at || undefined,
             show_in_new_releases: newRow.show_in_new_releases,
             show_in_trending: newRow.show_in_trending,
             is_premium_only: newRow.is_premium_only,
-            play_count: newRow.play_count ?? 0,
           } as Song;
 
-          const index = current.findIndex((song) => song.id === mapped.id);
-          if (index === -1) return [mapped, ...current];
+          const idx = current.findIndex((s) => s.id === newRow.id);
+          if (eventType === 'INSERT' || idx === -1) {
+            // Prepend new song (preserves "latest first" order)
+            return [mapped, ...current];
+          }
+          // UPDATE — patch in place, preserve joined fields like artist_photo_url
           const next = current.slice();
-          next[index] = { ...current[index], ...mapped };
+          next[idx] = { ...current[idx], ...mapped };
           return next;
         });
       })
@@ -544,28 +202,19 @@ const Home = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [isOffline, queryClient]);
+  }, [queryClient, isOffline]);
 
-  const allSongs = useMemo(() => songs, [songs]);
-  const loading = isLoading && allSongs.length === 0 && !isOffline;
 
-  const { data: recent = [] } = useQuery({
-    queryKey: ['home', 'recently-played', user?.id, allSongs.length],
-    queryFn: () => fetchRecentlyPlayed(user!.id, allSongs),
-    enabled: !!user && !isOffline && allSongs.length > 0,
-    staleTime: 60_000,
-  });
 
-  const trending = useMemo(() => {
-    const flagged = allSongs.filter((song) => (song as any).show_in_trending);
-    return (flagged.length ? flagged : byPlays(allSongs)).slice(0, 12);
-  }, [allSongs]);
 
-  const newReleases = useMemo(() => {
-    const flagged = allSongs.filter((song) => (song as any).show_in_new_releases);
-    return (flagged.length ? flagged : byNewest(allSongs)).slice(0, 12);
-  }, [allSongs]);
+  const greeting = useCallback(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
 
+  // Pull-to-refresh — re-fetches home feed on overscroll
   const pullToRefresh = usePullToRefresh({
     onRefresh: async () => {
       triggerHaptic('impactMedium');
@@ -576,102 +225,228 @@ const Home = () => {
 
   return (
     <TabTransition>
-      <div className="relative flex h-[100dvh] flex-col overflow-hidden bg-background text-foreground">
+      <div className="h-[100dvh] bg-background relative flex flex-col overflow-hidden">
         <SEOHead
-          title="Universflow — Music Home"
-          description="Stream your Universflow music library with charts, albums, artists, new releases, and playback controls."
+          title="Univers Flow — Free Music Streaming & Playlists"
+          description="Your personalized music feed: trending tracks, featured artists, auto-generated mixes, and your now-playing card. Stream and download free."
           path="/home"
           jsonLdId="home-jsonld"
           jsonLd={{
             '@context': 'https://schema.org',
             '@type': 'CollectionPage',
-            name: 'Universflow Home',
+            name: 'Univers Flow — Home',
             url: 'https://universflow.in/home',
-            description: 'Music home with library discovery, charts, albums, and artists.',
-            isPartOf: { '@type': 'WebSite', name: 'Universflow', url: 'https://universflow.in' },
+            description: 'Personalized music feed with trending tracks, featured artists, and auto-generated mixes.',
+            isPartOf: { '@type': 'WebSite', name: 'Univers Flow', url: 'https://universflow.in' },
           }}
         />
-        <h1 className="sr-only">Universflow music home</h1>
-
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <h1 className="sr-only">Univers Flow Music Player</h1>
+        {/* Ambient background — cinematic */}
+        <div className="absolute inset-0 pointer-events-none">
           {currentSong?.cover_url && (
             <img
               src={currentSong.cover_url}
               alt=""
-              aria-hidden="true"
-              className="absolute -top-28 left-1/2 h-[70%] w-[190%] -translate-x-1/2 object-cover opacity-25"
-              style={{ filter: 'blur(70px) saturate(1.35)' }}
+              className="absolute top-0 left-1/2 -translate-x-1/2 w-[250%] blur-[120px] opacity-[0.12] saturate-150"
+              style={{ height: '60%' }}
             />
           )}
-          <div className="absolute inset-0 bg-gradient-to-b from-background/15 via-background to-background" />
+          <div 
+            className="absolute inset-0"
+            style={{
+              background: `
+                radial-gradient(ellipse 80% 50% at 50% 0%, hsl(350 100% 60% / 0.08), transparent),
+                radial-gradient(ellipse 60% 40% at 80% 20%, hsl(280 100% 65% / 0.05), transparent),
+                radial-gradient(ellipse 40% 30% at 10% 60%, hsl(210 100% 60% / 0.04), transparent)
+              `,
+            }}
+          />
         </div>
 
-        <header className="relative z-30 flex items-center justify-between px-4 pb-3 pt-3 safe-area-pt">
-          <button
-            aria-label="Profile"
-            onClick={() => {
-              triggerHaptic('selection');
-              navigate('/profile');
-            }}
-            className="h-12 w-12 overflow-hidden rounded-full border border-border bg-secondary"
-          >
-            <img src={appLogo} alt="Universflow" className="h-full w-full object-cover" width={48} height={48} decoding="async" />
-          </button>
-          <div className="flex items-center gap-2">
-            <IconButton label="Search" onClick={() => navigate('/search')}><Search className="h-5 w-5" /></IconButton>
-            <IconButton label="Queue" onClick={() => setShowQueue(true)}><ListMusic className="h-5 w-5" /></IconButton>
-            <IconButton label="Lock screen" onClick={() => setShowLockScreen(true)}><Lock className="h-5 w-5" /></IconButton>
+        {/* Premium Header */}
+        <header
+          className="flex-shrink-0 z-30 px-4 pt-3 pb-3 safe-area-pt"
+          style={{
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(40px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+            borderBottom: '0.5px solid rgba(255, 255, 255, 0.06)',
+          }}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0"
+                style={{
+                  boxShadow: '0 2px 12px hsl(var(--primary) / 0.25)',
+                  border: '1.5px solid hsl(var(--primary) / 0.3)',
+                }}
+              >
+                <img src={appLogo} alt="Univers Flow logo" width={40} height={40} {...({ fetchpriority: "high" } as any)} decoding="async" className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <p className="text-[16px] font-bold text-foreground tracking-tight">{greeting()}</p>
+                <p className="text-[11px] text-muted-foreground/50 font-medium tracking-wide">
+                  Your music, anytime
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-1.5">
+              {[
+                { icon: ListMusic, action: () => setShowQueue(true), label: 'Open queue' },
+                ...(isPremium || isOffline ? [{ icon: Sliders, action: () => setShowEqualizer(true), label: 'Open equalizer' }] : []),
+                { icon: Lock, action: () => setShowLockScreen(true), label: 'Open lock screen player' },
+              ].map(({ icon: Icon, action, label }, i) => (
+                <motion.button
+                  key={i}
+                  onClick={() => { triggerHaptic('selection'); action(); }}
+                  aria-label={label}
+                  className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '0.5px solid rgba(255,255,255,0.10)',
+                  }}
+                  whileTap={{ scale: 0.85 }}
+                >
+                  <Icon className="w-4 h-4 text-foreground/60" />
+                </motion.button>
+              ))}
+            </div>
           </div>
         </header>
 
-        <main className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden px-4 pb-36 pt-1" style={{ WebkitOverflowScrolling: 'touch' }} {...pullToRefresh.handlers}>
-          <PullToRefreshIndicator
-            pullDistance={pullToRefresh.pullDistance}
-            isRefreshing={pullToRefresh.isRefreshing}
-            progress={pullToRefresh.progress}
-            isTriggered={pullToRefresh.isTriggered}
-          />
-
-          {loading ? <HomeSkeleton /> : allSongs.length === 0 ? <EmptyState /> : (
-            <div className="space-y-8">
-              {!isOffline && <HeroDeck songs={allSongs} />}
-
+        {/* Scrollable content area */}
+        <main 
+          className="flex-1 overflow-y-auto overflow-x-hidden px-3 pt-4 pb-36 relative z-10"
+          style={{ WebkitOverflowScrolling: 'touch' }}
+          {...pullToRefresh.handlers}
+        >
+        <PullToRefreshIndicator
+          pullDistance={pullToRefresh.pullDistance}
+          isRefreshing={pullToRefresh.isRefreshing}
+          progress={pullToRefresh.progress}
+          isTriggered={pullToRefresh.isTriggered}
+        />
+        {loading ? (
+            <HomeSkeleton />
+          ) : isOffline && songs.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="space-y-3">
+              {/* Live admin announcement banner */}
+              <AnnouncementBanner />
+              {/* Hero Quick-Listen Banner */}
               {currentSong && (
-                <motion.button
-                  initial={{ opacity: 0, y: 10 }}
+                <motion.div
+                  initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => {
-                    triggerHaptic('selection');
-                    togglePlay();
+                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+                  className="rounded-3xl overflow-hidden relative"
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%)',
+                    border: '0.5px solid rgba(255,255,255,0.10)',
+                    backdropFilter: 'blur(30px)',
+                    WebkitBackdropFilter: 'blur(30px)',
                   }}
-                  className="flex w-full items-center gap-3 rounded-[1.6rem] border border-border/70 bg-card/80 p-3 text-left backdrop-blur-2xl"
                 >
-                  <Cover song={currentSong} className="h-16 w-16 rounded-2xl" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px] font-black text-foreground">{currentSong.title}</p>
-                    <p className="mt-1 truncate text-[12px] font-medium text-muted-foreground">{currentSong.artist}</p>
+                  {/* Album art background blur */}
+                  {currentSong.cover_url && (
+                    <img
+                      src={currentSong.cover_url}
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover opacity-25 blur-2xl saturate-150"
+                    />
+                  )}
+                  <div className="relative flex items-center gap-3.5 p-4">
+                    <div
+                      className="w-16 h-16 rounded-2xl overflow-hidden flex-shrink-0"
+                      style={{
+                        boxShadow: '0 6px 24px rgba(0,0,0,0.4)',
+                        border: '0.5px solid rgba(255,255,255,0.10)',
+                      }}
+                    >
+                      {currentSong.cover_url ? (
+                        <img src={currentSong.cover_url} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                          <Headphones className="w-7 h-7 text-primary" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="text-[10px] uppercase tracking-[0.15em] font-bold mb-1"
+                        style={{ color: 'hsl(var(--primary))' }}
+                      >
+                        Now Playing
+                      </p>
+                      <p className="text-[15px] font-bold text-foreground truncate leading-tight">{currentSong.title}</p>
+                      <p className="text-[12px] text-muted-foreground/60 truncate mt-0.5">{currentSong.artist}</p>
+                    </div>
+                    <div
+                      className="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
+                      style={{
+                        background: 'linear-gradient(135deg, hsl(var(--primary) / 0.2), hsl(var(--primary) / 0.1))',
+                        border: '0.5px solid hsl(var(--primary) / 0.2)',
+                      }}
+                    >
+                      <div className="flex items-end gap-[3px] h-4">
+                        {[0, 1, 2, 3].map(i => (
+                          <div
+                            key={i}
+                            className="w-[3px] bg-primary rounded-full animate-audio-wave"
+                            style={{ animationDelay: `${i * 0.12}s` }}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   </div>
-                  <div className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground">
-                    {isPlaying ? <Pause className="h-5 w-5" fill="currentColor" /> : <Play className="ml-0.5 h-5 w-5" fill="currentColor" />}
-                  </div>
-                </motion.button>
+                </motion.div>
               )}
 
-              {!isOffline && recent.length > 0 && <CoverRail title="Continue" songs={recent} large />}
-              {!isOffline && <CoverRail title="New" songs={newReleases} />}
-              {!isOffline && <RankList songs={trending} />}
-              {!isOffline && <AlbumWall songs={allSongs} />}
-              {!isOffline && <ArtistStrip songs={allSongs} />}
-              <CoverRail title={isOffline ? 'Downloads' : 'Library'} songs={allSongs.slice(0, 18)} />
-              {isOffline && <AllSongsSection songs={allSongs} />}
+              {/* Online-only discovery sections — hidden when offline */}
+              {!isOffline && (
+                <>
+                  {/* Premium-only / early-access shelf (teaser for free users) */}
+                  <PremiumFirstSection />
+
+                  {/* Trending Now — admin-curated trending catalog */}
+                  <TrendingNowSection songs={allSongs} />
+
+                  {/* Fresh Releases — newest drops */}
+                  <FreshReleasesSection songs={allSongs} />
+
+                  {/* Albums — full records, one tap to play */}
+                  <AlbumsShelf songs={allSongs} />
+
+                  {/* Artist discovery */}
+                  <FeaturedArtistsSection />
+
+                  {/* Viral Right Now — per-country viral + global charts */}
+                  <CountryViralSection />
+
+                  {/* Top 30 from your followed artists */}
+                  <GlobalTopTracksSection />
+
+                </>
+              )}
+
+
+              {/* Saved songs only when offline — uploaded catalog is hidden from online Home */}
+              {isOffline && allSongs.length > 0 && (
+                <AllSongsSection songs={allSongs} />
+              )}
+
             </div>
           )}
         </main>
 
         <BottomNav />
         {showLockScreen && <LockScreenPlayer isOpen={showLockScreen} onClose={() => setShowLockScreen(false)} />}
+        {showSleepTimer && <SleepTimerModal isOpen={showSleepTimer} onClose={() => setShowSleepTimer(false)} />}
         {showQueue && <QueueDrawer isOpen={showQueue} onClose={() => setShowQueue(false)} />}
+        {showEqualizer && <EqualizerModal isOpen={showEqualizer} onClose={() => setShowEqualizer(false)} />}
         <OfflineIndicator />
       </div>
     </TabTransition>

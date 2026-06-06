@@ -99,16 +99,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const LazyFallback = () => (
-  <div className="grid min-h-[100dvh] place-items-center bg-background text-foreground">
-    <div className="flex flex-col items-center gap-4">
-      <div className="h-12 w-12 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-secondary">
-        <div className="h-full w-1/2 rounded-full bg-primary animate-pulse" />
-      </div>
-    </div>
-  </div>
-);
+const LazyFallback = () => <div className="min-h-screen bg-background" />;
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, isLoading } = useAuth();
