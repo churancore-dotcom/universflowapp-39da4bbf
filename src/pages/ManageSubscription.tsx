@@ -176,11 +176,9 @@ const ManageSubscription = () => {
             initial={{ opacity: 0, y: 20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={iosSpring}
-            className="relative overflow-hidden rounded-3xl p-6"
+            className="relative overflow-hidden rounded-3xl p-6 uf-rose-gradient"
             style={{
-              background:
-                'linear-gradient(135deg, #fbbf24 0%, #f59e0b 45%, #d97706 100%)',
-              boxShadow: '0 24px 60px -20px rgba(245, 158, 11, 0.55)',
+              boxShadow: '0 24px 60px -20px rgba(255, 45, 85, 0.55)',
             }}
           >
             {/* Decorative blobs */}
