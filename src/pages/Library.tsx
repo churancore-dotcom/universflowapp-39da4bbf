@@ -268,7 +268,7 @@ const Library = () => {
                     key={tab.value}
                     value={tab.value}
                     disabled={disabled}
-                    className={`h-full rounded-2xl gap-1 text-[10px] font-bold data-[state=active]:uf-rose-gradient data-[state=active]:text-black flex flex-col items-center justify-center py-0.5 transition-all ${disabled ? 'opacity-30 pointer-events-none' : ''}`}
+                    className={`h-full rounded-2xl gap-1 text-[10px] font-bold data-[state=active]:bg-primary data-[state=active]:text-background flex flex-col items-center justify-center py-0.5 transition-all ${disabled ? 'opacity-30 pointer-events-none' : ''}`}
                   >
                     <Icon className="w-3.5 h-3.5" />
                     <span>{tab.label}</span>
