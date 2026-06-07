@@ -314,6 +314,7 @@ const Search = () => {
             </div>
           )}
 
+          </div>
         </header>
 
         {/* Content */}
