@@ -20,7 +20,7 @@ const fadeUp = (i: number) => ({
  * Rose-ember palette, Bebas Neue display, real data only.
  */
 const HomeBento: React.FC<Props> = ({ songs }) => {
-  const { currentSong, playSong, queue, currentIndex } = usePlayer();
+  const { currentSong, playSong } = usePlayer();
   const navigate = useNavigate();
 
   const hero: Song | undefined = currentSong || songs[0];
