@@ -257,17 +257,16 @@ const Search = () => {
           }} />
         </div>
 
-        {/* Header */}
-        <header className="flex-shrink-0 z-30 px-4 pt-3 pb-3 safe-area-pt" style={{
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(40px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-          borderBottom: '0.5px solid rgba(255, 255, 255, 0.06)',
-        }}>
-          <motion.h1 className="text-2xl font-bold mb-3 tracking-tight"
-            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
-            Search
-          </motion.h1>
+        {/* Header — rose-ember hero matching Home */}
+        <header className="flex-shrink-0 z-30 px-3 pt-3 pb-3 safe-area-pt">
+          <RoseHero
+            eyebrow="Universflow"
+            title="DISCOVER"
+            subtitle="Songs · artists · albums · worldwide"
+            compact
+          />
+          <div className="px-1 mt-3">
+
 
           <div className="relative">
             <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
