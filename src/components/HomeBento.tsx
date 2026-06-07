@@ -2,7 +2,7 @@ import React, { memo, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Play, Headphones } from 'lucide-react';
+import { Play, Pause, Headphones } from 'lucide-react';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { supabase } from '@/integrations/supabase/client';
 import { triggerHaptic } from '@/hooks/useHaptics';
@@ -23,7 +23,7 @@ const fadeUp = (i: number) => ({
  * Falls back to stream_songs when the local catalog is empty.
  */
 const HomeBento: React.FC<Props> = ({ songs }) => {
-  const { currentSong, playSong } = usePlayer();
+  const { currentSong, playSong, togglePlay, isPlaying } = usePlayer();
   const navigate = useNavigate();
 
   // Stream-songs fallback (catalog is mostly stream-only in this app).
@@ -78,8 +78,12 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
   const handleResume = () => {
     if (!hero) return;
     triggerHaptic('selection');
-    if (currentSong) return; // already playing, tap is no-op visual
-    playSong(hero, null, pool.slice(0, 30));
+    // Real working playback: toggle if same song, else start fresh
+    if (currentSong && currentSong.id === hero.id) {
+      togglePlay();
+    } else {
+      playSong(hero, null, pool.slice(0, 30));
+    }
   };
 
   const handleMood = (mood: string) => {
@@ -87,22 +91,49 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
     navigate(`/search?q=${encodeURIComponent(mood)}`);
   };
 
+  const heroPlaying = !!currentSong && currentSong.id === hero?.id && isPlaying;
+
   return (
     <div className="space-y-3" style={{ fontFamily: 'Barlow, Inter, system-ui, sans-serif' }}>
-      {/* Hero — Continue Listening */}
+      {/* Hero — Continue Listening (real playback, cover-as-background) */}
       {hero && (
         <motion.button
           {...fadeUp(0)}
           onClick={handleResume}
-          className="w-full text-left rounded-3xl p-5 relative overflow-hidden block active:scale-[0.98] transition-transform"
+          className="w-full text-left rounded-3xl p-5 relative overflow-hidden block active:scale-[0.98] transition-transform min-h-[148px]"
           style={{
             background: 'linear-gradient(135deg, #FF2D55 0%, #FFB199 100%)',
             boxShadow: '0 12px 40px -10px rgba(255,45,85,0.45)',
           }}
         >
-          <div className="relative z-10">
+          {/* Cover as background — large blurred photo on the right, masked into the gradient */}
+          {hero.cover_url && (
+            <>
+              <img
+                src={hero.cover_url}
+                alt=""
+                aria-hidden
+                className="absolute inset-y-0 right-0 h-full w-2/3 object-cover pointer-events-none"
+                style={{
+                  filter: 'blur(18px) saturate(140%)',
+                  opacity: 0.55,
+                  WebkitMaskImage: 'linear-gradient(to left, #000 30%, transparent 100%)',
+                  maskImage: 'linear-gradient(to left, #000 30%, transparent 100%)',
+                }}
+              />
+              <img
+                src={hero.cover_url}
+                alt=""
+                aria-hidden
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-24 h-24 rounded-2xl object-cover pointer-events-none shadow-2xl"
+                style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.35)' }}
+              />
+            </>
+          )}
+
+          <div className="relative z-10 pr-28">
             <p className="text-black/60 text-[10px] font-extrabold uppercase tracking-[0.18em] mb-1">
-              {currentSong ? 'Now Playing' : 'Continue Listening'}
+              {currentSong ? (heroPlaying ? 'Now Playing' : 'Paused') : 'Continue Listening'}
             </p>
             <h3
               className="text-black text-[28px] leading-[0.95] mb-4 truncate"
@@ -112,23 +143,20 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
             </h3>
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 bg-black rounded-full flex items-center justify-center shadow-lg shrink-0">
-                <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                {heroPlaying ? (
+                  <Pause className="w-4 h-4 text-white fill-white" />
+                ) : (
+                  <Play className="w-4 h-4 text-white fill-white ml-0.5" />
+                )}
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-black/80 text-xs font-semibold truncate">{hero.artist}</p>
                 <div className="mt-1.5 h-[3px] bg-black/15 rounded-full overflow-hidden">
-                  <div className="h-full bg-black rounded-full" style={{ width: currentSong ? '62%' : '12%' }} />
+                  <div className="h-full bg-black rounded-full" style={{ width: heroPlaying ? '62%' : '12%' }} />
                 </div>
               </div>
             </div>
           </div>
-          {hero.cover_url && (
-            <img
-              src={hero.cover_url}
-              alt=""
-              className="absolute -right-6 -top-6 w-36 h-36 rounded-full object-cover opacity-25 blur-[2px] pointer-events-none"
-            />
-          )}
         </motion.button>
       )}
 
