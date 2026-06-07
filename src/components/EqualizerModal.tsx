@@ -17,6 +17,7 @@ import {
   type StudioSpaceId,
 } from '@/lib/audioEngine';
 import { useEngineState } from '@/hooks/useGlobalAudioEngine';
+import { setEQSettings, useEQSettings } from '@/lib/eqSettings';
 
 interface StudioSpace {
   id: StudioSpaceId;
@@ -80,43 +81,13 @@ const defaultBands: EQBand[] = [
   { frequency: 16000, gain: 0, label: '16k' },
 ];
 
-const STORAGE_KEY = 'eq_settings';
-
-function loadSettings() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return null;
-}
-
-function saveSettings(data: any) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    // Notify PlayerContext so it can re-source the current track through the
-    // CORS-safe proxy if EQ just became active mid-song. Without this, the
-    // engine stays in "direct" mode and EQ does nothing until the next track.
-    try { window.dispatchEvent(new CustomEvent('uf-eq-changed')); } catch {}
-  } catch {}
-}
-
-
 const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
   const { audioElement, currentSong } = usePlayer();
   const engineMode = useEngineState();
   const isConnected = engineMode === 'processed';
-
-  const saved = loadSettings();
-  const [bands, setBandsState] = useState<EQBand[]>(
-    saved?.bands ? defaultBands.map((b, i) => ({ ...b, gain: saved.bands[i] ?? 0 })) : defaultBands
-  );
-  const [bassBoost, setBassBoost] = useState(Math.min(saved?.bassBoost ?? 0, 100));
-  const [reverb, setReverb] = useState(Math.min(saved?.reverb ?? 0, 45));
-  const [playbackSpeed, setPlaybackSpeed] = useState(saved?.playbackSpeed ?? 1);
-  const [spatialAudio, setSpatialAudio] = useState(saved?.spatialAudio ?? false);
-  const [studioSpace, setStudioSpace] = useState<StudioSpaceId>(saved?.studioSpace ?? 'off');
-  const [lateNight, setLateNight] = useState<boolean>(saved?.lateNight ?? false);
-  const [activePreset, setActivePreset] = useState<string>(saved?.activePreset ?? 'flat');
+  const settings = useEQSettings();
+  const bands = defaultBands.map((b, i) => ({ ...b, gain: settings.bands[i] ?? 0 }));
+  const { bassBoost, reverb, playbackSpeed, spatialAudio, studioSpace, lateNight, activePreset } = settings;
 
   // Keep the WebAudio graph attached for every normal song. Flat settings are
   // neutral, but staying connected makes presets/sliders and next-song changes
