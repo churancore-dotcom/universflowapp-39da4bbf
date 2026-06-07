@@ -161,11 +161,7 @@ const GlobalTopTracksSection = () => {
               className="w-40 flex-shrink-0 rounded-3xl border border-border/50 bg-card/70 p-3 text-left transition-transform active:scale-[0.98]"
             >
               <div className="relative mb-3 aspect-square overflow-hidden rounded-2xl bg-muted/50">
-                {track.cover_url ? (
-                  <img src={track.cover_url} alt={`${track.title} cover art`} className="h-full w-full object-cover" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center"><Music2 className="w-7 h-7 text-muted-foreground" /></div>
-                )}
+                <img src={track.cover_url!} alt={`${track.title} cover art`} className="h-full w-full object-cover" loading="lazy" decoding="async" referrerPolicy="no-referrer" />
                 {isResolving && (
                   <div className="absolute bottom-2 right-2 rounded-full border border-border/60 bg-background/85 px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
                     <Loader2 className="w-3 h-3 animate-spin" />
