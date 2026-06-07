@@ -15,6 +15,7 @@ import LikeButton from '@/components/LikeButton';
 import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
 import SEOHead from '@/components/SEOHead';
+import RoseHero from '@/components/RoseHero';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LibrarySkeleton, LibraryArtistsSkeleton } from '@/components/PageSkeletons';
 import PlaylistCover from '@/components/PlaylistCover';
@@ -234,24 +235,18 @@ const Library = () => {
           />
         </div>
 
-        {/* Header — glassmorphism */}
-        <header
-          className="flex-shrink-0 z-30 px-4 pt-3 pb-2.5 safe-area-pt"
-          style={{
-            background: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(40px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-            borderBottom: '0.5px solid rgba(255, 255, 255, 0.06)',
-          }}
-        >
-          <motion.h1
-            className="text-2xl font-bold tracking-tight"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            Your Library
-          </motion.h1>
+        {/* Rose-ember hero — matches Home aesthetic */}
+        <header className="flex-shrink-0 z-30 px-3 pt-3 pb-2 safe-area-pt">
+          <RoseHero
+            eyebrow="Universflow"
+            title="YOUR LIBRARY"
+            subtitle={
+              <span>
+                {likedSongs.length} liked · {downloads.length} downloads · {playlists.length} playlists
+              </span>
+            }
+            coverUrl={likedSongs[0]?.cover_url || downloads[0]?.cover_url || playlists[0]?.cover_url || null}
+          />
         </header>
 
         <main className="flex-1 overflow-hidden px-3 pt-2.5 flex flex-col relative z-10">

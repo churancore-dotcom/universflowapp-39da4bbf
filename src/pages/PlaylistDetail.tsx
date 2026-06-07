@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { hydratePlaylistCoverUrls, loadPlaylistSongs } from '@/lib/streamSongs';
 import PlaylistCover from '@/components/PlaylistCover';
 import SEOHead from '@/components/SEOHead';
+import RoseHero from '@/components/RoseHero';
 
 interface Playlist {
   id: string;
@@ -245,47 +246,24 @@ const PlaylistDetail = () => {
           </div>
         </motion.header>
 
-        {/* Playlist artwork and info */}
-        <div className="px-6 py-6">
-          <motion.div
-            className="w-48 h-48 mx-auto shadow-2xl"
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={iosBounce}
-          >
-            <PlaylistCover
-              coverUrl={playlist.cover_url}
-              coverUrls={songs.map((s) => s.cover_url)}
-              className="w-full h-full"
-              iconClassName="w-20 h-20 text-white/30"
-            />
-          </motion.div>
+        {/* Rose-ember hero — playlist identity */}
+        <div className="px-3 pt-3 pb-2">
+          <RoseHero
+            eyebrow={playlist.is_public ? 'Public playlist' : 'Private playlist'}
+            title={(playlist.title || 'PLAYLIST').toUpperCase()}
+            subtitle={
+              <span>
+                {songs.length} songs{totalDuration > 0 ? ` · ${formatDuration(totalDuration)}` : ''}
+                {playlist.description ? ` · ${playlist.description}` : ''}
+              </span>
+            }
+            coverUrl={playlist.cover_url || songs.find((s) => s.cover_url)?.cover_url || null}
+          />
+        </div>
 
-          <motion.div
-            className="text-center mt-5"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ ...iosSpring, delay: 0.1 }}
-          >
-            <h1 className="text-2xl font-bold">{playlist.title}</h1>
-            {playlist.description && (
-              <p className="text-muted-foreground mt-1 text-sm">{playlist.description}</p>
-            )}
-            <div className="flex items-center justify-center gap-2 mt-2 text-sm text-muted-foreground">
-              {playlist.is_public ? (
-                <Globe className="w-4 h-4" />
-              ) : (
-                <Lock className="w-4 h-4" />
-              )}
-              <span>{songs.length} songs</span>
-              {totalDuration > 0 && (
-                <>
-                  <span>•</span>
-                  <span>{formatDuration(totalDuration)}</span>
-                </>
-              )}
-            </div>
-          </motion.div>
+        {/* Spacer (preserves layout) */}
+        <div className="px-6 pt-2">
+
 
           {/* Action buttons */}
           <motion.div
