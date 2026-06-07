@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { resolveIndexedTrack, prefetchIndexedTrack } from '@/lib/musicIndexer';
 import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
-import { getEQSettings } from '@/lib/eqSettings';
+import { EQ_SETTINGS_KEY, getEQSettings } from '@/lib/eqSettings';
 import { toast } from 'sonner';
 
 interface YouTubePlayer {
