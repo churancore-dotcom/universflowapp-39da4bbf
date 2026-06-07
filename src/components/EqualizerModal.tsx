@@ -133,47 +133,32 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
     if (audioElement) audioElement.playbackRate = playbackSpeed;
   }, [playbackSpeed, audioElement]);
 
-  // Persist
-  useEffect(() => {
-    saveSettings({
-      bands: bands.map(b => b.gain),
-      bassBoost,
-      reverb,
-      playbackSpeed,
-      spatialAudio,
-      studioSpace,
-      lateNight,
-      activePreset,
-    });
-  }, [bands, bassBoost, reverb, playbackSpeed, spatialAudio, studioSpace, lateNight, activePreset]);
-
   const handleBandChange = useCallback((index: number, value: number) => {
-    setBandsState(prev => prev.map((b, i) => i === index ? { ...b, gain: value } : b));
-    setActivePreset('custom');
+    setEQSettings((prev) => ({ bands: prev.bands.map((gain, i) => i === index ? value : gain), activePreset: 'custom' }));
   }, []);
 
   const handlePresetSelect = useCallback((preset: Preset) => {
-    setBandsState(prev => prev.map((b, i) => ({ ...b, gain: preset.bands[i] ?? 0 })));
-    setBassBoost(Math.min(preset.bassBoost, 60));
-    setActivePreset(preset.id);
+    setEQSettings({ bands: preset.bands, bassBoost: Math.min(preset.bassBoost, 60), activePreset: preset.id });
     toast.success(`${preset.name} preset applied`);
   }, []);
 
   const handleReset = useCallback(() => {
-    setBandsState(defaultBands);
-    setBassBoost(0);
-    setReverb(0);
-    setPlaybackSpeed(1);
-    setSpatialAudio(false);
-    setStudioSpace('off');
-    setLateNight(false);
-    setActivePreset('flat');
+    setEQSettings({
+      bands: defaultBands.map((b) => b.gain),
+      bassBoost: 0,
+      reverb: 0,
+      playbackSpeed: 1,
+      spatialAudio: false,
+      studioSpace: 'off',
+      lateNight: false,
+      activePreset: 'flat',
+    });
     if (audioElement) audioElement.playbackRate = 1;
     toast.success('Equalizer reset');
   }, [audioElement]);
 
   const handleSpaceSelect = useCallback((id: StudioSpaceId) => {
-    setStudioSpace(id);
+    setEQSettings({ studioSpace: id });
     if (id !== 'off') {
       const name = STUDIO_SPACES.find(s => s.id === id)?.name;
       if (name) toast.success(`Now playing in ${name}`);
