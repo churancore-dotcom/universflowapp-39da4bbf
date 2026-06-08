@@ -65,6 +65,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
         doReapply();
       }, delay);
     };
+    const onMediaReady = () => reapply();
 
     const onPlay = () => {
       // Only resume the WebAudio context if we've ever attached. Calling
@@ -82,9 +83,9 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     const onEqChanged = () => reapply(90);
 
     doReapply();
-    audioElement.addEventListener('loadstart', reapply);
-    audioElement.addEventListener('loadedmetadata', reapply);
-    audioElement.addEventListener('canplay', reapply);
+    audioElement.addEventListener('loadstart', onMediaReady);
+    audioElement.addEventListener('loadedmetadata', onMediaReady);
+    audioElement.addEventListener('canplay', onMediaReady);
     audioElement.addEventListener('play', onPlay);
     audioElement.addEventListener('playing', onPlay);
     document.addEventListener('pointerdown', onPointer, { once: true });
@@ -93,9 +94,9 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
 
     return () => {
       if (reapplyTimer != null) clearTimeout(reapplyTimer);
-      audioElement.removeEventListener('loadstart', reapply);
-      audioElement.removeEventListener('loadedmetadata', reapply);
-      audioElement.removeEventListener('canplay', reapply);
+      audioElement.removeEventListener('loadstart', onMediaReady);
+      audioElement.removeEventListener('loadedmetadata', onMediaReady);
+      audioElement.removeEventListener('canplay', onMediaReady);
       audioElement.removeEventListener('play', onPlay);
       audioElement.removeEventListener('playing', onPlay);
       document.removeEventListener('pointerdown', onPointer);
