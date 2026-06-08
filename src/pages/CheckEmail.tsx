@@ -126,14 +126,6 @@ const CheckEmail = () => {
           >
             <Mail className="w-12 h-12 text-white" strokeWidth={1.75} />
           </motion.div>
-
-          {/* Sparkle ring */}
-          <motion.div
-            className="absolute inset-0 rounded-full"
-            style={{ border: '1.5px solid hsl(340 100% 70% / 0.5)' }}
-            animate={{ scale: [1, 1.18], opacity: [0.6, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-          />
         </motion.div>
 
         <motion.h1
