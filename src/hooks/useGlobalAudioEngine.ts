@@ -58,18 +58,19 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     };
 
     // Coalesce loadstart+loadedmetadata+canplay bursts into a single rebuild.
-    const reapply = () => {
-      if (reapplyTimer != null) return;
+    const reapply = (delay = 30) => {
+      if (reapplyTimer != null) window.clearTimeout(reapplyTimer);
       reapplyTimer = window.setTimeout(() => {
         reapplyTimer = null;
         doReapply();
-      }, 30);
+      }, delay);
     };
 
     const onPlay = () => {
       // Only resume the WebAudio context if we've ever attached. Calling
       // resume() on a non-existent context is a no-op but cleaner this way.
       if (isAttached) resume();
+      if (isEqActive(getEQSettings())) reapply();
     };
     const onPointer = () => { if (isAttached) resume(); };
 
@@ -78,7 +79,7 @@ export function useGlobalAudioEngine(audioElement: HTMLAudioElement | null) {
     };
 
     // User toggled EQ in modal — apply right now.
-    const onEqChanged = () => reapply();
+    const onEqChanged = () => reapply(90);
 
     doReapply();
     audioElement.addEventListener('loadstart', reapply);
