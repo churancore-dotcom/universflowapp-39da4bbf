@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Check, Sparkles, Search as SearchIcon, Loader2 } from 'lucide-react';
+import { Check, Disc3, Search as SearchIcon, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { triggerHaptic } from '@/hooks/useHaptics';
@@ -169,7 +169,7 @@ const ArtistPicker = ({ onComplete }: Props) => {
           className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-3"
           style={{ background: 'linear-gradient(135deg, #FF2D55, #FF6482)' }}
         >
-          <Sparkles className="w-7 h-7 text-white" />
+          <Disc3 className="w-7 h-7 text-white" />
         </motion.div>
         <h1 className="text-2xl font-extrabold tracking-tight">Pick your vibe</h1>
         <p className="text-xs text-muted-foreground mt-1.5 px-4">
@@ -265,7 +265,7 @@ const ArtistPicker = ({ onComplete }: Props) => {
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <>
-              <Sparkles className="w-4 h-4" />
+              <Disc3 className="w-4 h-4" />
               {picks.size < MIN ? `Pick ${MIN - picks.size} more` : `Continue with ${picks.size}`}
             </>
           )}

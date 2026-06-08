@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, RotateCcw, Volume2, Zap, Waves, Music2, Headphones, Globe, Radio, Disc3, Mic2, Home, Building2, Church, Trophy, Moon } from 'lucide-react';
+import { X, Disc3, RotateCcw, Volume2, Zap, Waves, Music2, Headphones, Globe, Radio, Disc3, Mic2, Home, Building2, Church, Trophy, Moon } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { iosSpring } from '@/lib/animations';
@@ -59,12 +59,12 @@ interface Preset {
 const presets: Preset[] = [
   { id: 'flat',         name: 'Flat',         icon: Music2,     bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], bassBoost: 0 },
   { id: 'bass-boost',   name: 'Bass Boost',   icon: Zap,        bands: [4, 3, 2, 0, 0, 0, 0, 0, 0, 0], bassBoost: 35 },
-  { id: 'treble-boost', name: 'Treble Boost', icon: Sparkles,   bands: [0, 0, 0, 0, 0, 0, 1, 2, 3, 3], bassBoost: 0 },
+  { id: 'treble-boost', name: 'Treble Boost', icon: Disc3,   bands: [0, 0, 0, 0, 0, 0, 1, 2, 3, 3], bassBoost: 0 },
   { id: 'vocal',        name: 'Vocal',        icon: Volume2,    bands: [-2, -1, 0, 1, 3, 4, 3, 1, 0, -1], bassBoost: 0 },
   { id: '8d-audio',     name: '8D Audio',     icon: Globe,      bands: [2, 1, 0, -1, 0, 0, 1, 2, 1, 1], bassBoost: 10 },
   { id: 'phonk',        name: 'Phonk',        icon: Headphones, bands: [6, 5, 3, 1, 0, -1, 0, 1, 2, 2], bassBoost: 55 },
   { id: 'deep-bass',    name: 'Deep Bass',    icon: Waves,      bands: [7, 6, 4, 2, 0, 0, 0, -1, -1, -1], bassBoost: 70 },
-  { id: 'concert',      name: 'Concert',      icon: Sparkles,   bands: [3, 2, 1, 0, 1, 1, 2, 2, 2, 1], bassBoost: 15 },
+  { id: 'concert',      name: 'Concert',      icon: Disc3,   bands: [3, 2, 1, 0, 1, 1, 2, 2, 2, 1], bassBoost: 15 },
 ];
 
 // Labels mirror engine's BAND_DEFS (32Hz → 16kHz)

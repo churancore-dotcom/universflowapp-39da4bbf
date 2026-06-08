@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
-import { Music2, Sparkles } from 'lucide-react';
+import { Music2, Disc3 } from 'lucide-react';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -110,7 +110,7 @@ const FollowedArtistsRail = memo(function FollowedArtistsRail({
   return (
     <section className="space-y-2">
       <div className="flex items-center gap-2 px-1">
-        <Sparkles className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-primary`} />
+        <Disc3 className={`${compact ? 'w-3.5 h-3.5' : 'w-4 h-4'} text-primary`} />
         <h2 className={`${compact ? 'text-xs' : 'text-sm'} font-bold text-foreground`}>{title}</h2>
       </div>
 

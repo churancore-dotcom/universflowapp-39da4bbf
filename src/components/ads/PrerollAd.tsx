@@ -1,6 +1,6 @@
 import { useState, useEffect, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, X, Volume2, VolumeX, Music, Sparkles, Zap } from 'lucide-react';
+import { Crown, X, Volume2, VolumeX, Music, Disc3, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePremium } from '@/hooks/usePremium';
 import { iosSpring } from '@/lib/animations';
@@ -171,7 +171,7 @@ const PrerollAd = memo(function PrerollAd({
                   animate={{ rotate: [0, 15, -15, 0] }}
                   transition={{ duration: 2, repeat: Infinity }}
                 >
-                  <Sparkles className="w-5 h-5 text-accent" />
+                  <Disc3 className="w-5 h-5 text-accent" />
                 </motion.div>
               </motion.div>
 
@@ -205,7 +205,7 @@ const PrerollAd = memo(function PrerollAd({
                 {[
                   { icon: Zap, label: 'Ad-free' },
                   { icon: Music, label: 'Offline' },
-                  { icon: Sparkles, label: 'Lossless' },
+                  { icon: Disc3, label: 'Lossless' },
                   { icon: Crown, label: 'Exclusive' },
                 ].map(({ icon: Icon, label }) => (
                   <motion.div

@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Crown, Sparkles, Lock } from 'lucide-react';
+import { Crown, Disc3, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Song } from '@/contexts/PlayerContext';
 import { usePremium } from '@/hooks/usePremium';
@@ -101,7 +101,7 @@ const PremiumFirstSection = memo(() => {
           <div key={song.id} className="snap-start flex-shrink-0 w-32 relative">
             <div className="absolute top-1 right-1 z-10 w-6 h-6 rounded-full flex items-center justify-center"
                  style={{ background: 'linear-gradient(135deg, #FFC107, #FF8C00)' }}>
-              <Sparkles className="w-3 h-3 text-black" />
+              <Disc3 className="w-3 h-3 text-black" />
             </div>
             <SongCard song={song} index={i} sectionSongs={songs} />
           </div>

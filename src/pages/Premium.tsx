@@ -1,7 +1,7 @@
 import { memo, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ChevronLeft, Crown, Check, Sparkles, Download,
+  ChevronLeft, Crown, Check, Disc3, Download,
   Zap, Gift, Copy, Loader2, ShieldCheck, Sliders, Music2, Infinity as InfinityIcon, Clock,
   Moon, Orbit, Building2,
 } from 'lucide-react';
@@ -43,7 +43,7 @@ const FEATURES = [
   { icon: Download,     title: 'Unlimited Downloads',     desc: 'Save anything. Listen offline. Anywhere.' },
   { icon: Music2,       title: 'AI Playlists',            desc: 'Mood-matched playlists, made instantly.' },
   { icon: InfinityIcon, title: 'Crossfade & Gapless',     desc: 'Seamless transitions, end to end.' },
-  { icon: Sparkles,     title: 'Premium-Only Tracks',     desc: 'Early drops and exclusive releases.' },
+  { icon: Disc3,     title: 'Premium-Only Tracks',     desc: 'Early drops and exclusive releases.' },
   { icon: ShieldCheck,  title: 'Priority Support',        desc: 'Skip the line — we answer first.' },
 ];
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles } from 'lucide-react';
+import { Disc3 } from 'lucide-react';
 import { triggerHaptic } from '@/hooks/useHaptics';
 
 const STORAGE_KEY = 'uf_rate_popup_last';
@@ -72,7 +72,7 @@ const RateUsPopup = ({ onOpenReview }: Props) => {
                 className="inline-flex w-14 h-14 rounded-2xl items-center justify-center mb-3"
                 style={{ background: 'linear-gradient(135deg, #FF2D55, #FF6482)' }}
               >
-                <Sparkles className="w-7 h-7 text-white" />
+                <Disc3 className="w-7 h-7 text-white" />
               </motion.div>
               <h3 className="text-lg font-extrabold">Loving Universflow?</h3>
               <p className="text-sm text-muted-foreground mt-1 px-2">

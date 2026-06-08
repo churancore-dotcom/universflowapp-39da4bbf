@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Crown, Lock, X, Sparkles } from 'lucide-react';
+import { Crown, Lock, X, Disc3 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { iosSpring, iosBounce } from '@/lib/animations';
 import { useHaptics } from '@/hooks/useHaptics';
@@ -80,7 +80,7 @@ const PremiumLockOverlay = memo(function PremiumLockOverlay({
           >
             <Crown className="w-5 h-5" fill="currentColor" />
             Unlock with Premium
-            <Sparkles className="w-4 h-4" />
+            <Disc3 className="w-4 h-4" />
           </motion.button>
 
           <button

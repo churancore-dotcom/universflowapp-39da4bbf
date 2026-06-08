@@ -1,6 +1,6 @@
 import { useState, memo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Gift, Crown, Check, Loader2, Sparkles } from 'lucide-react';
+import { X, Gift, Crown, Check, Loader2, Disc3 } from 'lucide-react';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -214,7 +214,7 @@ const RedeemCodeModal = memo(function RedeemCodeModal({ isOpen, onClose }: Redee
                     {loading ? (
                       <Loader2 className="w-5 h-5 animate-spin mr-2" />
                     ) : (
-                      <Sparkles className="w-5 h-5 mr-2" />
+                      <Disc3 className="w-5 h-5 mr-2" />
                     )}
                     {loading ? 'Validating...' : 'Unlock Premium'}
                   </Button>
