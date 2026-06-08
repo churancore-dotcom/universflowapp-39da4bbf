@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { PRESET_AVATARS } from '@/lib/avatars';
+import AnimatedAvatar from '@/components/AnimatedAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useHaptics } from '@/hooks/useHaptics';
@@ -71,21 +72,20 @@ const AvatarPickerModal = ({ isOpen, onClose, userId, currentAvatar, onSaved }: 
                 <button
                   key={av.id}
                   onClick={() => { setSelected(av.id); trigger('selection'); }}
-                  className="relative aspect-square rounded-2xl overflow-hidden transition-all active:scale-95"
+                  className="relative aspect-square rounded-2xl overflow-hidden transition-all active:scale-95 flex flex-col"
                   style={{
                     boxShadow: isSel ? '0 0 0 3px hsl(var(--primary)), 0 8px 24px hsl(var(--primary) / 0.4)' : '0 0 0 1px hsl(var(--border))',
                   }}
+                  aria-label={av.name}
                 >
-                  <img
-                    src={av.url}
-                    alt={av.name}
-                    loading="lazy"
-                    width={512}
-                    height={512}
-                    className="w-full h-full object-cover"
-                  />
+                  <div className="flex-1 w-full">
+                    <AnimatedAvatar variant={av.id} />
+                  </div>
+                  <div className="absolute bottom-0 inset-x-0 px-1.5 py-1 bg-gradient-to-t from-black/70 to-transparent">
+                    <p className="text-[10px] font-semibold text-white text-center truncate">{av.name}</p>
+                  </div>
                   {isSel && (
-                    <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-primary/25 flex items-center justify-center">
                       <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shadow-lg">
                         <Check className="w-5 h-5 text-primary-foreground" strokeWidth={3} />
                       </div>
