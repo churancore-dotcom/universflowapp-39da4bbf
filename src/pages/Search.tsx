@@ -172,9 +172,7 @@ const Search = () => {
         const tagJobs: Promise<IndexedTrack[]>[] = [];
         if (language) tagJobs.push(getTagTopTracks(language, 150));
         if (mood) tagJobs.push(getTagTopTracks(mood, 150));
-        const literalJob = pureBrowse
-          ? Promise.resolve([] as IndexedTrack[])
-          : searchIndexedTracks(trimmedQuery, 200);
+        const literalJob = searchIndexedTracks(trimmedQuery, 200);
         const youtubeJob = searchYouTubeMusicTracks(smartQuery, 120);
         const saavnJob = searchJioSaavnTracks(trimmedQuery, 60).catch(() => [] as IndexedTrack[]);
 

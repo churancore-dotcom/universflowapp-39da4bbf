@@ -138,6 +138,7 @@ const DIRECT_PLAYABLE_HOST_SNIPPETS = [
   'supabase.co',
   'the-standard.io',
   'private.coffee',
+  'saavncdn.com',
 ];
 
 const shouldProxyStreamUrl = (sourceUrl: string) => {

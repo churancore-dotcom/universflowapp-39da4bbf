@@ -99,9 +99,9 @@ function ensureCtx(): AudioContext | null {
 }
 
 function isCorsSafe(el: HTMLAudioElement): boolean {
+  if (el.crossOrigin === 'anonymous') return true;
   const src = el.currentSrc || el.src;
   if (!src) return false;
-  if (el.crossOrigin === 'anonymous') return true;
   if (src.startsWith('blob:') || src.startsWith('data:')) return true;
   try {
     const u = new URL(src, window.location.href);
