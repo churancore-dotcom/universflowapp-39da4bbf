@@ -206,7 +206,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { error: new Error('That username is already taken') };
       }
 
-      const { error } = await supabase.auth.signUp({
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -225,6 +225,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         return { error: new Error(getAuthError(error)) };
       }
+
+      // Auto-assign a random animated avatar so the profile feels alive from day one.
+      try {
+        const { pickRandomAvatar } = await import('@/lib/avatars');
+        const newUserId = signUpData?.user?.id;
+        if (newUserId) {
+          await supabase
+            .from('profiles')
+            .update({ avatar_url: pickRandomAvatar() })
+            .eq('user_id', newUserId);
+        }
+      } catch { /* non-fatal */ }
 
       // CRITICAL: Supabase auto-creates a session on signUp. Sign the user out
       // immediately so they must click the verification link and sign in fresh.
