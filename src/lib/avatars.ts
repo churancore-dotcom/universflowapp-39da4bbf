@@ -27,3 +27,9 @@ export const resolveAvatar = (url: string | null | undefined): string | null => 
   if (isPresetAvatar(url)) return null;
   return url;
 };
+
+export const pickRandomAvatar = (): AvatarVariant => {
+  const i = Math.floor(Math.random() * PRESET_AVATARS.length);
+  return PRESET_AVATARS[i].id;
+};
+
