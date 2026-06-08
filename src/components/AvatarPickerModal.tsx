@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Check } from 'lucide-react';
 import { PRESET_AVATARS } from '@/lib/avatars';
-import AnimatedAvatar from '@/components/AnimatedAvatar';
+import PortraitAvatar from '@/components/PortraitAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useHaptics } from '@/hooks/useHaptics';
@@ -79,7 +79,7 @@ const AvatarPickerModal = ({ isOpen, onClose, userId, currentAvatar, onSaved }: 
                   aria-label={av.name}
                 >
                   <div className="flex-1 w-full">
-                    <AnimatedAvatar variant={av.id} />
+                    <PortraitAvatar variant={av.id} size={140} />
                   </div>
                   <div className="absolute bottom-0 inset-x-0 px-1.5 py-1 bg-gradient-to-t from-black/70 to-transparent">
                     <p className="text-[10px] font-semibold text-white text-center truncate">{av.name}</p>

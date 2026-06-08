@@ -1,4 +1,4 @@
-import type { AvatarVariant } from '@/components/AnimatedAvatar';
+import type { AvatarVariant } from '@/components/PortraitAvatar';
 
 export interface PresetAvatar {
   id: AvatarVariant;
@@ -7,16 +7,16 @@ export interface PresetAvatar {
 }
 
 export const PRESET_AVATARS: PresetAvatar[] = [
-  { id: 'wave', name: 'Hi there', tag: 'Waves at you' },
-  { id: 'vibe', name: 'Vibing', tag: 'Head bobs to music' },
-  { id: 'dj', name: 'DJ Mode', tag: 'Beats & headphones' },
-  { id: 'cool', name: 'Too Cool', tag: 'Shades on' },
-  { id: 'wink', name: 'Wink', tag: 'Cheeky wink' },
-  { id: 'star', name: 'Starlight', tag: 'Sparkles around' },
-  { id: 'heart', name: 'In Love', tag: 'Beating heart' },
-  { id: 'dance', name: 'Dance', tag: 'Side to side' },
-  { id: 'rockstar', name: 'Rockstar', tag: 'Headband on' },
-  { id: 'sleepy', name: 'Sleepy', tag: 'Catching Zzz' },
+  { id: 'hoodie-guy',     name: 'Wave Hi',  tag: 'Waves at you' },
+  { id: 'sweater-girl',   name: 'Glow',     tag: 'Sparkles & sway' },
+  { id: 'glasses-beard',  name: 'Aura',     tag: 'Soft glow ring' },
+  { id: 'leather-bob',    name: 'Rockstar', tag: 'Bobbing sparkles' },
+  { id: 'chain-guy',      name: 'Vibing',   tag: 'Music notes' },
+  { id: 'pink-sweater',   name: 'In Love',  tag: 'Floating hearts' },
+  { id: 'white-hoodie',   name: 'Halo',     tag: 'Pulsing ring' },
+  { id: 'afro-yellow',    name: 'Hello!',   tag: 'Waves at you' },
+  { id: 'headphones-boy', name: 'DJ',       tag: 'Beats & notes' },
+  { id: 'pink-beanie',    name: 'Crush',    tag: 'Floating hearts' },
 ];
 
 export const isPresetAvatar = (value: string | null | undefined): value is AvatarVariant => {
@@ -24,10 +24,6 @@ export const isPresetAvatar = (value: string | null | undefined): value is Avata
   return PRESET_AVATARS.some(a => a.id === value);
 };
 
-/**
- * Returns the URL for a stored image avatar, or null if the value
- * refers to a preset animated avatar (caller should render <AnimatedAvatar />).
- */
 export const resolveAvatar = (url: string | null | undefined): string | null => {
   if (!url) return null;
   if (isPresetAvatar(url)) return null;
