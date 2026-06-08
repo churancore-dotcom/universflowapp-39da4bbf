@@ -13,10 +13,14 @@ import { TabTransition } from '@/components/PageTransition';
 import EmailVerificationCard from '@/components/EmailVerificationCard';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
+import AvatarPickerModal from '@/components/AvatarPickerModal';
+import { resolveAvatar } from '@/lib/avatars';
+import { Camera } from 'lucide-react';
 
 interface ProfileData {
   username: string | null;
   username_changed: boolean;
+  avatar_url: string | null;
 }
 
 const Profile = () => {
@@ -30,11 +34,12 @@ const Profile = () => {
   const [showReview, setShowReview] = useState(false);
   const [showReviewsList, setShowReviewsList] = useState(false);
 
-  const [profileData, setProfileData] = useState<ProfileData>({ username: null, username_changed: false });
+  const [profileData, setProfileData] = useState<ProfileData>({ username: null, username_changed: false, avatar_url: null });
   const [profileReady, setProfileReady] = useState(false);
   const [isEditingUsername, setIsEditingUsername] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -53,7 +58,7 @@ const Profile = () => {
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('username, username_changed')
+        .select('username, username_changed, avatar_url')
         .eq('user_id', user.id)
         .single();
 
@@ -61,6 +66,7 @@ const Profile = () => {
         setProfileData({
           username: data.username,
           username_changed: (data as any).username_changed || false,
+          avatar_url: (data as any).avatar_url || null,
         });
         setNewUsername(data.username || '');
       }
@@ -169,22 +175,43 @@ const Profile = () => {
             <div className="absolute -bottom-24 -left-16 w-64 h-64 rounded-full opacity-25 blur-[90px] pointer-events-none" style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.6), transparent 70%)' }} />
 
             <div className="relative flex flex-col items-center text-center">
-              <div className="relative">
+              <button
+                onClick={() => user && setShowAvatarPicker(true)}
+                className="relative active:scale-95 transition"
+                aria-label="Change avatar"
+              >
                 <div
-                  className="w-24 h-24 rounded-full flex items-center justify-center ring-4 ring-white/10 shadow-2xl"
+                  className="w-24 h-24 rounded-full flex items-center justify-center ring-4 ring-white/10 shadow-2xl overflow-hidden"
                   style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(18 100% 78%))' }}
                 >
-                  <User className="w-12 h-12 text-white" strokeWidth={1.5} />
+                  {resolveAvatar(profileData.avatar_url) ? (
+                    <img
+                      src={resolveAvatar(profileData.avatar_url)!}
+                      alt="Profile avatar"
+                      width={96}
+                      height={96}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-12 h-12 text-white" strokeWidth={1.5} />
+                  )}
                 </div>
-                {isPremium && (
+                {isPremium ? (
                   <div
                     className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center shadow-lg"
                     style={{ background: 'linear-gradient(135deg, #fbbf24, #f59e0b)', border: '3px solid hsl(var(--background))' }}
                   >
                     <Crown className="w-4 h-4 text-white" />
                   </div>
+                ) : (
+                  <div
+                    className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full flex items-center justify-center shadow-lg bg-primary"
+                    style={{ border: '3px solid hsl(var(--background))' }}
+                  >
+                    <Camera className="w-3.5 h-3.5 text-primary-foreground" />
+                  </div>
                 )}
-              </div>
+              </button>
 
               <div className="mt-4 w-full">
                 {!profileSettled ? (
@@ -394,6 +421,15 @@ const Profile = () => {
           onClose={() => setShowReviewsList(false)}
           onWriteReview={() => { setShowReviewsList(false); setTimeout(() => setShowReview(true), 250); }}
         />
+        {user && (
+          <AvatarPickerModal
+            isOpen={showAvatarPicker}
+            onClose={() => setShowAvatarPicker(false)}
+            userId={user.id}
+            currentAvatar={profileData.avatar_url}
+            onSaved={(id) => setProfileData(prev => ({ ...prev, avatar_url: id }))}
+          />
+        )}
       </div>
     </TabTransition>
   );
