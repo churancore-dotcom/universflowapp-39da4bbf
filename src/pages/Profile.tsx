@@ -276,8 +276,28 @@ const Profile = () => {
           {/* Cross-Device Resume */}
           {profileSettled && user && <CrossDeviceResumeCard />}
 
+          {/* Listening Stats Hero — real data from song_play_events */}
+          {profileSettled && user && (
+            <div className="uf-bento-card p-4 mb-4 relative overflow-hidden">
+              <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-30 blur-3xl uf-rose-gradient pointer-events-none" />
+              <span className="text-white/40 text-[10px] font-extrabold uppercase tracking-[0.18em]">Your Listening</span>
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className="text-[44px] leading-none font-display tracking-tight">{listenStats.minutes.toLocaleString()}</span>
+                <span className="text-xs text-muted-foreground">minutes streamed</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 mt-3 relative z-10">
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-2.5">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Top Artist</p>
+                  <p className="text-sm font-semibold truncate">{listenStats.topArtist || '—'}</p>
+                </div>
+                <div className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-2.5">
+                  <p className="text-[9px] uppercase tracking-wider text-muted-foreground mb-0.5">Top Song</p>
+                  <p className="text-sm font-semibold truncate">{listenStats.topSong || '—'}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
-          {/* Stats */}
           <div className="grid grid-cols-3 gap-2 mb-4">
             {[
               { icon: Heart, label: 'Liked', value: stats.likedSongs },
