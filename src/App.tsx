@@ -20,6 +20,7 @@ import SEOHead from "./components/SEOHead";
 import Auth from "./pages/Auth";
 import VerifyEmail from "./pages/VerifyEmail";
 import CheckEmail from "./pages/CheckEmail";
+import Onboarding from "./pages/Onboarding";
 import NotFound from "./pages/NotFound";
 import { usePushRegistration } from "./hooks/usePushRegistration";
 import { usePlaybackSync } from "./hooks/usePlaybackSync";
@@ -103,9 +104,11 @@ const queryClient = new QueryClient({
 const LazyFallback = () => <div className="min-h-screen bg-background" />;
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, emailVerified } = useAuth();
   if (isLoading) return <LazyFallback />;
   if (!user) return <Navigate to="/auth" replace />;
+  // Strict gate: only block when we explicitly know the email is unverified.
+  if (emailVerified === false) return <Navigate to="/check-email" replace />;
   return <>{children}</>;
 };
 
@@ -142,14 +145,15 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Root entry: logged-in users go to Home; everyone else goes to /auth.
-// The standalone APK download page was removed — Univers Flow is now
-// a unified web + native experience that gates on auth, not on device.
+// Root entry. First-time visitors see onboarding, returning ones go to /home
+// when signed-in (and verified) or to /auth otherwise.
 const RootGate = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, emailVerified } = useAuth();
   if (isLoading) return <LazyFallback />;
-  if (user) return <Home />;
-  return <Navigate to="/auth" replace />;
+  const seenOnboarding = typeof window !== 'undefined' && localStorage.getItem('uf_onboarding_seen') === '1';
+  if (!user) return <Navigate to={seenOnboarding ? '/auth' : '/welcome'} replace />;
+  if (emailVerified === false) return <Navigate to="/check-email" replace />;
+  return <Home />;
 };
 
 
@@ -165,8 +169,9 @@ const AnimatedRoutes = () => {
           <Route path="/" element={<RootGate />} />
           <Route path="/get" element={<Navigate to="/auth" replace />} />
 
+          <Route path="/welcome" element={<Onboarding />} />
           <Route path="/auth" element={
-            user ? <Navigate to="/home" replace /> : 
+            user ? <Navigate to="/home" replace /> :
             <Auth />
           } />
           <Route path="/verify" element={<VerifyEmail />} />
