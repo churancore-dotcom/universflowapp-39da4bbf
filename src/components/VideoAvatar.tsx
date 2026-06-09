@@ -7,6 +7,8 @@ import coffeeGirl from '@/assets/avatars/coffee-girl.mp4.asset.json';
 import peaceGuy from '@/assets/avatars/peace-guy.mp4.asset.json';
 import kissGirl from '@/assets/avatars/kiss-girl.mp4.asset.json';
 import thumbsGuy from '@/assets/avatars/thumbs-guy.mp4.asset.json';
+import { cdnAssetUrl } from '@/lib/assetUrl';
+
 
 export type AvatarVariant =
   | 'headphones-boy'
@@ -19,15 +21,16 @@ export type AvatarVariant =
   | 'thumbs-guy';
 
 const SRC: Record<AvatarVariant, string> = {
-  'headphones-boy': headphonesBoy.url,
-  'chain-guy': chainGuy.url,
-  'glasses-beard': glassesBeard.url,
-  'wavy-girl': wavyGirl.url,
-  'coffee-girl': coffeeGirl.url,
-  'peace-guy': peaceGuy.url,
-  'kiss-girl': kissGirl.url,
-  'thumbs-guy': thumbsGuy.url,
+  'headphones-boy': cdnAssetUrl(headphonesBoy.url),
+  'chain-guy': cdnAssetUrl(chainGuy.url),
+  'glasses-beard': cdnAssetUrl(glassesBeard.url),
+  'wavy-girl': cdnAssetUrl(wavyGirl.url),
+  'coffee-girl': cdnAssetUrl(coffeeGirl.url),
+  'peace-guy': cdnAssetUrl(peaceGuy.url),
+  'kiss-girl': cdnAssetUrl(kissGirl.url),
+  'thumbs-guy': cdnAssetUrl(thumbsGuy.url),
 };
+
 
 interface Props {
   variant: AvatarVariant;
