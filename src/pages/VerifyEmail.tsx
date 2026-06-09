@@ -5,7 +5,7 @@ import { CheckCircle2, XCircle, Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import appLogo from '@/assets/app-logo.png';
+import appLogo from '@/assets/universflow-mark.png';
 
 type State = 'loading' | 'success' | 'error';
 
@@ -79,16 +79,17 @@ const VerifyEmail = () => {
         transition={{ duration: 0.5 }}
       >
         <motion.div
-          className="mx-auto w-24 h-24 rounded-full overflow-hidden mb-6 relative"
+          className="mx-auto w-24 h-24 mb-6 relative flex items-center justify-center"
           initial={{ scale: 0.5, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          style={{
-            background: '#000',
-            boxShadow: '0 0 28px hsl(var(--primary) / 0.35)',
-          }}
         >
-          <img src={appLogo} alt="Universflow" className="w-full h-full object-cover" />
+          <img
+            src={appLogo}
+            alt="Univers Flow"
+            className="w-full h-full object-contain"
+            style={{ filter: 'drop-shadow(0 6px 28px rgba(255,45,85,0.4))' }}
+          />
         </motion.div>
 
         <h1 className="text-3xl font-bold tracking-tight mb-2">

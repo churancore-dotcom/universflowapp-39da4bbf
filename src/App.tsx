@@ -20,7 +20,7 @@ import SEOHead from "./components/SEOHead";
 import Auth from "./pages/Auth";
 import VerifyEmail from "./pages/VerifyEmail";
 import CheckEmail from "./pages/CheckEmail";
-import Onboarding from "./pages/Onboarding";
+
 import NotFound from "./pages/NotFound";
 import { usePushRegistration } from "./hooks/usePushRegistration";
 import { usePlaybackSync } from "./hooks/usePlaybackSync";
@@ -145,13 +145,11 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-// Root entry. First-time visitors see onboarding, returning ones go to /home
-// when signed-in (and verified) or to /auth otherwise.
+// Root entry: signed-in users → /home, otherwise straight to /auth.
 const RootGate = () => {
   const { user, isLoading, emailVerified } = useAuth();
   if (isLoading) return <LazyFallback />;
-  const seenOnboarding = typeof window !== 'undefined' && localStorage.getItem('uf_onboarding_seen') === '1';
-  if (!user) return <Navigate to={seenOnboarding ? '/auth' : '/welcome'} replace />;
+  if (!user) return <Navigate to="/auth" replace />;
   if (emailVerified === false) return <Navigate to="/check-email" replace />;
   return <Home />;
 };
@@ -168,8 +166,7 @@ const AnimatedRoutes = () => {
         <Routes location={location}>
           <Route path="/" element={<RootGate />} />
           <Route path="/get" element={<Navigate to="/auth" replace />} />
-
-          <Route path="/welcome" element={<Onboarding />} />
+          <Route path="/welcome" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={
             user ? <Navigate to="/home" replace /> :
             <Auth />
