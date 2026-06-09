@@ -284,6 +284,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const playRequestSeqRef = useRef(0);
   const activeSongIdentityRef = useRef<string | null>(null);
   const queueRef = useRef<Song[]>([]);
+  const endedFiredForSeqRef = useRef<number>(-1);
   // Auto-mix guard: prevents repeated extend calls while the network is in
   // flight, and remembers song-ids already added so we don't loop the same
   // recommendations forever.
