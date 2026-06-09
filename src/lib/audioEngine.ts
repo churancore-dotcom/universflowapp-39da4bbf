@@ -281,13 +281,15 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   const stereoPanner = ctx.createStereoPanner();
   stereoPanner.pan.value = 0;
 
-  // True brick-wall limiter — prevents clipping warble at high EQ gains
+  // Transparent peak control — soft-knee, gentle ratio. Avoids the harsh
+  // "pumping/warble" Android DSP exhibited with the previous brick-wall
+  // settings (-1 / knee 0 / ratio 20), especially with bass boost engaged.
   const limiter = ctx.createDynamicsCompressor();
-  limiter.threshold.value = -1;
-  limiter.knee.value = 0;
-  limiter.ratio.value = 20;
-  limiter.attack.value = 0.003;
-  limiter.release.value = 0.1;
+  limiter.threshold.value = -6;
+  limiter.knee.value = 12;
+  limiter.ratio.value = 4;
+  limiter.attack.value = 0.01;
+  limiter.release.value = 0.18;
 
   // Wire graph
   source.connect(filters[0]);
