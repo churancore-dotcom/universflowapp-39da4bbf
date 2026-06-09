@@ -21,10 +21,10 @@ function detectCountryCode(): string | undefined {
 
 type Mode = 'login' | 'signup';
 
-const authPanelVariants = {
-  initial: (isLogin: boolean) => ({ opacity: 0, x: isLogin ? -28 : 28, scale: 0.97, filter: 'blur(10px)' }),
-  animate: { opacity: 1, x: 0, scale: 1, filter: 'blur(0px)' },
-  exit: (isLogin: boolean) => ({ opacity: 0, x: isLogin ? 28 : -28, scale: 0.97, filter: 'blur(10px)' }),
+const panelVariants = {
+  initial: (isLogin: boolean) => ({ opacity: 0, y: 18, x: isLogin ? -10 : 10, filter: 'blur(8px)' }),
+  animate: { opacity: 1, y: 0, x: 0, filter: 'blur(0px)' },
+  exit: (isLogin: boolean) => ({ opacity: 0, y: -10, x: isLogin ? 10 : -10, filter: 'blur(8px)' }),
 };
 
 const Auth = () => {
@@ -51,7 +51,8 @@ const Auth = () => {
         const { error, isAdmin } = await signIn(email, password);
         if (error) {
           if ((error as Error & { code?: string }).message === 'EMAIL_NOT_VERIFIED') {
-            toast.error('Please confirm your email to sign in');
+            // Session is kept alive — the verification screen will auto-advance
+            // the moment the user taps the link, without re-asking for password.
             try {
               await supabase.functions.invoke('send-verification-link', { body: { email } });
             } catch { /* non-fatal */ }
@@ -61,7 +62,6 @@ const Auth = () => {
           toast.error(error.message);
           return;
         }
-        toast.success('Welcome back!');
         navigate(isAdmin ? '/admin' : '/home');
       } else {
         const { error } = await signUp(email, password, username, detectCountryCode());
@@ -71,7 +71,6 @@ const Auth = () => {
           `/check-email?email=${encodeURIComponent(email)}&u=${encodeURIComponent(username)}`,
           { state: { email, username }, replace: true }
         );
-        toast.success('Account created — check your email');
         supabase.functions
           .invoke('send-verification-link', { body: { email, username } })
           .catch((e) => console.warn('verification email failed:', e));
@@ -85,104 +84,85 @@ const Auth = () => {
 
   return (
     <FadeTransition>
-      <div className="min-h-[100dvh] bg-background flex flex-col items-center px-5 pt-8 pb-6 relative overflow-y-auto">
+      <div className="min-h-[100dvh] bg-background text-foreground flex flex-col items-center px-6 pt-10 pb-8 relative overflow-y-auto">
         <SEOHead
-          title="Sign in — Univers Flow Premium Music Experience"
-          description="Sign in or create your free Univers Flow account to stream music, build playlists, and listen offline."
+          title="Sign in — Universflow"
+          description="Sign in or create your Universflow account to stream music, build playlists, and listen offline."
           path="/auth"
         />
 
-        {/* Static atmospheric backdrop */}
+        {/* One restrained rose halo — not a rainbow */}
         <div
           className="fixed inset-0 pointer-events-none"
           style={{
             background:
-              'radial-gradient(ellipse at 20% 10%, hsl(340 100% 55% / 0.22) 0%, transparent 55%), radial-gradient(ellipse at 80% 90%, hsl(260 100% 60% / 0.18) 0%, transparent 55%), radial-gradient(ellipse at 60% 40%, hsl(210 100% 60% / 0.08) 0%, transparent 45%)',
+              'radial-gradient(ellipse at 50% -10%, hsl(340 100% 55% / 0.18) 0%, transparent 55%)',
           }}
         />
 
         <motion.div
-          className="relative w-full max-w-sm z-10 my-auto"
-          initial={{ opacity: 0, y: 20 }}
+          className="relative w-full max-w-sm z-10 mt-2"
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Brand */}
-          <div className="flex flex-col items-center mb-7">
+          {/* Logo + wordmark */}
+          <div className="flex flex-col items-center mb-9">
             <motion.div
               className="relative"
-              initial={{ scale: 0.5, opacity: 0 }}
+              initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+              transition={{ type: 'spring', stiffness: 220, damping: 22 }}
             >
               <div
-                className="absolute -inset-5 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, hsl(340 100% 55% / 0.32), transparent 70%)' }}
+                className="absolute -inset-4 rounded-full pointer-events-none"
+                style={{ background: 'radial-gradient(circle, hsl(340 100% 55% / 0.28), transparent 70%)', filter: 'blur(10px)' }}
               />
               <div
-                className="w-20 h-20 rounded-[26px] relative flex items-center justify-center overflow-hidden"
-                style={{
-                  background: '#000',
-                  boxShadow: '0 0 28px hsl(var(--primary) / 0.45), inset 0 0 0 1px rgba(255,255,255,0.08)',
-                }}
+                className="relative w-[68px] h-[68px] rounded-[22px] overflow-hidden bg-black"
+                style={{ boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.06)' }}
               >
                 <img
                   src={appLogo}
-                  alt="Univers Flow logo"
-                  width={80}
-                  height={80}
-                  {...({ fetchpriority: 'high' } as any)}
+                  alt="Universflow"
+                  width={68}
+                  height={68}
                   decoding="async"
-                  className="w-full h-full object-cover scale-[1.04]"
+                  className="w-full h-full object-cover"
                 />
               </div>
             </motion.div>
 
             <motion.h1
-              className="mt-4 text-2xl font-bold tracking-tight"
-              initial={{ opacity: 0, y: 10 }}
+              className="mt-5 text-[26px] leading-none font-display tracking-tight text-foreground"
+              initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.4 }}
+              transition={{ delay: 0.18, duration: 0.4 }}
             >
-              <span
-                style={{
-                  background: 'linear-gradient(135deg, #FF2D55, #BF5AF2, #5E5CE6)',
-                  WebkitBackgroundClip: 'text',
-                  WebkitTextFillColor: 'transparent',
-                }}
-              >
-                Univers
-              </span>
-              <span className="text-foreground ml-1.5 font-light">Flow</span>
-              <span className="sr-only"> — Premium Music Experience</span>
+              Universflow
             </motion.h1>
-            <motion.p
-              className="mt-1 text-[10.5px] tracking-[0.18em] uppercase font-medium text-muted-foreground"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 }}
-            >
-              Premium Music Experience
-            </motion.p>
+            <p className="mt-2 text-[10.5px] tracking-[0.28em] uppercase text-muted-foreground/80">
+              {isLogin ? 'Welcome back' : 'Start your sound'}
+            </p>
           </div>
 
-          {/* Segmented Login / Sign up switcher */}
+          {/* Segmented tabs — single accent, no gradients */}
           <div
-            className="relative grid grid-cols-2 p-1 rounded-2xl mb-4"
+            className="relative grid grid-cols-2 p-1 rounded-full mb-5 mx-auto w-[78%]"
             style={{
-              background: 'rgba(255,255,255,0.05)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.06)',
             }}
           >
             <motion.div
               layout
-              transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-              className="absolute top-1 bottom-1 rounded-xl"
+              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+              className="absolute top-1 bottom-1 rounded-full"
               style={{
                 width: 'calc(50% - 4px)',
                 left: isLogin ? 4 : 'calc(50% + 0px)',
-                background: 'linear-gradient(135deg, #FF2D55, #BF5AF2)',
-                boxShadow: '0 4px 18px hsl(340 100% 50% / 0.35)',
+                background: '#FF2D55',
+                boxShadow: '0 6px 18px hsl(340 100% 45% / 0.4)',
               }}
             />
             {(['login', 'signup'] as Mode[]).map((m) => (
@@ -190,158 +170,145 @@ const Auth = () => {
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className="relative z-10 h-10 text-[13px] font-semibold tracking-tight transition-colors"
+                className="relative z-10 h-9 text-[12.5px] font-semibold tracking-tight transition-colors"
                 style={{ color: mode === m ? '#fff' : 'hsl(var(--muted-foreground))' }}
               >
-                {m === 'login' ? 'Sign In' : 'Sign Up'}
+                {m === 'login' ? 'Sign in' : 'Create account'}
               </button>
             ))}
           </div>
 
           <AnimatePresence mode="wait" initial={false} custom={isLogin}>
-          <motion.form
-            key={mode}
-            custom={isLogin}
-            variants={authPanelVariants}
-            onSubmit={handleSubmit}
-            className="relative rounded-3xl p-5 space-y-4"
-            style={{
-              background: 'rgba(22, 22, 24, 0.82)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              boxShadow: '0 24px 70px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
-            }}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ type: 'spring', stiffness: 260, damping: 28, mass: 0.9 }}
-          >
-            <div>
-              <h2 className="text-[17px] font-bold text-foreground tracking-tight">
-                {isLogin ? 'Welcome back' : 'Create your account'}
-              </h2>
-              <p className="text-muted-foreground text-[11.5px] mt-0.5">
-                {isLogin ? 'Sign in to keep the music flowing' : 'Pick a username — your vibe starts here'}
-              </p>
-            </div>
-
-            <div className="space-y-2.5">
+            <motion.form
+              key={mode}
+              custom={isLogin}
+              variants={panelVariants}
+              onSubmit={handleSubmit}
+              className="relative rounded-[26px] p-5 space-y-3.5"
+              style={{
+                background: 'rgba(16,16,18,0.78)',
+                border: '0.5px solid rgba(255,255,255,0.07)',
+                boxShadow: '0 30px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
+              }}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
+            >
               <AnimatePresence initial={false} mode="popLayout">
                 {!isLogin && (
                   <motion.div
                     key="username"
-                    initial={{ opacity: 0, height: 0, y: -6 }}
+                    initial={{ opacity: 0, height: 0, y: -4 }}
                     animate={{ opacity: 1, height: 'auto', y: 0 }}
-                    exit={{ opacity: 0, height: 0, y: -6 }}
+                    exit={{ opacity: 0, height: 0, y: -4 }}
                     transition={{ duration: 0.22 }}
                     className="overflow-hidden"
                   >
+                    <label className="block text-[10.5px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/70 mb-1.5 pl-1">
+                      Username
+                    </label>
                     <div className="relative">
-                      <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
                       <Input
                         type="text"
-                        placeholder="Username (permanent)"
+                        placeholder="yourname"
                         aria-label="Username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, '').slice(0, 20))}
-                        className="pl-10 h-12 text-sm rounded-xl border-0"
-                        style={{ background: 'rgba(255, 255, 255, 0.06)' }}
-                        required
+                        className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                        required={!isLogin}
                         minLength={3}
                         maxLength={20}
                         autoComplete="username"
                         autoFocus
                       />
                     </div>
-                    <p className="mt-1.5 text-[10.5px] text-muted-foreground/80 px-1">
-                      Fresh animated avatar included
-                    </p>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              <div className="relative">
-                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type="email"
-                  placeholder="Email address"
-                  aria-label="Email address"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10 h-12 text-sm rounded-xl border-0"
-                  style={{ background: 'rgba(255, 255, 255, 0.06)' }}
-                  required
-                  autoComplete={isLogin ? 'email' : 'email'}
-                />
+              <div>
+                <label className="block text-[10.5px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/70 mb-1.5 pl-1">
+                  Email
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+                  <Input
+                    type="email"
+                    placeholder="you@email.com"
+                    aria-label="Email address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                    required
+                    autoComplete="email"
+                  />
+                </div>
               </div>
 
-              <div className="relative">
-                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder={isLogin ? 'Password' : 'Password (min 6 characters)'}
-                  aria-label="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10 pr-10 h-12 text-sm rounded-xl border-0"
-                  style={{ background: 'rgba(255, 255, 255, 0.06)' }}
-                  required
-                  minLength={6}
-                  autoComplete={isLogin ? 'current-password' : 'new-password'}
-                />
-                <button
-                  type="button"
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-0.5 text-muted-foreground active:scale-90 transition-transform"
-                  onClick={() => setShowPassword(!showPassword)}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
+              <div>
+                <label className="block text-[10.5px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/70 mb-1.5 pl-1">
+                  Password
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={isLogin ? 'Your password' : 'At least 6 characters'}
+                    aria-label="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10 pr-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                    required
+                    minLength={6}
+                    autoComplete={isLogin ? 'current-password' : 'new-password'}
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground/70 active:scale-90 transition-transform"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <Button
-              type="submit"
-              className="w-full h-12 text-[14px] font-bold rounded-xl border-0 text-primary-foreground active:scale-[0.97] transition-transform"
-              style={{
-                background: 'linear-gradient(135deg, #FF2D55, #BF5AF2, #5E5CE6)',
-                boxShadow: '0 6px 24px hsl(340 100% 50% / 0.35)',
-              }}
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <span className="flex items-center gap-2">
-                  {isLogin ? 'Sign In' : 'Create Account'}
-                  <ArrowRight className="w-4 h-4" />
-                </span>
+              <Button
+                type="submit"
+                className="w-full h-12 text-[14px] font-semibold rounded-xl border-0 text-white active:scale-[0.98] transition-transform mt-1"
+                style={{
+                  background: 'linear-gradient(180deg, #FF3B5C 0%, #E11D48 100%)',
+                  boxShadow: '0 10px 28px hsl(340 100% 45% / 0.4), inset 0 1px 0 rgba(255,255,255,0.18)',
+                }}
+                disabled={loading}
+              >
+                {loading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span className="flex items-center gap-2">
+                    {isLogin ? 'Sign in' : 'Create account'}
+                    <ArrowRight className="w-4 h-4" />
+                  </span>
+                )}
+              </Button>
+
+              {!isLogin && (
+                <p className="text-center text-[10.5px] leading-relaxed text-muted-foreground/70 px-3 pt-1">
+                  By creating an account, you agree to Universflow's Terms and Privacy Policy.
+                </p>
               )}
-            </Button>
-
-            {!isLogin && (
-              <p className="text-center text-[10px] leading-relaxed text-muted-foreground/80 px-2">
-                By creating an account, you agree to Universflow's Terms of Service and Privacy Policy.
-              </p>
-            )}
-          </motion.form>
+            </motion.form>
           </AnimatePresence>
         </motion.div>
 
-        <motion.div
-          className="relative z-10 mt-7 px-3.5 py-1.5 rounded-full flex items-center gap-2"
-          style={{
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.06)',
-          }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-          <p className="text-[10px] text-muted-foreground/70 tracking-wider">
-            Universflow · Built for music lovers
-          </p>
-        </motion.div>
+        <div className="flex-1" />
+        <p className="relative z-10 text-[10px] tracking-[0.22em] uppercase text-muted-foreground/50 mt-8">
+          Universflow · Built for music lovers
+        </p>
       </div>
     </FadeTransition>
   );
