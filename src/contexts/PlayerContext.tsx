@@ -284,6 +284,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const playRequestSeqRef = useRef(0);
   const activeSongIdentityRef = useRef<string | null>(null);
   const queueRef = useRef<Song[]>([]);
+  const endedFiredForSeqRef = useRef<number>(-1);
   // Auto-mix guard: prevents repeated extend calls while the network is in
   // flight, and remembers song-ids already added so we don't loop the same
   // recommendations forever.
@@ -1083,6 +1084,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
 
     const handleEnded = () => {
+      // De-dupe: 'ended' + the timeupdate safety net could both fire for the
+      // same song. Only the first wins until the next play request bumps seq.
+      if (endedFiredForSeqRef.current === playRequestSeqRef.current) return;
+      endedFiredForSeqRef.current = playRequestSeqRef.current;
       if (repeat === 'one') {
         audio.currentTime = 0;
         audio.play().catch(console.warn);
@@ -1162,6 +1167,18 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         if (timeLeft <= crossfadeDuration && timeLeft > 0) {
           startCrossfade();
         }
+      }
+      // ── Auto-advance safety net (Android WebView sometimes swallows 'ended').
+      //    If we're within 0.25s of the end and not crossfading, force the
+      //    ended pipeline so playlists keep flowing on APK.
+      if (
+        !isCrossfading.current &&
+        audio.duration > 1 &&
+        isFinite(audio.duration) &&
+        audio.currentTime > 0 &&
+        audio.duration - audio.currentTime <= 0.25
+      ) {
+        handleEnded();
       }
     };
 

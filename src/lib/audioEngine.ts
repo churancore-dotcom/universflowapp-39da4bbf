@@ -281,13 +281,15 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   const stereoPanner = ctx.createStereoPanner();
   stereoPanner.pan.value = 0;
 
-  // True brick-wall limiter — prevents clipping warble at high EQ gains
+  // Transparent peak control — soft-knee, gentle ratio. Avoids the harsh
+  // "pumping/warble" Android DSP exhibited with the previous brick-wall
+  // settings (-1 / knee 0 / ratio 20), especially with bass boost engaged.
   const limiter = ctx.createDynamicsCompressor();
-  limiter.threshold.value = -1;
-  limiter.knee.value = 0;
-  limiter.ratio.value = 20;
-  limiter.attack.value = 0.003;
-  limiter.release.value = 0.1;
+  limiter.threshold.value = -6;
+  limiter.knee.value = 12;
+  limiter.ratio.value = 4;
+  limiter.attack.value = 0.01;
+  limiter.release.value = 0.18;
 
   // Wire graph
   source.connect(filters[0]);
@@ -342,11 +344,11 @@ function applyLateNightToLimiter() {
     // Makeup gain — quiet content now sits ~6dB louder
     engine.preGain.gain.setTargetAtTime(1.6, now, SMOOTH);
   } else {
-    c.threshold.setTargetAtTime(-1, now, SMOOTH);
-    c.knee.setTargetAtTime(0, now, SMOOTH);
-    c.ratio.setTargetAtTime(20, now, SMOOTH);
-    c.attack.setTargetAtTime(0.003, now, SMOOTH);
-    c.release.setTargetAtTime(0.1, now, SMOOTH);
+    c.threshold.setTargetAtTime(-6, now, SMOOTH);
+    c.knee.setTargetAtTime(12, now, SMOOTH);
+    c.ratio.setTargetAtTime(4, now, SMOOTH);
+    c.attack.setTargetAtTime(0.01, now, SMOOTH);
+    c.release.setTargetAtTime(0.18, now, SMOOTH);
     engine.preGain.gain.setTargetAtTime(0.92, now, SMOOTH);
   }
 }
@@ -480,11 +482,11 @@ export function setBands(gainsDb: number[], bassBoostPercent = 0) {
   if (engine.mode !== 'processed' || !engine.ctx || !engine.filters.length) return;
   const ctx = engine.ctx;
   const now = ctx.currentTime;
-  // Bass boost ramps up to +18dB on the 32Hz sub-shelf — felt as physical thump.
+  // Bass boost — reined in so high settings don't drive the limiter into pumping.
   const pct = Math.min(100, Math.max(0, bassBoostPercent)) / 100;
-  const subBoost = pct * 18;
-  const punchBoost = pct * 12; // 64Hz — the "thump" frequency
-  const kickBoost  = pct * 4;  // 125Hz — slight body, no vocal muddiness
+  const subBoost = pct * 10;   // 32Hz sub — felt as physical thump
+  const punchBoost = pct * 7;  // 64Hz — the "thump" frequency
+  const kickBoost  = pct * 3;  // 125Hz — slight body, no vocal muddiness
 
   for (let i = 0; i < engine.filters.length; i++) {
     let g = gainsDb[i] ?? 0;
