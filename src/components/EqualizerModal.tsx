@@ -88,7 +88,9 @@ const EqualizerModal = ({ isOpen, onClose }: EqualizerModalProps) => {
       : effectsActive
         ? engineMode === 'unsupported'
           ? 'Unavailable on this stream'
-          : 'Connecting…'
+          : engineMode === 'direct'
+            ? 'Reloading stream for effects…'
+            : 'Connecting…'
         : 'Ready — choose a preset';
 
   // Resume the AudioContext on open (user-gesture window) so the global engine

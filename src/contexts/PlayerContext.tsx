@@ -484,6 +484,36 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Wire the global EQ/audio engine to the live audio element. Persists across modal open/close.
   useGlobalAudioEngine(audioElement);
 
+  // When EQ effects become active mid-playback on a non-CORS stream, the audio
+  // graph cannot process the current src (it was loaded direct for background
+  // reliability). Re-load the same source through our proxy so the WebAudio
+  // chain can actually connect — this is what makes the EQ modal flip from
+  // "Connecting…" to "Connected" without the user touching the song.
+  useEffect(() => {
+    const handler = () => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      if (!isEqActive(getEQSettings())) return;
+      const src = audio.currentSrc || audio.src;
+      if (!src || isAudioProxyUrl(src)) return;
+      if (!shouldProxyStreamUrl(src)) return;
+      const proxied = buildStreamProxyUrl(src);
+      if (proxied === src) return;
+      const wasPlaying = !audio.paused;
+      const t = audio.currentTime;
+      configureAudioElementSource(audio, proxied);
+      audio.load();
+      const onLoaded = () => {
+        try { audio.currentTime = t; } catch { /* ignore */ }
+        if (wasPlaying) audio.play().catch(() => {});
+        audio.removeEventListener('loadedmetadata', onLoaded);
+      };
+      audio.addEventListener('loadedmetadata', onLoaded);
+    };
+    window.addEventListener('uf-eq-changed', handler);
+    return () => window.removeEventListener('uf-eq-changed', handler);
+  }, []);
+
   const publishNativeMusicControls = useCallback((song: Song, playing: boolean, duration?: number) => {
     import('@/lib/nativeMusicControls')
       .then(({ showNativeMusicControls }) => showNativeMusicControls(
