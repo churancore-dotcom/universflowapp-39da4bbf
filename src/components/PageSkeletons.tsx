@@ -1,61 +1,49 @@
 import React, { memo } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
-// ── Home Page Skeleton ──
-export const HomeSkeleton = memo(() => (
-  <div className="space-y-5 animate-fade-in">
-    {/* Featured Artists skeleton */}
-    <div className="rounded-3xl p-3 pb-2" style={{ background: 'hsl(var(--card) / 0.5)', border: '0.5px solid rgba(255,255,255,0.04)' }}>
-      <div className="flex items-center gap-1.5 mb-3">
-        <Skeleton className="w-5 h-5 rounded-md" />
-        <Skeleton className="w-28 h-4 rounded-md" />
-      </div>
-      <div className="flex gap-2.5 overflow-hidden pb-1">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex-shrink-0 w-[78px] flex flex-col items-center">
-            <Skeleton className="w-[64px] h-[64px] rounded-full mb-2" />
-            <Skeleton className="w-14 h-3 rounded" />
-            <Skeleton className="w-10 h-2 rounded mt-1" />
-          </div>
-        ))}
-      </div>
-    </div>
+// ── Home Page Skeleton ── minimal, Apple-style shimmer
+const Shimmer = ({ className = '' }: { className?: string }) => (
+  <div
+    className={`relative overflow-hidden rounded-2xl ${className}`}
+    style={{ background: 'rgba(255,255,255,0.04)' }}
+  >
+    <div
+      className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite]"
+      style={{
+        background:
+          'linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent)',
+      }}
+    />
+  </div>
+);
 
-    {/* Horizontal section skeleton */}
-    <div className="rounded-3xl p-3 pb-2" style={{ background: 'hsl(var(--card) / 0.5)', border: '0.5px solid rgba(255,255,255,0.04)' }}>
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <Skeleton className="w-24 h-4 rounded-md" />
-          <Skeleton className="w-16 h-3 rounded-md mt-1" />
-        </div>
-        <Skeleton className="w-14 h-4 rounded-md" />
-      </div>
-      <div className="flex gap-2.5 overflow-hidden pb-2">
+export const HomeSkeleton = memo(() => (
+  <div className="space-y-4 animate-fade-in">
+    <style>{`@keyframes shimmer{100%{transform:translateX(100%)}}`}</style>
+    {/* Hero bento */}
+    <Shimmer className="h-36 rounded-3xl" />
+
+    {/* Horizontal row */}
+    <div>
+      <Shimmer className="h-3 w-24 mb-3 rounded-md" />
+      <div className="flex gap-2.5 overflow-hidden">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="flex-shrink-0 w-[130px]">
-            <Skeleton className="w-[130px] h-[130px] rounded-3xl mb-1.5" />
-            <Skeleton className="w-20 h-3 rounded" />
-            <Skeleton className="w-14 h-2 rounded mt-1" />
+            <Shimmer className="w-[130px] h-[130px] rounded-3xl mb-2" />
+            <Shimmer className="h-3 w-20 rounded-md" />
           </div>
         ))}
       </div>
     </div>
 
-    {/* All Songs grid skeleton */}
-    <div className="rounded-3xl p-3" style={{ background: 'hsl(var(--card) / 0.5)', border: '0.5px solid rgba(255,255,255,0.04)' }}>
-      <div className="flex items-center justify-between mb-3">
-        <div>
-          <Skeleton className="w-20 h-4 rounded-md" />
-          <Skeleton className="w-14 h-3 rounded-md mt-1" />
-        </div>
-        <Skeleton className="w-8 h-8 rounded-full" />
-      </div>
+    {/* Grid */}
+    <div>
+      <Shimmer className="h-3 w-20 mb-3 rounded-md" />
       <div className="grid grid-cols-3 gap-2.5">
-        {Array.from({ length: 9 }).map((_, i) => (
+        {Array.from({ length: 6 }).map((_, i) => (
           <div key={i}>
-            <Skeleton className="aspect-square rounded-3xl mb-1.5" />
-            <Skeleton className="w-4/5 h-3 rounded" />
-            <Skeleton className="w-3/5 h-2 rounded mt-1" />
+            <Shimmer className="aspect-square rounded-3xl mb-1.5" />
+            <Shimmer className="h-3 w-4/5 rounded-md" />
           </div>
         ))}
       </div>
