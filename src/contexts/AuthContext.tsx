@@ -8,11 +8,16 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isAdmin: boolean;
+  // null = unknown (still loading), true/false once profile checked.
+  // We only redirect to the verification screen when this is explicitly `false`
+  // so legacy accounts without the column set don't get locked out.
+  emailVerified: boolean | null;
   isLoading: boolean;
   isOffline: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null; isAdmin?: boolean }>;
   signUp: (email: string, password: string, username: string, countryCode?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
+  refreshEmailVerified: () => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -21,6 +26,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [emailVerified, setEmailVerified] = useState<boolean | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
 
@@ -68,6 +74,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return false;
     }
   }, []);
+
+  const loadEmailVerified = useCallback(async (userId: string) => {
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('email_verified')
+        .eq('user_id', userId)
+        .maybeSingle();
+      // Treat NULL as verified so legacy accounts aren't blocked. Only explicit
+      // `false` triggers the verification gate.
+      setEmailVerified(data && data.email_verified === false ? false : true);
+    } catch {
+      setEmailVerified(true);
+    }
+  }, []);
+
+  const refreshEmailVerified = useCallback(async () => {
+    if (!user) { setEmailVerified(null); return; }
+    await loadEmailVerified(user.id);
+  }, [user, loadEmailVerified]);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
