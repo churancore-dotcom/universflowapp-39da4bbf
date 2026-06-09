@@ -1464,20 +1464,28 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       recentlyPlayedTimerRef.current = null;
     }
     const isCatalogUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(song.id);
-    if (isCatalogUuid) {
-      const songIdToLog = song.id;
-      recentlyPlayedTimerRef.current = window.setTimeout(() => {
-        recentlyPlayedTimerRef.current = null;
-        supabase.auth.getUser().then(({ data: { user } }) => {
-          if (user) {
-            supabase.from('recently_played').insert({
-              user_id: user.id,
-              song_id: songIdToLog,
-            }).then(() => {});
-          }
-        }).catch(() => {});
-      }, 30000);
-    }
+    const trackIdForEvent = (song.id || `${song.artist}-${song.title}`).slice(0, 220);
+    const sourceForEvent = isCatalogUuid ? 'catalog' : (song.id?.startsWith('yt-') ? 'youtube' : (song.id?.startsWith('audius-') ? 'audius' : 'external'));
+    recentlyPlayedTimerRef.current = window.setTimeout(() => {
+      recentlyPlayedTimerRef.current = null;
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        if (isCatalogUuid) {
+          supabase.from('recently_played').insert({ user_id: user.id, song_id: song.id }).then(() => {});
+        }
+        supabase.from('song_play_events').insert({
+          user_id: user.id,
+          track_id: trackIdForEvent,
+          song_id: isCatalogUuid ? song.id : null,
+          title: (song.title || 'Unknown').slice(0, 220),
+          artist: (song.artist || 'Unknown').slice(0, 220),
+          cover_url: song.cover_url || null,
+          source: sourceForEvent,
+          action: 'stream',
+          score_weight: 3,
+        }).then(() => {});
+      }).catch(() => {});
+    }, 30000);
   }, [isPlayableUrl, resolveAudioUrl, volume, playYouTubeFallback, teardownYouTubePlayback, publishNativeMusicControls, getNextIndex, shuffle, repeat, playSongAtIndex]);
 
   const playSong = useCallback((song: Song, offlineUrl?: string | null, songsQueue?: Song[]) => {
