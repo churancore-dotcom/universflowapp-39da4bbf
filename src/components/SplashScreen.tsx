@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import splashVideo from '@/assets/splash.mp4.asset.json';
+// Bundled locally in /public so the APK shows it instantly without hitting the CDN.
+const SPLASH_VIDEO = '/media/splash.mp4';
 
 interface SplashScreenProps {
   onComplete: () => void;
