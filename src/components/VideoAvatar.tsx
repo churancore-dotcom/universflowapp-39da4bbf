@@ -1,14 +1,4 @@
 import { memo, useEffect, useRef } from 'react';
-import headphonesBoy from '@/assets/avatars/headphones-boy.mp4.asset.json';
-import chainGuy from '@/assets/avatars/chain-guy.mp4.asset.json';
-import glassesBeard from '@/assets/avatars/glasses-beard.mp4.asset.json';
-import wavyGirl from '@/assets/avatars/wavy-girl.mp4.asset.json';
-import coffeeGirl from '@/assets/avatars/coffee-girl.mp4.asset.json';
-import peaceGuy from '@/assets/avatars/peace-guy.mp4.asset.json';
-import kissGirl from '@/assets/avatars/kiss-girl.mp4.asset.json';
-import thumbsGuy from '@/assets/avatars/thumbs-guy.mp4.asset.json';
-import { cdnAssetUrl } from '@/lib/assetUrl';
-
 
 export type AvatarVariant =
   | 'headphones-boy'
@@ -20,17 +10,19 @@ export type AvatarVariant =
   | 'kiss-girl'
   | 'thumbs-guy';
 
+// Avatar videos are bundled into /public/media/avatars so the APK plays them
+// instantly from the local file bundle — no CDN round-trip, no broken video
+// icon when the network is slow or offline.
 const SRC: Record<AvatarVariant, string> = {
-  'headphones-boy': cdnAssetUrl(headphonesBoy.url),
-  'chain-guy': cdnAssetUrl(chainGuy.url),
-  'glasses-beard': cdnAssetUrl(glassesBeard.url),
-  'wavy-girl': cdnAssetUrl(wavyGirl.url),
-  'coffee-girl': cdnAssetUrl(coffeeGirl.url),
-  'peace-guy': cdnAssetUrl(peaceGuy.url),
-  'kiss-girl': cdnAssetUrl(kissGirl.url),
-  'thumbs-guy': cdnAssetUrl(thumbsGuy.url),
+  'headphones-boy': '/media/avatars/headphones-boy.mp4',
+  'chain-guy': '/media/avatars/chain-guy.mp4',
+  'glasses-beard': '/media/avatars/glasses-beard.mp4',
+  'wavy-girl': '/media/avatars/wavy-girl.mp4',
+  'coffee-girl': '/media/avatars/coffee-girl.mp4',
+  'peace-guy': '/media/avatars/peace-guy.mp4',
+  'kiss-girl': '/media/avatars/kiss-girl.mp4',
+  'thumbs-guy': '/media/avatars/thumbs-guy.mp4',
 };
-
 
 interface Props {
   variant: AvatarVariant;
