@@ -38,27 +38,64 @@ const handleShare = async () => {
 };
 
 const GetApp = () => {
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "MobileApplication",
-    name: "Universflow",
-    operatingSystem: "ANDROID",
-    applicationCategory: "MusicApplication",
-    url: "https://universflow.in/get",
-    installUrl: "https://universflow.in/UniversFlow.apk",
-    downloadUrl: "https://universflow.in/UniversFlow.apk",
-    softwareVersion: VERSION,
-    fileSize: SIZE,
-    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
-    aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", ratingCount: "1280" },
-  };
+  const jsonLd = [
+    {
+      "@context": "https://schema.org",
+      "@type": "MobileApplication",
+      name: "Universflow",
+      operatingSystem: "ANDROID",
+      applicationCategory: "MusicApplication",
+      url: "https://universflow.in/get",
+      installUrl: "https://universflow.in/UniversFlow.apk",
+      downloadUrl: "https://universflow.in/UniversFlow.apk",
+      softwareVersion: VERSION,
+      fileSize: SIZE,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", ratingCount: "1280" },
+      image: "https://universflow.in/pwa-512x512.png",
+      screenshot: "https://universflow.in/pwa-512x512.png",
+      description: "Free music streaming and download app for Android. Stream millions of songs, build playlists, and listen offline.",
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      name: "Universflow",
+      operatingSystem: "Android 5.1+",
+      applicationCategory: "MusicApplication",
+      url: "https://universflow.in/get",
+      downloadUrl: "https://universflow.in/UniversFlow.apk",
+      installUrl: "https://universflow.in/UniversFlow.apk",
+      softwareVersion: VERSION,
+      fileSize: SIZE,
+      offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+      aggregateRating: { "@type": "AggregateRating", ratingValue: "4.8", ratingCount: "1280" },
+      image: "https://universflow.in/pwa-512x512.png",
+      screenshot: "https://universflow.in/pwa-512x512.png",
+      description: "Free music streaming and download app for Android. Stream millions of songs, build playlists, and listen offline.",
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      name: "How to install Universflow APK on Android",
+      description: "Step-by-step guide to download and install the Universflow music app APK on your Android phone.",
+      totalTime: "PT2M",
+      step: [
+        { "@type": "HowToStep", name: "Download the APK", text: "Tap the Install button on the Universflow app page to download the APK file.", url: "https://universflow.in/get#step1" },
+        { "@type": "HowToStep", name: "Open the downloaded file", text: "Open the APK file from your Downloads notification or file manager.", url: "https://universflow.in/get#step2" },
+        { "@type": "HowToStep", name: "Allow installation", text: "If prompted, allow installation from this source in your Android settings.", url: "https://universflow.in/get#step3" },
+        { "@type": "HowToStep", name: "Install and open", text: "Tap Install, then Open to start using Universflow.", url: "https://universflow.in/get#step4" },
+      ],
+    },
+  ];
 
   return (
     <>
       <SEOHead
-        title="Universflow — Music Player & Streaming (Android APK)"
-        description="Install Universflow on Android. Stream millions of songs, build playlists, download for offline, and enjoy a premium Apple Music-style player. Free."
+        title="Universflow App — Download APK for Android | Free Music Player"
+        description="Download the Univers Flow App for Android. Install Universflow APK to stream millions of songs free, build playlists, and listen offline. No credit card required."
         path="/get"
+        keywords="Univers Flow App, Universflow APK download, Universflow Android app, download Univers Flow, Universflow install, free music app Android APK, music streaming APK, offline music player APK"
+        type="website"
         jsonLd={jsonLd}
         jsonLdId="getapp-jsonld"
       />
