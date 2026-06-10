@@ -327,16 +327,27 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
         </motion.div>
 
         {newRelease && (
-          <motion.button {...fadeUp(5)} onClick={() => playFromTile(newRelease)} className="rounded-3xl p-4 border border-white/5 flex flex-col h-32 text-left relative overflow-hidden active:scale-[0.97] transition-transform bg-card">
-            <div className="flex justify-between items-start">
-              <span className="text-[hsl(18_100%_82%)] text-[10px] font-extrabold uppercase tracking-[0.18em]">New</span>
-              <span className="w-2 h-2 rounded-full bg-primary" aria-hidden />
+          <motion.button {...fadeUp(5)} onClick={() => playFromTile(newRelease)} className="rounded-3xl border border-white/5 flex flex-col h-32 text-left relative overflow-hidden active:scale-[0.97] transition-transform bg-card">
+            {newRelease.cover_url ? (
+              <img
+                src={newRelease.cover_url}
+                alt=""
+                className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-[hsl(18_100%_82%)]/30" />
+            )}
+            {/* readable scrim over the artwork */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
+            <div className="relative z-10 flex justify-between items-start p-4">
+              <span className="text-white text-[10px] font-extrabold uppercase tracking-[0.18em] drop-shadow">New</span>
+              <span className="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" aria-hidden />
             </div>
-            <div className="mt-auto relative z-10">
-              <p className="text-[12px] font-bold text-white truncate">{newRelease.title}</p>
-              <p className="text-[10px] text-white/40 truncate">{newRelease.artist}</p>
+            <div className="relative z-10 mt-auto p-4 pt-0">
+              <p className="text-[12px] font-bold text-white truncate drop-shadow">{newRelease.title}</p>
+              <p className="text-[10px] text-white/70 truncate">{newRelease.artist}</p>
             </div>
-            {newRelease.cover_url && <img src={newRelease.cover_url} alt="" className="absolute -right-4 -bottom-4 w-20 h-20 rounded-2xl object-cover opacity-30" />}
           </motion.button>
         )}
       </div>
