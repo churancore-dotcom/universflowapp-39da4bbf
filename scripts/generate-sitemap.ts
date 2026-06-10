@@ -21,10 +21,14 @@ const today = new Date().toISOString().slice(0, 10);
 
 const staticEntries: SitemapEntry[] = [
   { path: "/", lastmod: today, changefreq: "daily", priority: "1.0" },
+  { path: "/get", lastmod: today, changefreq: "weekly", priority: "0.9" },
+  { path: "/welcome", lastmod: today, changefreq: "monthly", priority: "0.5" },
   { path: "/home", lastmod: today, changefreq: "daily", priority: "0.95" },
   { path: "/search", lastmod: today, changefreq: "daily", priority: "0.9" },
   { path: "/artists", lastmod: today, changefreq: "weekly", priority: "0.85" },
   { path: "/premium", lastmod: today, changefreq: "monthly", priority: "0.8" },
+  { path: "/subscription", lastmod: today, changefreq: "monthly", priority: "0.6" },
+  { path: "/downloads", lastmod: today, changefreq: "weekly", priority: "0.6" },
   { path: "/support", lastmod: today, changefreq: "monthly", priority: "0.65" },
   { path: "/library", lastmod: today, changefreq: "weekly", priority: "0.7" },
   { path: "/auth", lastmod: today, changefreq: "monthly", priority: "0.6" },
@@ -34,7 +38,7 @@ const staticEntries: SitemapEntry[] = [
   { path: "/profile", lastmod: today, changefreq: "monthly", priority: "0.5" },
   { path: "/settings", lastmod: today, changefreq: "monthly", priority: "0.4" },
   { path: "/offline", lastmod: today, changefreq: "monthly", priority: "0.3" },
-  { path: "/listen-together", lastmod: today, changefreq: "monthly", priority: "0.5" },
+  { path: "/blog/free-music-download-apps-india", lastmod: today, changefreq: "monthly", priority: "0.7" },
 ];
 
 async function fetchDynamic(): Promise<SitemapEntry[]> {
