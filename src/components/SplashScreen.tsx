@@ -27,7 +27,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         <div className="w-44 h-44 rounded-full overflow-hidden flex items-center justify-center bg-black shadow-[0_0_48px_hsl(var(--primary)_/_0.24)]">
           <video
             ref={videoRef}
-            src={splashVideo.url}
+            src={SPLASH_VIDEO}
             autoPlay
             muted
             playsInline
