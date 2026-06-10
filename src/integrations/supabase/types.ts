@@ -999,6 +999,13 @@ export type Database = {
             referencedRelation: "app_reviews"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "review_reactions_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "app_reviews_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       song_dedications: {
@@ -1520,7 +1527,33 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      app_reviews_public: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string | null
+          rating: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string | null
+          rating?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string | null
+          rating?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_log_event: {
