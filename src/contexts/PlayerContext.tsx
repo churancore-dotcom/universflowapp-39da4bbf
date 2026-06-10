@@ -1354,9 +1354,12 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setProgress(0);
         setDuration(audioRef.current?.duration || 0);
 
-        isCrossfading.current = false;
-      }
-    }, stepDuration);
+          isCrossfading.current = false;
+        }
+      }, stepDuration);
+    }).catch(() => {
+      isCrossfading.current = false;
+    });
   }, [queue, currentIndex, shuffle, repeat, crossfadeDuration, volume, getNextIndex]);
 
   const playActualSong = useCallback(async (song: Song, offlineUrl?: string | null, songsQueue?: Song[]) => {
