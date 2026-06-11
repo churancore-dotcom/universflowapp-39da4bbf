@@ -124,15 +124,20 @@ const Library = () => {
   const artists = data?.artists || [];
   const loading = isLoading && !data;
 
-  // Refresh on tab visibility (catches like changes from other pages) — uses cache if fresh
+  // Refresh on tab visibility + whenever a like is toggled anywhere in the app
   useEffect(() => {
+    const refetch = () => {
+      if (user) queryClient.invalidateQueries({ queryKey: libraryQueryKey });
+    };
     const onVisibility = () => {
-      if (document.visibilityState === 'visible' && user) {
-        queryClient.invalidateQueries({ queryKey: libraryQueryKey });
-      }
+      if (document.visibilityState === 'visible') refetch();
     };
     document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
+    window.addEventListener('uf:likes-changed', refetch);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('uf:likes-changed', refetch);
+    };
   }, [user, queryClient]);
 
   const handleUnfollowArtist = async (name: string) => {
