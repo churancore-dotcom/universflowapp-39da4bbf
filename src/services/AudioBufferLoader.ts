@@ -1,14 +1,14 @@
 import { AudioEngine } from './AudioEngine';
-
-const bufferCache = new Map<string, AudioBuffer>();
+import { cacheBuffer, getBuffer, clearBuffers } from '../utils/memoryManager';
 
 export async function preloadBuffer(url: string, engine: AudioEngine): Promise<AudioBuffer> {
-  if (bufferCache.has(url)) return bufferCache.get(url)!;
+  const cached = getBuffer(url);
+  if (cached) return cached;
   const buffer = await engine.loadBuffer(url);
-  bufferCache.set(url, buffer);
+  cacheBuffer(url, buffer);
   return buffer;
 }
 
 export function clearCache(): void {
-  bufferCache.clear();
+  clearBuffers();
 }
