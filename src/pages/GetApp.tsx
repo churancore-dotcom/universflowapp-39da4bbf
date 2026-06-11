@@ -182,9 +182,15 @@ const GetApp = () => {
             {SHOTS.map((s, i) => (
               <div
                 key={i}
-                className="snap-start shrink-0 w-[58vw] max-w-[260px] aspect-[9/19.5] rounded-2xl overflow-hidden border border-white/10 bg-gradient-to-b from-[#1a1a1a] to-black flex items-center justify-center"
+                className="snap-start shrink-0 w-[58vw] max-w-[260px] aspect-[9/19.5] rounded-2xl overflow-hidden border border-white/10 bg-black"
               >
-                <img src={s.src} alt={s.alt} className="w-1/2 h-1/2 object-contain opacity-90" />
+                <img
+                  src={s.src}
+                  alt={s.alt}
+                  loading={i === 0 ? "eager" : "lazy"}
+                  decoding="async"
+                  className="w-full h-full object-cover"
+                />
               </div>
             ))}
           </div>
