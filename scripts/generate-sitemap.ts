@@ -42,6 +42,7 @@ const staticEntries: SitemapEntry[] = [
   { path: "/settings", lastmod: today, changefreq: "monthly", priority: "0.4" },
   { path: "/offline", lastmod: today, changefreq: "monthly", priority: "0.3" },
   { path: "/blog/free-music-download-apps-india", lastmod: today, changefreq: "monthly", priority: "0.7" },
+  { path: "/blog/universflow-vs-jiosaavn-vs-gaana", lastmod: today, changefreq: "monthly", priority: "0.7" },
 ];
 
 async function fetchDynamic(): Promise<SitemapEntry[]> {
