@@ -75,6 +75,7 @@ const Announcements = lazy(() => import("./pages/admin/Announcements"));
 const ContentModeration = lazy(() => import("./pages/admin/ContentModeration"));
 const AdminSettings = lazy(() => import("./pages/admin/Settings"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
+const LiveInsights = lazy(() => import("./pages/admin/LiveInsights"));
 const ActivityLogs = lazy(() => import("./pages/admin/ActivityLogs"));
 const BulkActions = lazy(() => import("./pages/admin/BulkActions"));
 const SystemHealth = lazy(() => import("./pages/admin/SystemHealth"));
@@ -216,6 +217,7 @@ const AnimatedRoutes = () => {
             <Route path="announcements" element={<Announcements />} />
             <Route path="moderation" element={<ContentModeration />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="insights" element={<LiveInsights />} />
             <Route path="logs" element={<ActivityLogs />} />
             <Route path="bulk" element={<BulkActions />} />
             <Route path="health" element={<SystemHealth />} />

@@ -50,6 +50,7 @@ const navItems = [
   { icon: ToggleLeft, label: 'Feature Flags', path: '/admin/features' },
   { icon: Bell, label: 'Announcements', path: '/admin/announcements' },
   { icon: Shield, label: 'Moderation', path: '/admin/moderation' },
+  { icon: BarChart3, label: 'Live Insights', path: '/admin/insights' },
   { icon: BarChart3, label: 'Analytics', path: '/admin/analytics' },
   { icon: BarChart3, label: 'Bulk Actions', path: '/admin/bulk' },
   { icon: BarChart3, label: 'Activity Logs', path: '/admin/logs' },
