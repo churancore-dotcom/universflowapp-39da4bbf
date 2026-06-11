@@ -13,6 +13,24 @@
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>https://universflow.in/download</loc>
+    <lastmod>2026-06-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://universflow.in/app</loc>
+    <lastmod>2026-06-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://universflow.in/apk</loc>
+    <lastmod>2026-06-11</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://universflow.in/welcome</loc>
     <lastmod>2026-06-11</lastmod>
     <changefreq>monthly</changefreq>
