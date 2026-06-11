@@ -31,27 +31,37 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
       />
 
       <motion.div
-        className="relative flex flex-col items-center gap-7 px-8"
+        className="relative flex h-full w-full flex-col items-center justify-center px-8"
         initial={{ opacity: 0, scale: 0.88 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
       >
         <motion.div
-          className="relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-[42px]"
+          className="absolute h-[78vw] max-h-[360px] w-[78vw] max-w-[360px] rounded-full"
+          initial={{ opacity: 0, scale: 0.7 }}
+          animate={{ opacity: [0, 0.42, 0.18], scale: [0.7, 1.05, 1.18] }}
+          transition={{ duration: 1.9, ease: 'easeOut' }}
+          style={{
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.36) 0%, hsl(var(--primary) / 0.12) 36%, transparent 68%)',
+            filter: 'blur(18px)',
+          }}
+        />
+        <motion.div
+          className="relative flex h-[58vw] max-h-[260px] min-h-[210px] w-[58vw] max-w-[260px] min-w-[210px] items-center justify-center overflow-hidden rounded-[32%]"
           initial={{ y: 18 }}
           animate={{ y: 0 }}
           transition={{ duration: 0.75, ease: [0.16, 1, 0.3, 1] }}
           style={{
             background: 'linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--background)) 100%)',
             boxShadow:
-              '0 0 88px hsl(var(--primary) / 0.34), inset 0 0 0 0.5px hsl(var(--foreground) / 0.08)',
+              '0 0 120px hsl(var(--primary) / 0.42), inset 0 0 0 0.5px hsl(var(--foreground) / 0.1)',
           }}
         >
           <motion.img
             src={appLogo}
             alt="Universflow"
-            width={160}
-            height={160}
+            width={260}
+            height={260}
             decoding="sync"
             {...({ fetchpriority: 'high' } as any)}
             className="h-full w-full object-cover scale-[1.18]"
@@ -62,13 +72,13 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
         </motion.div>
 
         <motion.div
-          className="text-center"
+          className="mt-10 text-center"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25, duration: 0.55, ease: 'easeOut' }}
         >
-          <h1 className="font-display text-[42px] leading-none tracking-wide text-foreground">UNIVERSFLOW</h1>
-          <div className="mx-auto mt-5 h-[3px] w-32 rounded-full uf-rose-gradient" />
+          <h1 className="font-display text-[54px] leading-none tracking-wide text-foreground">UNIVERSFLOW</h1>
+          <div className="mx-auto mt-6 h-[3px] w-40 rounded-full uf-rose-gradient" />
         </motion.div>
       </motion.div>
     </motion.div>
