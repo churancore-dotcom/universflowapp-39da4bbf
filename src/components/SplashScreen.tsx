@@ -95,7 +95,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
               width={112}
               height={112}
               decoding="sync"
-              fetchPriority="high"
+              fetchpriority="high"
               className="w-full h-full object-cover scale-[1.18]"
             />
           </div>
