@@ -221,6 +221,14 @@ const ArtistPicker = ({ onComplete }: Props) => {
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
+      {/* Skip — top-right, always available */}
+      <button
+        onClick={handleSkip}
+        className="absolute top-4 right-4 z-10 h-9 px-3.5 rounded-full text-xs font-semibold bg-card/70 border border-border/50 text-muted-foreground active:scale-95 transition-transform"
+      >
+        Skip
+      </button>
+
       {/* Hero */}
       <div className="px-5 pt-12 pb-4 text-center">
         <motion.div
@@ -239,7 +247,7 @@ const ArtistPicker = ({ onComplete }: Props) => {
         </p>
       </div>
 
-      {/* Search */}
+      {/* Search — finds any real artist worldwide */}
       <div className="px-5 pb-3">
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -248,10 +256,21 @@ const ArtistPicker = ({ onComplete }: Props) => {
             placeholder="Search any artist…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-11 pl-9 pr-4 rounded-xl bg-card/70 border border-border/50 text-sm focus:outline-none focus:border-primary/60"
+            className="w-full h-11 pl-9 pr-10 rounded-xl bg-card/70 border border-border/50 text-sm focus:outline-none focus:border-primary/60"
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center rounded-full hover:bg-white/5"
+            >
+              {searching
+                ? <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                : <X className="w-4 h-4 text-muted-foreground" />}
+            </button>
+          )}
         </div>
       </div>
+
 
       {/* Categories */}
       <div className="flex gap-2 px-5 overflow-x-auto hide-scrollbar pb-3">
