@@ -84,7 +84,7 @@ const Auth = () => {
 
   return (
     <FadeTransition>
-      <div className="min-h-[100dvh] bg-background text-foreground flex flex-col items-center px-6 pt-10 pb-8 relative overflow-y-auto">
+      <div className="min-h-[100dvh] bg-background text-foreground flex flex-col items-center justify-center px-6 py-8 relative overflow-y-auto">
         <SEOHead
           title="Sign in — Universflow"
           description="Sign in or create your Universflow account to stream music, build playlists, and listen offline."
@@ -101,13 +101,13 @@ const Auth = () => {
         />
 
         <motion.div
-          className="relative w-full max-w-sm z-10 mt-2"
+          className="relative w-full max-w-sm z-10"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
           {/* Logo + wordmark */}
-          <div className="flex flex-col items-center mb-9">
+          <div className="flex flex-col items-center mb-7">
             <motion.div
               className="relative"
               initial={{ scale: 0.6, opacity: 0 }}
@@ -125,12 +125,18 @@ const Auth = () => {
                   boxShadow: 'inset 0 0 0 0.5px hsl(var(--foreground) / 0.08), 0 18px 56px hsl(var(--primary) / 0.24)',
                 }}
               >
-                <img
-                  src={appLogo}
-                  alt="Universflow"
-                  width={124}
-                  height={124}
-                  decoding="async"
+                <video
+                  src="/logo-anim.mp4"
+                  poster={appLogo}
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                  preload="auto"
+                  disableRemotePlayback
+                  // @ts-ignore - webkit attribute for instant inline playback in older Android webviews
+                  webkit-playsinline="true"
+                  aria-label="Universflow"
                   className="w-full h-full object-cover scale-[1.18]"
                 />
               </div>
@@ -308,7 +314,6 @@ const Auth = () => {
           </AnimatePresence>
         </motion.div>
 
-        <div className="flex-1" />
         <p className="relative z-10 text-[10px] tracking-[0.22em] uppercase text-muted-foreground/50 mt-8">
           Universflow · Built for music lovers
         </p>
