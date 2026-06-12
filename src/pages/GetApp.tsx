@@ -95,8 +95,8 @@ const GetApp = () => {
   return (
     <>
       <SEOHead
-        title="Universflow App — Download APK for Android | Free Music Player"
-        description="Download the Univers Flow App for Android. Install Universflow APK to stream millions of songs free, build playlists, and listen offline. No credit card required."
+        title="Universflow APK — Free Music App for Android"
+        description="Download Universflow APK for Android. Stream millions of songs free, build playlists, and listen offline. No credit card required."
         path="/get"
         keywords="Univers Flow App, Universflow APK download, Universflow Android app, download Univers Flow, Universflow install, free music app Android APK, music streaming APK, offline music player APK"
         type="website"
