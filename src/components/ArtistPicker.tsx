@@ -37,8 +37,12 @@ const ArtistPicker = ({ onComplete }: Props) => {
   const [search, setSearch] = useState('');
   const [activeCat, setActiveCat] = useState<string>('All');
   const [saving, setSaving] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [searchResults, setSearchResults] = useState<ArtistOption[]>([]);
+  const searchSeq = useRef(0);
 
-  // Merge catalog artists in (with their photos) + hydrate Deezer images for the rest
+  // Merge catalog artists in (with their photos) + hydrate Deezer images for the rest.
+  // Images load progressively in small batches so the grid is interactive instantly.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -74,18 +78,58 @@ const ArtistPicker = ({ onComplete }: Props) => {
       const merged = Array.from(map.values());
       setArtists(merged);
 
+      // Smaller batches = first photos appear in well under a second
       const missing = merged.filter(a => !a.image).map(a => a.name);
-      const BATCH = 30;
-      for (let i = 0; i < missing.length; i += BATCH) {
+      const BATCH = 12;
+      const batches: string[][] = [];
+      for (let i = 0; i < missing.length; i += BATCH) batches.push(missing.slice(i, i + BATCH));
+      // Fire batches concurrently in pairs to speed things up without overwhelming the edge fn
+      const CONCURRENCY = 3;
+      for (let i = 0; i < batches.length; i += CONCURRENCY) {
         if (cancelled) return;
-        const images = await enrichArtistImages(missing.slice(i, i + BATCH));
-        if (cancelled || !Object.keys(images).length) continue;
-        setArtists(prev => prev.map(a => !a.image && images[a.name] ? { ...a, image: images[a.name] } : a));
+        const slice = batches.slice(i, i + CONCURRENCY);
+        const results = await Promise.all(slice.map(b => enrichArtistImages(b).catch(() => ({}))));
+        if (cancelled) return;
+        const merged: Record<string, string> = {};
+        for (const r of results) Object.assign(merged, r);
+        if (Object.keys(merged).length) {
+          setArtists(prev => prev.map(a => !a.image && merged[a.name] ? { ...a, image: merged[a.name] } : a));
+        }
       }
     })();
     return () => { cancelled = true; };
   }, []);
 
+  // Live universal artist search — finds ANY real artist via the indexer
+  useEffect(() => {
+    const q = search.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      setSearching(false);
+      return;
+    }
+    const seq = ++searchSeq.current;
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const remote = await searchArtistDirectory(q, 18);
+        if (seq !== searchSeq.current) return;
+        const knownLower = new Set(artists.map(a => a.name.toLowerCase()));
+        const mapped: ArtistOption[] = remote
+          .filter(r => r.name && !knownLower.has(r.name.toLowerCase()))
+          .map(r => ({
+            name: r.name,
+            image: r.image_url,
+            source: 'lastfm',
+            category: 'Search',
+          }));
+        setSearchResults(mapped);
+      } finally {
+        if (seq === searchSeq.current) setSearching(false);
+      }
+    }, 220);
+    return () => clearTimeout(t);
+  }, [search, artists]);
 
   const categories = useMemo(() => {
     const set = new Set<string>(['All']);
@@ -95,12 +139,16 @@ const ArtistPicker = ({ onComplete }: Props) => {
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return artists.filter(a => {
+    const local = artists.filter(a => {
       if (activeCat !== 'All' && a.category !== activeCat) return false;
       if (q && !a.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [artists, activeCat, search]);
+    if (!q) return local;
+    // When searching, push remote results to the end so locals still show first
+    return [...local, ...searchResults];
+  }, [artists, activeCat, search, searchResults]);
+
 
   const toggle = (name: string) => {
     triggerHaptic('impactLight');
