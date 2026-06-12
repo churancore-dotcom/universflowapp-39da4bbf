@@ -105,24 +105,8 @@ const GetApp = () => {
       />
 
       <main className="min-h-[100dvh] w-full bg-black text-white overflow-y-auto">
-        {/* Hero splash video */}
-        <section className="w-full bg-black flex items-center justify-center pt-2">
-          <video
-            src="/getapp-splash.mp4"
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="auto"
-            // @ts-ignore
-            webkit-playsinline="true"
-            className="w-full max-w-[520px] h-auto object-contain"
-            aria-label="Universflow animated logo"
-          />
-        </section>
-
         {/* Listing header */}
-        <section className="px-5 pt-4 pb-5">
+        <section className="px-5 pt-8 pb-5">
           <div className="flex items-start gap-4">
             <img
               src="/pwa-192x192.png"
@@ -131,8 +115,9 @@ const GetApp = () => {
               height={88}
               decoding="async"
               {...({ fetchpriority: "high" } as any)}
-              className="rounded-3xl shadow-xl shadow-[#FF2D55]/30 shrink-0"
+              className="w-[88px] h-[88px] rounded-full bg-black object-cover shadow-xl shadow-[#FF2D55]/30 shrink-0"
             />
+
             <div className="min-w-0 flex-1">
               <h1 className="text-2xl font-extrabold leading-tight truncate">Universflow</h1>
               <p className="text-sm text-[#FF2D55] font-medium mt-0.5">Music & Audio</p>
