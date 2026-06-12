@@ -314,7 +314,6 @@ const Auth = () => {
           </AnimatePresence>
         </motion.div>
 
-        <div className="flex-1" />
         <p className="relative z-10 text-[10px] tracking-[0.22em] uppercase text-muted-foreground/50 mt-8">
           Universflow · Built for music lovers
         </p>
