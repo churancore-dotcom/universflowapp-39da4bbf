@@ -101,13 +101,13 @@ const Auth = () => {
         />
 
         <motion.div
-          className="relative w-full max-w-sm z-10 mt-2"
+          className="relative w-full max-w-sm z-10"
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
           {/* Logo + wordmark */}
-          <div className="flex flex-col items-center mb-9">
+          <div className="flex flex-col items-center mb-7">
             <motion.div
               className="relative"
               initial={{ scale: 0.6, opacity: 0 }}
