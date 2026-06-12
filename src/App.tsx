@@ -181,10 +181,10 @@ const AnimatedRoutes = () => {
     <Suspense fallback={<LazyFallback />}>
         <Routes location={location}>
           <Route path="/" element={<RootGate />} />
-          <Route path="/get" element={<GetApp />} />
-          <Route path="/download" element={<GetApp />} />
-          <Route path="/app" element={<GetApp />} />
-          <Route path="/apk" element={<GetApp />} />
+          <Route path="/get" element={isMedianApp ? <Navigate to={user ? "/home" : "/auth"} replace /> : <GetApp />} />
+          <Route path="/download" element={isMedianApp ? <Navigate to={user ? "/home" : "/auth"} replace /> : <GetApp />} />
+          <Route path="/app" element={isMedianApp ? <Navigate to={user ? "/home" : "/auth"} replace /> : <GetApp />} />
+          <Route path="/apk" element={isMedianApp ? <Navigate to={user ? "/home" : "/auth"} replace /> : <GetApp />} />
           <Route path="/blog/free-music-download-apps-india" element={<BlogFreeMusicDownloadAppsIndia />} />
           <Route path="/blog/universflow-vs-jiosaavn-vs-gaana" element={<BlogUniversflowVsJiosaavnVsGaana />} />
           <Route path="/welcome" element={<Navigate to="/auth" replace />} />
