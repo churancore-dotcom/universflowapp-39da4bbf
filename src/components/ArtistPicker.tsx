@@ -280,7 +280,7 @@ const ArtistPicker = ({ onComplete }: Props) => {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 whileTap={{ scale: 0.92 }}
-                onClick={() => toggle(a.name)}
+                onClick={() => toggle(a)}
                 className="relative aspect-square rounded-2xl overflow-hidden bg-card/70 border border-border/40"
               >
                 {a.image ? (
