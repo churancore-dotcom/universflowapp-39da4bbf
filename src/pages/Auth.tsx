@@ -84,7 +84,7 @@ const Auth = () => {
 
   return (
     <FadeTransition>
-      <div className="min-h-[100dvh] bg-background text-foreground flex flex-col items-center px-6 pt-10 pb-8 relative overflow-y-auto">
+      <div className="min-h-[100dvh] bg-background text-foreground flex flex-col items-center justify-center px-6 py-8 relative overflow-y-auto">
         <SEOHead
           title="Sign in — Universflow"
           description="Sign in or create your Universflow account to stream music, build playlists, and listen offline."
