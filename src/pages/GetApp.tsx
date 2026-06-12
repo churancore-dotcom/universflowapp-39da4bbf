@@ -105,8 +105,24 @@ const GetApp = () => {
       />
 
       <main className="min-h-[100dvh] w-full bg-black text-white overflow-y-auto">
+        {/* Hero splash video */}
+        <section className="w-full bg-black flex items-center justify-center pt-2">
+          <video
+            src="/getapp-splash.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            // @ts-ignore
+            webkit-playsinline="true"
+            className="w-full max-w-[520px] h-auto object-contain"
+            aria-label="Universflow animated logo"
+          />
+        </section>
+
         {/* Listing header */}
-        <section className="px-5 pt-8 pb-5">
+        <section className="px-5 pt-4 pb-5">
           <div className="flex items-start gap-4">
             <img
               src="/pwa-192x192.png"
