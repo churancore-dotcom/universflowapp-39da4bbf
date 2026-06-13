@@ -457,6 +457,10 @@ const ManageSubscriptions = () => {
                           <Gift className="w-4 h-4 mr-2" />
                           Grant Yearly
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setCustomExpiry(sub)}>
+                          <Timer className="w-4 h-4 mr-2" />
+                          Set custom expiry…
+                        </DropdownMenuItem>
                         {sub.status === 'active' && (
                           <DropdownMenuItem 
                             onClick={() => updateSubscriptionStatus(sub.id, 'cancelled')}
