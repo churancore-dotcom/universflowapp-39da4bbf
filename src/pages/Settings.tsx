@@ -380,6 +380,7 @@ const Settings = () => {
               <h2 className="text-[10px] font-extrabold text-white/40 uppercase tracking-[0.2em]">About</h2>
             </div>
             <div className="rounded-3xl overflow-hidden bg-card/50 border border-white/5 backdrop-blur-sm">
+              <SettingsUpdateButton />
               <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
                 <span className="text-sm">Version</span>
                 <span className="text-sm text-muted-foreground">1.0.0</span>
