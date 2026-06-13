@@ -30,6 +30,9 @@ const LikeButton = memo(({ songId, song, size = 'md', className = '' }: LikeButt
 
   return (
     <motion.button
+      type="button"
+      aria-label={isLiked ? 'Unlike song' : 'Like song'}
+      aria-pressed={isLiked}
       className={`rounded-full flex items-center justify-center relative transition-colors ${sizeClasses[size]} ${className}`}
       onClick={(e) => {
         e.stopPropagation();

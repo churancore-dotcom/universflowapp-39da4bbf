@@ -83,6 +83,9 @@ const BottomNav = memo(function BottomNav() {
             return (
               <motion.button
                 key={item.path}
+                type="button"
+                aria-label={item.label}
+                aria-current={isActive ? 'page' : undefined}
                 className="flex flex-col items-center justify-center gap-0.5 min-w-[72px] min-h-[52px] py-1 relative"
                 onClick={() => {
                   triggerHaptic('selection');
