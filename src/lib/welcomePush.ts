@@ -48,19 +48,15 @@ export async function maybeSendWelcomePush(userId: string): Promise<void> {
     const title = pick(TITLES);
     const body = pick(BODIES);
 
-    const { error } = await supabase.functions.invoke('send-system-push', {
-      body: {
-        user_ids: [userId],
-        title,
-        body,
-        deep_link: '/home',
-      },
+    const { error } = await supabase.rpc('send_welcome_push_to_self', {
+      _title: title,
+      _body: body,
     });
 
     if (error) {
       // Roll back the flag so the next cold start can retry.
       localStorage.removeItem(FLAG_KEY);
-      console.warn('[WelcomePush] invoke failed', error);
+      console.warn('[WelcomePush] rpc failed', error);
     }
   } catch (e) {
     localStorage.removeItem(FLAG_KEY);
