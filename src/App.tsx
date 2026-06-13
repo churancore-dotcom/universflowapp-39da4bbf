@@ -16,7 +16,7 @@ import RateUsPopup from "./components/RateUsPopup";
 import ReviewModal from "./components/ReviewModal";
 import { NavDirectionProvider } from "./components/PageTransition";
 import GlobalPlayerLayer from "./components/GlobalPlayerLayer";
-import { UpdateBanner } from "./components/UpdateBanner";
+
 import SEOHead from "./components/SEOHead";
 import Auth from "./pages/Auth";
 import VerifyEmail from "./pages/VerifyEmail";
