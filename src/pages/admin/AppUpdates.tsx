@@ -79,22 +79,40 @@ export default function AppUpdates() {
       min_supported_version_code: Number(form.min_supported_version_code) || 0,
     });
 
+    if (error) {
+      setSaving(false);
+      toast.error(error.message);
+      return;
+    }
+
+    // Notify everyone with an in-app announcement so they actually see the update
+    const { data: { user } } = await supabase.auth.getUser();
+    const annErr = await supabase.from('announcements').insert({
+      title: `🚀 New update available — v${form.version_name.trim()}`,
+      message: form.release_notes.trim()
+        ? `What's new:\n${form.release_notes.trim()}\n\nOpen Settings → Check for updates to install.`
+        : `A new version of Universflow is ready. Open Settings → Check for updates to install.`,
+      type: 'info',
+      target_audience: 'all',
+      created_by: user?.id,
+    });
+
     setSaving(false);
 
-    if (error) {
-      toast.error(error.message);
+    if (annErr.error) {
+      toast.success('Update published (announcement failed: ' + annErr.error.message + ')');
     } else {
-      toast.success('Update published — users will see the banner on next app open');
-      setForm({
-        version_code: '',
-        version_name: '',
-        apk_url: '',
-        release_notes: '',
-        is_mandatory: false,
-        min_supported_version_code: '0',
-      });
-      load();
+      toast.success('Update published & users notified');
     }
+    setForm({
+      version_code: '',
+      version_name: '',
+      apk_url: '',
+      release_notes: '',
+      is_mandatory: false,
+      min_supported_version_code: '0',
+    });
+    load();
   };
 
   const setActive = async (id: string) => {
