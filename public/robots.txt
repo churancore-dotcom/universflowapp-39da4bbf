@@ -116,11 +116,18 @@ Allow: /
 User-agent: *
 Allow: /
 
-# Private/admin surfaces stay blocked from crawlers.
+# Private/admin and auth-internal surfaces stay blocked from crawlers.
 Disallow: /admin
 Disallow: /admin/
 Disallow: /admin/*
 Disallow: /upload
 Disallow: /upload/
+Disallow: /verify
+Disallow: /check-email
+Disallow: /offline-player
+Disallow: /profile
+Disallow: /settings
+Disallow: /subscription
+Disallow: /downloads
 
 Sitemap: https://universflow.in/sitemap.xml

@@ -53,6 +53,7 @@ const Premium = lazy(() => import("./pages/Premium"));
 const Downloads = lazy(() => import("./pages/Downloads"));
 const BlogFreeMusicDownloadAppsIndia = lazy(() => import("./pages/BlogFreeMusicDownloadAppsIndia"));
 const BlogUniversflowVsJiosaavnVsGaana = lazy(() => import("./pages/BlogUniversflowVsJiosaavnVsGaana"));
+const BlogTrendingPunjabiSongs2026 = lazy(() => import("./pages/BlogTrendingPunjabiSongs2026"));
 
 
 const DownloadQueuePanel = lazy(() => import("./components/DownloadQueuePanel"));
@@ -198,6 +199,7 @@ const AnimatedRoutes = () => {
           <Route path="/apk" element={<GetAppGate />} />
           <Route path="/blog/free-music-download-apps-india" element={<BlogFreeMusicDownloadAppsIndia />} />
           <Route path="/blog/universflow-vs-jiosaavn-vs-gaana" element={<BlogUniversflowVsJiosaavnVsGaana />} />
+          <Route path="/blog/trending-punjabi-songs-2026" element={<BlogTrendingPunjabiSongs2026 />} />
           <Route path="/welcome" element={<Navigate to="/auth" replace />} />
           <Route path="/auth" element={
             user ? <Navigate to="/home" replace /> :
