@@ -95,6 +95,11 @@ async function setupPushListeners(
       const body = notification.body ?? '';
       if (!body) return;
       const { LocalNotifications } = await import('@capacitor/local-notifications');
+      const perm = await LocalNotifications.checkPermissions();
+      if (perm.display !== 'granted') {
+        const requested = await LocalNotifications.requestPermissions();
+        if (requested.display !== 'granted') return;
+      }
       await LocalNotifications.schedule({
         notifications: [{
           id: Math.floor(Date.now() % 2147483647),
