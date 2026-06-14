@@ -6,7 +6,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-const FLAG_KEY = 'uf_welcome_push_sent_v1';
+const flagKeyFor = (userId: string) => `uf_welcome_push_sent_v2_${userId}`;
 
 const TITLES = [
   '🎶 Welcome to Universflow',
@@ -39,11 +39,10 @@ const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.le
  * Safe to call repeatedly — no-op after the first successful send.
  */
 export async function maybeSendWelcomePush(userId: string): Promise<void> {
+  const flagKey = flagKeyFor(userId);
   try {
     if (!userId) return;
-    if (localStorage.getItem(FLAG_KEY) === '1') return;
-    // Mark optimistically so a flaky retry doesn't double-fire.
-    localStorage.setItem(FLAG_KEY, '1');
+    if (localStorage.getItem(flagKey) === '1') return;
 
     const title = pick(TITLES);
     const body = pick(BODIES);
@@ -54,12 +53,12 @@ export async function maybeSendWelcomePush(userId: string): Promise<void> {
     });
 
     if (error) {
-      // Roll back the flag so the next cold start can retry.
-      localStorage.removeItem(FLAG_KEY);
       console.warn('[WelcomePush] rpc failed', error);
+      return;
     }
+
+    localStorage.setItem(flagKey, '1');
   } catch (e) {
-    localStorage.removeItem(FLAG_KEY);
     console.warn('[WelcomePush] unexpected error', e);
   }
 }

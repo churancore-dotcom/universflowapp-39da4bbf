@@ -86,7 +86,29 @@ async function setupPushListeners(
     console.warn('[Push] registrationError', e);
   });
 
-  await PushNotifications.addListener('pushNotificationReceived', () => {});
+  await PushNotifications.addListener('pushNotificationReceived', async (notification) => {
+    // Android does not show remote notifications while the APK is foregrounded.
+    // Mirror the real FCM payload into a native local notification so welcome,
+    // premium-expiry, and admin pushes are visible even during first launch.
+    try {
+      const title = notification.title ?? 'Universflow';
+      const body = notification.body ?? '';
+      if (!body) return;
+      const { LocalNotifications } = await import('@capacitor/local-notifications');
+      await LocalNotifications.schedule({
+        notifications: [{
+          id: Math.floor(Date.now() % 2147483647),
+          title,
+          body,
+          schedule: { at: new Date(Date.now() + 250), allowWhileIdle: true },
+          smallIcon: 'ic_stat_notify',
+          extra: notification.data ?? {},
+        }],
+      });
+    } catch (err) {
+      console.warn('[Push] foreground notification mirror failed', err);
+    }
+  });
 
   await PushNotifications.addListener('pushNotificationActionPerformed', async (action) => {
     const data = (action.notification.data ?? {}) as Record<string, unknown>;
@@ -225,9 +247,9 @@ export function usePushRegistration() {
         const deviceMeta = await collectDeviceMeta();
         await setupPushListeners(PushNotifications, deviceMeta);
 
-        // 3) Trigger the actual FCM registration.
-        await PushNotifications.register();
-        return 'granted';
+        // 3) Trigger the actual FCM registration and wait until the token is
+        // saved, otherwise first-launch welcome pushes can race and disappear.
+        return await registerAndWaitForSavedToken(PushNotifications, deviceMeta);
       } catch (e) {
         console.warn('[Push] setup skipped:', e);
         return 'denied';

@@ -13,6 +13,7 @@ import SupportChatModal from '@/components/SupportChatModal';
 import EmailVerificationCard from '@/components/EmailVerificationCard';
 import EqualizerModal from '@/components/EqualizerModal';
 import { SettingsUpdateButton } from '@/components/SettingsUpdateButton';
+import AnnouncementBanner from '@/components/AnnouncementBanner';
 
 import { applyTheme, type ThemeMode } from '@/lib/themeBoot';
 import { setEQSettings } from '@/lib/eqSettings';
@@ -311,6 +312,13 @@ const Settings = () => {
               <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
                 <span className="text-sm">Push Notifications</span>
                 <Switch checked={notifications} onCheckedChange={handleNotifications} className="data-[state=checked]:bg-primary scale-90" />
+              </div>
+              <div className="px-4 py-3 border-b border-white/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Bell className="w-4 h-4 text-primary" />
+                  <span className="text-sm">App Banners</span>
+                </div>
+                <AnnouncementBanner />
               </div>
               <div className="px-4 py-3 flex items-center justify-between">
                 <span className="text-sm">Haptic Feedback</span>
