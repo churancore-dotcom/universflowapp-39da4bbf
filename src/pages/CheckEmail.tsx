@@ -301,6 +301,7 @@ const CheckEmail = () => {
         </AnimatePresence>
       </motion.div>
     </div>
+    </>
   );
 };
 
