@@ -20,40 +20,40 @@ const slugify = (s: string) =>
 
 const ArtistCard = memo(({ artist, index, onClick }: { artist: DisplayArtist; index: number; onClick: () => void }) => (
   <motion.button
-    className="flex-shrink-0 w-[82px] snap-start text-center"
+    className="flex-shrink-0 w-[84px] snap-start text-center"
     onClick={onClick}
     initial={{ opacity: 0, scale: 0.8, y: 10 }}
     animate={{ opacity: 1, scale: 1, y: 0 }}
     transition={{ delay: index * 0.05, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
     whileTap={{ scale: 0.9 }}
   >
-    <div className="relative w-[68px] h-[68px] mx-auto mb-2.5">
+    <div className="relative w-[72px] h-[72px] mx-auto mb-2.5">
+      {/* Rose ring glow */}
       <div
-        className="absolute -inset-[4px] rounded-full opacity-50"
+        className="absolute -inset-[3px] rounded-full"
         style={{
-          background: 'conic-gradient(from 0deg, hsl(var(--primary)), hsl(280 100% 65%), hsl(210 100% 60%), hsl(var(--primary)))',
-          filter: 'blur(4px)',
+          background: '#ff2d55',
+          filter: 'blur(6px)',
+          opacity: 0.55,
         }}
       />
       <div
-        className="absolute inset-0 rounded-full p-[2.5px]"
-        style={{
-          background: 'conic-gradient(from 0deg, hsl(var(--primary)), hsl(280 100% 65%), hsl(210 100% 60%), hsl(var(--primary)))',
-        }}
+        className="absolute inset-0 rounded-full p-[2px]"
+        style={{ background: '#ff2d55' }}
       >
         <div className="w-full h-full rounded-full overflow-hidden bg-background">
           {artist.image ? (
             <img src={artist.image} alt={artist.name} className="w-full h-full object-cover" loading="lazy" referrerPolicy="no-referrer" />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+            <div className="w-full h-full bg-gradient-to-br from-rose-500/30 to-rose-900/40 flex items-center justify-center">
               <User className="w-5 h-5 text-muted-foreground" />
             </div>
           )}
         </div>
       </div>
     </div>
-    <p className="text-[11px] font-bold truncate text-foreground leading-tight">{artist.name}</p>
-    <p className="text-[9px] text-muted-foreground/40 mt-0.5 font-medium">Artist</p>
+    <p className="text-[12px] font-bold truncate text-foreground leading-tight">{artist.name}</p>
+    <p className="text-[10px] text-white/45 mt-0.5 font-medium">Artist</p>
   </motion.button>
 ));
 ArtistCard.displayName = 'ArtistCard';
