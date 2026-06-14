@@ -345,32 +345,8 @@ const Home = () => {
               {/* New Bento Hero — Continue Listening + quick tiles */}
               {!isOffline && <HomeBento songs={allSongs} />}
 
-              {/* Online-only discovery sections — hidden when offline */}
-              {!isOffline && (
-                <>
-                  {/* Premium-only / early-access shelf (teaser for free users) */}
-                  <PremiumFirstSection />
-
-                  {/* Trending Now — admin-curated trending catalog */}
-                  <TrendingNowSection songs={allSongs} />
-
-                  {/* Fresh Releases — newest drops */}
-                  <FreshReleasesSection songs={allSongs} />
-
-                  {/* Albums — full records, one tap to play */}
-                  <AlbumsShelf songs={allSongs} />
-
-                  {/* Artist discovery */}
-                  <FeaturedArtistsSection />
-
-                  {/* Viral Right Now — per-country viral + global charts */}
-                  <CountryViralSection />
-
-                  {/* Top 30 from your followed artists */}
-                  <GlobalTopTracksSection />
-
-                </>
-              )}
+              {/* Discovery — Featured Artists only, to match the home design */}
+              {!isOffline && <FeaturedArtistsSection />}
 
 
               {/* Saved songs only when offline — uploaded catalog is hidden from online Home */}
