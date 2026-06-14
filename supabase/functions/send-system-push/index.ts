@@ -14,6 +14,8 @@ interface SystemPushBody {
   title: string;
   body: string;
   deep_link?: string;
+  // Client may send this only for its own signed-in user. Used for welcome push.
+  self_only?: boolean;
   // Shared secret to prevent unauthorized invocation from public clients.
   system_token?: string;
 }
@@ -45,12 +47,25 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
 
 function parseServiceAccount(raw: string): FirebaseServiceAccount {
   const trimmed = raw.trim().replace(/^\uFEFF/, "");
-  const parsed = JSON.parse(trimmed);
-  return {
-    project_id: parsed.project_id,
-    client_email: parsed.client_email,
-    private_key: String(parsed.private_key).replace(/\\n/g, "\n"),
+  const parse = (value: string) => {
+    try { return JSON.parse(value); } catch { return null; }
   };
+  const decoded = (() => {
+    try {
+      const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
+      return atob(normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "="));
+    } catch { return null; }
+  })();
+  const parsed = parse(trimmed) ?? (decoded ? parse(decoded) : null);
+  if (!parsed || typeof parsed !== "object") throw new Error("Firebase service account is invalid");
+  const sa = parsed as Record<string, unknown>;
+  const project_id = String(sa.project_id ?? "").trim();
+  const client_email = String(sa.client_email ?? "").trim();
+  const private_key = String(sa.private_key ?? "").replace(/\\n/g, "\n").trim();
+  if (!project_id || !client_email || !private_key.includes("BEGIN PRIVATE KEY")) {
+    throw new Error("Firebase service account is incomplete");
+  }
+  return { project_id, client_email, private_key };
 }
 
 async function getAccessToken(sa: FirebaseServiceAccount): Promise<string> {
@@ -99,8 +114,8 @@ Deno.serve(async (req) => {
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
 
-    // Auth: either service-role bearer (admin invoke), or matching dedicated system token
-    // pulled from internal_secrets. The DB trigger sends the token in body.system_token.
+    // Auth: either service-role bearer, matching DB system token, or a signed-in
+    // user sending exactly one welcome push to their own APK device.
     const auth = req.headers.get("Authorization") ?? "";
     const bearer = auth.replace(/^Bearer\s+/i, "");
     let isAuthorized = bearer === SERVICE_ROLE;
@@ -108,6 +123,15 @@ Deno.serve(async (req) => {
       const { data: secret } = await admin
         .from("internal_secrets").select("value").eq("key", "system_push_token").maybeSingle();
       if (secret?.value && body.system_token === secret.value) isAuthorized = true;
+    }
+    if (!isAuthorized && body.self_only === true && body.user_ids?.length === 1) {
+      const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+        global: { headers: { Authorization: auth } },
+      });
+      const { data: userData } = await userClient.auth.getUser();
+      if (userData?.user?.id && userData.user.id === body.user_ids[0]) {
+        isAuthorized = true;
+      }
     }
     if (!isAuthorized) {
       return new Response(JSON.stringify({ error: "Unauthorized" }),
@@ -145,6 +169,7 @@ Deno.serve(async (req) => {
 
     let success = 0, failure = 0;
     const invalid: string[] = [];
+    const failureSamples: Array<{ status: number; body: string }> = [];
 
     for (let i = 0; i < tokens.length; i += 20) {
       const batch = tokens.slice(i, i + 20);
@@ -167,11 +192,13 @@ Deno.serve(async (req) => {
           });
           if (res.ok) return { ok: true as const, token };
           const txt = await res.text();
+          if (failureSamples.length < 3) failureSamples.push({ status: res.status, body: txt.slice(0, 500) });
           if (res.status === 404 || /UNREGISTERED|INVALID_ARGUMENT/i.test(txt)) {
             return { ok: false as const, token, invalid: true };
           }
           return { ok: false as const, token, invalid: false };
-        } catch {
+        } catch (err) {
+          if (failureSamples.length < 3) failureSamples.push({ status: 0, body: err instanceof Error ? err.message : String(err) });
           return { ok: false as const, token, invalid: false };
         }
       }));
@@ -194,7 +221,7 @@ Deno.serve(async (req) => {
       failure_count: failure,
     });
 
-    return new Response(JSON.stringify({ success: true, sent: tokens.length, success_count: success, failure_count: failure }),
+    return new Response(JSON.stringify({ success: true, sent: tokens.length, success_count: success, failure_count: failure, invalid_removed: invalid.length, diagnostics: failureSamples }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("send-system-push error", e);
