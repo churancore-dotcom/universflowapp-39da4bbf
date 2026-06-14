@@ -70,8 +70,8 @@ const CountryViralSection = memo(function CountryViralSection() {
 
   // Viral tracks: refreshed every 2 minutes for true real-time freshness,
   // also refetches on window focus and network reconnect.
-  const queryClient = (await import('@tanstack/react-query'), null); // placeholder removed below
   const { data: tracks = [], isLoading: loading, dataUpdatedAt } = useQuery({
+
     queryKey: ['viral-tracks', country ?? ''],
     enabled: !!country,
     staleTime: 90 * 1000,
