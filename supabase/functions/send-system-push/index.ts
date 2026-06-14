@@ -169,6 +169,7 @@ Deno.serve(async (req) => {
 
     let success = 0, failure = 0;
     const invalid: string[] = [];
+    const failureSamples: Array<{ status: number; body: string }> = [];
 
     for (let i = 0; i < tokens.length; i += 20) {
       const batch = tokens.slice(i, i + 20);
@@ -191,11 +192,13 @@ Deno.serve(async (req) => {
           });
           if (res.ok) return { ok: true as const, token };
           const txt = await res.text();
+          if (failureSamples.length < 3) failureSamples.push({ status: res.status, body: txt.slice(0, 500) });
           if (res.status === 404 || /UNREGISTERED|INVALID_ARGUMENT/i.test(txt)) {
             return { ok: false as const, token, invalid: true };
           }
           return { ok: false as const, token, invalid: false };
-        } catch {
+        } catch (err) {
+          if (failureSamples.length < 3) failureSamples.push({ status: 0, body: err instanceof Error ? err.message : String(err) });
           return { ok: false as const, token, invalid: false };
         }
       }));
@@ -218,7 +221,7 @@ Deno.serve(async (req) => {
       failure_count: failure,
     });
 
-    return new Response(JSON.stringify({ success: true, sent: tokens.length, success_count: success, failure_count: failure }),
+    return new Response(JSON.stringify({ success: true, sent: tokens.length, success_count: success, failure_count: failure, invalid_removed: invalid.length, diagnostics: failureSamples }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("send-system-push error", e);
