@@ -14,6 +14,8 @@ interface SystemPushBody {
   title: string;
   body: string;
   deep_link?: string;
+  // Client may send this only for its own signed-in user. Used for welcome push.
+  self_only?: boolean;
   // Shared secret to prevent unauthorized invocation from public clients.
   system_token?: string;
 }
@@ -45,12 +47,25 @@ function pemToArrayBuffer(pem: string): ArrayBuffer {
 
 function parseServiceAccount(raw: string): FirebaseServiceAccount {
   const trimmed = raw.trim().replace(/^\uFEFF/, "");
-  const parsed = JSON.parse(trimmed);
-  return {
-    project_id: parsed.project_id,
-    client_email: parsed.client_email,
-    private_key: String(parsed.private_key).replace(/\\n/g, "\n"),
+  const parse = (value: string) => {
+    try { return JSON.parse(value); } catch { return null; }
   };
+  const decoded = (() => {
+    try {
+      const normalized = trimmed.replace(/-/g, "+").replace(/_/g, "/");
+      return atob(normalized.padEnd(normalized.length + ((4 - normalized.length % 4) % 4), "="));
+    } catch { return null; }
+  })();
+  const parsed = parse(trimmed) ?? (decoded ? parse(decoded) : null);
+  if (!parsed || typeof parsed !== "object") throw new Error("Firebase service account is invalid");
+  const sa = parsed as Record<string, unknown>;
+  const project_id = String(sa.project_id ?? "").trim();
+  const client_email = String(sa.client_email ?? "").trim();
+  const private_key = String(sa.private_key ?? "").replace(/\\n/g, "\n").trim();
+  if (!project_id || !client_email || !private_key.includes("BEGIN PRIVATE KEY")) {
+    throw new Error("Firebase service account is incomplete");
+  }
+  return { project_id, client_email, private_key };
 }
 
 async function getAccessToken(sa: FirebaseServiceAccount): Promise<string> {
