@@ -345,8 +345,12 @@ const Home = () => {
               {/* New Bento Hero — Continue Listening + quick tiles */}
               {!isOffline && <HomeBento songs={allSongs} />}
 
+              {/* Viral Now Rail — live country chart, real data */}
+              {!isOffline && <CountryViralSection />}
+
               {/* Discovery — Featured Artists only, to match the home design */}
               {!isOffline && <FeaturedArtistsSection />}
+
 
 
               {/* Saved songs only when offline — uploaded catalog is hidden from online Home */}
