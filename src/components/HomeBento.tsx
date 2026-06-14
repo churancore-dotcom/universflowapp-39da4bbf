@@ -145,7 +145,7 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
     },
   });
 
-  // Artist of the Week — real artist from the user's followed list, else featured catalog artist
+  // Artist of the Week — real artist from the user's followed list, else top artist from live stream catalog
   const { data: artistOfWeek } = useQuery({
     queryKey: ['home-bento', 'artist-of-week', user?.id ?? 'anon'],
     staleTime: 10 * 60 * 1000,
@@ -157,19 +157,39 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
           return { id: p.id, name: p.artist_name, image: p.artist_image };
         }
       }
-      const indexed = await getFeaturedIndexedArtists(1);
-      if (indexed.length > 0) {
-        return { id: indexed[0].id, name: indexed[0].name, image: indexed[0].image_url || null };
-      }
-      // Fallback to a catalog artist that actually has a photo
-      const { data } = await supabase
+      // Real artist with a real photo from catalog
+      const { data: catalog } = await supabase
         .from('artists')
         .select('id,name,photo_url')
         .not('photo_url', 'is', null)
         .order('updated_at', { ascending: false })
         .limit(1);
-      if (data && data.length > 0) {
-        return { id: data[0].id, name: data[0].name, image: data[0].photo_url };
+      if (catalog && catalog.length > 0) {
+        return { id: catalog[0].id, name: catalog[0].name, image: catalog[0].photo_url };
+      }
+      // Fallback: top artist by activity in the live stream catalog, using their newest cover as the image
+      const { data: rows } = await supabase
+        .from('stream_songs')
+        .select('artist,cover_url,artist_image_url,last_seen_at')
+        .not('cover_url', 'is', null)
+        .not('audio_url', 'is', null)
+        .order('last_seen_at', { ascending: false })
+        .limit(200);
+      if (rows && rows.length > 0) {
+        const counts = new Map<string, { name: string; count: number; image: string | null }>();
+        for (const r of rows as any[]) {
+          if (!r.artist) continue;
+          const key = r.artist.toLowerCase().trim();
+          const existing = counts.get(key);
+          if (existing) {
+            existing.count += 1;
+            if (!existing.image) existing.image = r.artist_image_url || r.cover_url || null;
+          } else {
+            counts.set(key, { name: r.artist, count: 1, image: r.artist_image_url || r.cover_url || null });
+          }
+        }
+        const top = [...counts.values()].sort((a, b) => b.count - a.count)[0];
+        if (top) return { id: top.name, name: top.name, image: top.image, trackCount: top.count };
       }
       return null;
     },
@@ -180,14 +200,16 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
     () => dedupeSongs([...recentSongs, ...queue, ...pool]).filter((s) => s.cover_url).slice(0, 3),
     [recentSongs, queue, pool],
   );
-  const newRelease = useMemo(
-    () => pool.filter((s) => s.cover_url).slice(0, 12).sort((a, b) => {
+  const newRelease = useMemo(() => {
+    const withCover = pool.filter((s) => s.cover_url && s.created_at);
+    withCover.sort((a, b) => {
       const ta = a.created_at ? new Date(a.created_at).getTime() : 0;
       const tb = b.created_at ? new Date(b.created_at).getTime() : 0;
       return tb - ta;
-    })[0],
-    [pool],
-  );
+    });
+    return withCover[0] || pool.find((s) => s.cover_url);
+  }, [pool]);
+
 
   const hero = currentSong || recentSongs[0] || pool[0];
   const heroIsCurrent = !!currentSong && currentSong.id === hero?.id;
