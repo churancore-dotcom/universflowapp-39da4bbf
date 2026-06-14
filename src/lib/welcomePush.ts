@@ -47,9 +47,14 @@ export async function maybeSendWelcomePush(userId: string): Promise<void> {
     const title = pick(TITLES);
     const body = pick(BODIES);
 
-    const { error } = await supabase.rpc('send_welcome_push_to_self', {
-      _title: title,
-      _body: body,
+    const { error } = await supabase.functions.invoke('send-system-push', {
+      body: {
+        user_ids: [userId],
+        title,
+        body,
+        deep_link: '/home',
+        self_only: true,
+      },
     });
 
     if (error) {
