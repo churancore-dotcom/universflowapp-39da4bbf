@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useRef, useEffect, useCallb
 import { useMediaSession } from '@/hooks/useMediaSession';
 import { useGlobalAudioEngine } from '@/hooks/useGlobalAudioEngine';
 import { supabase } from '@/integrations/supabase/client';
-import { resolveIndexedTrack, prefetchIndexedTrack } from '@/lib/musicIndexer';
+import { resolveIndexedTrack, resolveYouTubeVideoStream, prefetchIndexedTrack } from '@/lib/musicIndexer';
 import { playerProgressStore, usePlayerProgress } from '@/lib/playerProgressStore';
 import { resume as resumeAudioEngine } from '@/lib/audioEngine';
 import { EQ_SETTINGS_KEY, getEQSettings, isEqActive } from '@/lib/eqSettings';
@@ -749,6 +749,15 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // Skip resolution only when we already have a real (non-YT-iframe) URL.
       if (!opts.forceRefresh && isPlayableUrl(song.audio_url) && !ytFallback) {
         return song.audio_url!;
+      }
+      if (ytFallback) {
+        const videoId = getYouTubeFallbackVideoId(ytFallback);
+        if (videoId) {
+          try {
+            const resolved = await resolveYouTubeVideoStream(videoId);
+            if (resolved?.streamUrl) return resolved.streamUrl;
+          } catch { /* keep iframe fallback */ }
+        }
       }
       if (song.artist && song.title) {
         try {
