@@ -53,7 +53,7 @@ const PinToViralButton = memo(({ song, size = 'sm', className = '', variant = 'o
           .eq('track_id', song.track_id);
         if (error) throw error;
         setPinned(false);
-        toast.success('Removed from Viral Right Now');
+        toast.success('Removed from Trending Now');
       } else {
         // Find next position
         const { data: maxRow } = await supabase
@@ -79,7 +79,7 @@ const PinToViralButton = memo(({ song, size = 'sm', className = '', variant = 'o
           }, { onConflict: 'track_id' });
         if (error) throw error;
         setPinned(true);
-        toast.success('Pinned to Viral Right Now 🔥');
+        toast.success('Pinned to Trending Now 🔥');
       }
     } catch (err: any) {
       toast.error(err?.message || 'Action failed');
@@ -100,7 +100,7 @@ const PinToViralButton = memo(({ song, size = 'sm', className = '', variant = 'o
     <button
       type="button"
       onClick={toggle}
-      aria-label={pinned ? 'Unpin from Viral Right Now' : 'Pin to Viral Right Now'}
+      aria-label={pinned ? 'Unpin from Trending Now' : 'Pin to Trending Now'}
       className={`${dim} rounded-full flex items-center justify-center transition-colors ${base} ${className}`}
       style={pinned ? { color: '#FF6B2D' } : undefined}
     >
