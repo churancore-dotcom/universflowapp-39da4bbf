@@ -47,7 +47,7 @@ export async function maybeSendWelcomePush(userId: string): Promise<void> {
     const title = pick(TITLES);
     const body = pick(BODIES);
 
-    const { error } = await supabase.functions.invoke('send-system-push', {
+    const { data, error } = await supabase.functions.invoke('send-system-push', {
       body: {
         user_ids: [userId],
         title,
@@ -59,6 +59,11 @@ export async function maybeSendWelcomePush(userId: string): Promise<void> {
 
     if (error) {
       console.warn('[WelcomePush] rpc failed', error);
+      return;
+    }
+
+    if (!data?.success || (typeof data.success_count === 'number' && data.success_count < 1)) {
+      console.warn('[WelcomePush] no APK device received the push yet', data);
       return;
     }
 
