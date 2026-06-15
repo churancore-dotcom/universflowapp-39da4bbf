@@ -193,20 +193,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           return { error: new Error('EMAIL_NOT_VERIFIED') };
         }
 
-        // Auto-expire premium if past expires_at (client-side belt-and-suspenders alongside cron)
-        try {
-          const { data: sub } = await supabase
-            .from('user_subscriptions')
-            .select('id, status, expires_at, subscription_type')
-            .eq('user_id', data.user.id)
-            .maybeSingle();
-          if (sub?.status === 'active' && sub.expires_at && new Date(sub.expires_at) < new Date()
-              && sub.subscription_type !== 'free') {
-            await supabase.from('user_subscriptions')
-              .update({ status: 'expired' }).eq('id', sub.id);
-          }
-        } catch { /* non-fatal */ }
-
         const { auditLog } = await import('@/lib/auditLog');
         auditLog.loginSuccess(email);
       }
