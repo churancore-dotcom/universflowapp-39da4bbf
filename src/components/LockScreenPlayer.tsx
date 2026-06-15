@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { usePlayer } from '@/contexts/PlayerContext';
+import { usePlayerProgress } from '@/lib/playerProgressStore';
 import { setLockscreenOpen } from '@/lib/lockscreenState';
 import LockScreenBackground from '@/components/LockScreenBackground';
 import KaraokeLyricsStage from '@/components/KaraokeLyricsStage';
@@ -29,6 +30,7 @@ const useWakeLock = (enabled: boolean) => {
 
 const LockScreenPlayer = ({ isOpen, onClose }: LockScreenPlayerProps) => {
   const { currentSong, isPlaying } = usePlayer();
+  const { duration } = usePlayerProgress();
   const dragY = useMotionValue(0);
   const dragOpacity = useTransform(dragY, [-220, 0], [0, 1]);
 
@@ -91,7 +93,7 @@ const LockScreenPlayer = ({ isOpen, onClose }: LockScreenPlayerProps) => {
                   <KaraokeLyricsStage
                     artist={currentSong.artist}
                     title={currentSong.title}
-                    duration={currentSong.duration}
+                    duration={duration || currentSong.duration}
                   />
                 </motion.div>
               </AnimatePresence>
