@@ -97,9 +97,23 @@ function rankAndDedupeResults(query: string, youtube: IndexedTrack[], literal: I
     const popularity = Math.min(40, Math.log10(Math.max(1, track.listeners || 0)) * 8);
     const title = normalizeText(track.title || '');
     const artist = normalizeText(track.artist || '');
-    const exactArtist = tokens.length > 0 && tokens.every((token) => artist.includes(token));
-    const exactTitle = normalizeText(query).length > 2 && title.includes(normalizeText(query));
-    const relevance = (exactArtist ? 520 : 0) + (exactTitle ? 180 : 0) + (phraseHit ? 150 : 0) + (allTokens ? 140 : 0) + tokenHits * 34;
+    const qNorm = normalizeText(query);
+    // Title-first matching: user is searching for a SONG / lyric line, not an artist.
+    const titleStartsWith = qNorm.length > 1 && title.startsWith(qNorm);
+    const titlePhraseHit = qNorm.length > 2 && title.includes(qNorm);
+    const titleAllTokens = tokens.length > 0 && tokens.every((t) => title.includes(t));
+    const titleTokenHits = tokens.reduce((sum, t) => sum + (title.includes(t) ? 1 : 0), 0);
+    // Only treat as artist match when the artist name fully matches the query,
+    // AND none of the title tokens match — prevents artist hits from outranking real song matches.
+    const exactArtist = tokens.length > 0 && tokens.every((t) => artist.includes(t)) && titleTokenHits === 0;
+    const relevance =
+      (titleStartsWith ? 900 : 0) +
+      (titlePhraseHit ? 700 : 0) +
+      (titleAllTokens ? 500 : 0) +
+      titleTokenHits * 120 +
+      (phraseHit ? 80 : 0) +
+      (allTokens ? 60 : 0) +
+      (exactArtist ? 90 : 0); // small bonus, never beats a title match
     const score = base + relevance + popularity - index * 0.6;
     const existing = rows.get(key);
     if (!existing || score > existing.score || (score === existing.score && sourcePriority > existing.sourcePriority)) {
@@ -186,7 +200,15 @@ const Search = () => {
           .slice(0, 300);
 
         setCached(SEARCH_CACHE_NAMESPACE, trimmedQuery, merged);
-        setArtistResults(artists.filter((artist) => !!artist.image_url).slice(0, 1));
+        // Only surface artist PFP for clearly real, popular artists — never fake/no-name results.
+        // Requires a real photo AND meaningful listener count (Last.fm signal).
+        const MIN_ARTIST_LISTENERS = 100_000;
+        const verifiedArtists = artists.filter((a) =>
+          !!a.image_url &&
+          typeof a.listeners === 'number' &&
+          a.listeners >= MIN_ARTIST_LISTENERS
+        );
+        setArtistResults(verifiedArtists.slice(0, 1));
         setIndexedResults(merged);
         setSearchHistory(getSongHistory());
       } catch {
