@@ -5,8 +5,7 @@ import { Flame, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
-import { getGeoTopTracks, prefetchIndexedTrack, searchYouTubeMusicTracks, type IndexedTrack } from '@/lib/musicIndexer';
-import { searchSongsAsTracks } from '@/lib/jiosaavn';
+import { getGeoTopTracks, prefetchIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
 import { triggerHaptic } from '@/hooks/useHaptics';
 
 // ISO-3166 alpha-2 → English country name (limited to common Last.fm-supported names)
@@ -85,21 +84,22 @@ const CountryViralSection = memo(function CountryViralSection() {
     queryFn: async () => {
       const TARGET = 24;
       const name = COUNTRY_NAMES[country!] || COUNTRY_NAMES.IN;
-      const regionalQuery = country === 'IN'
-        ? 'latest hindi punjabi trending songs'
-        : `latest ${name} trending songs`;
 
-      const [geoRes, youtubeRes, saavnRes, deezerRes] = await Promise.allSettled([
-        getGeoTopTracks(name, TARGET),
-        searchYouTubeMusicTracks(`new: ${regionalQuery}`, TARGET),
-        searchSongsAsTracks(regionalQuery, TARGET),
+      // ONLY real charts — Last.fm geo top + Deezer global chart.
+      // No keyword YouTube/JioSaavn searches: those returned random/unpopular results.
+      const [geoRes, deezerRes] = await Promise.allSettled([
+        getGeoTopTracks(name, TARGET * 2),
         getDeezerChart(TARGET),
       ]);
 
       const geo = geoRes.status === 'fulfilled' ? geoRes.value : [];
-      const youtube = youtubeRes.status === 'fulfilled' ? youtubeRes.value : [];
-      const saavn = saavnRes.status === 'fulfilled' ? saavnRes.value : [];
       const deezer = deezerRes.status === 'fulfilled' ? deezerRes.value : [];
+
+      // Quality gate: Last.fm tracks must have meaningful listenership.
+      // Deezer chart is curated by Deezer so it's trusted as-is.
+      const MIN_LISTENERS = 25_000;
+      const geoFiltered = geo.filter((t) => !t.listeners || t.listeners >= MIN_LISTENERS);
+
       const merged: IndexedTrack[] = [];
       const seenKeys = new Set<string>();
       const norm = (s = '') => s.toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 70);
@@ -110,11 +110,9 @@ const CountryViralSection = memo(function CountryViralSection() {
         seenKeys.add(key);
         merged.push(track);
       };
-      const max = Math.max(saavn.length, geo.length, youtube.length, deezer.length);
+      const max = Math.max(geoFiltered.length, deezer.length);
       for (let i = 0; i < max && merged.length < TARGET; i++) {
-        add(saavn[i]);
-        add(geo[i]);
-        add(youtube[i]);
+        add(geoFiltered[i]);
         add(deezer[i]);
       }
 
