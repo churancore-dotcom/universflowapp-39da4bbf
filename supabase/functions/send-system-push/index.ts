@@ -135,9 +135,16 @@ Deno.serve(async (req) => {
 
     const { data: tokenRows } = await admin
       .from("device_tokens")
-      .select("token")
-      .in("user_id", body.user_ids);
-    const tokens = (tokenRows ?? []).map((r) => r.token);
+      .select("user_id, token, updated_at")
+      .in("user_id", body.user_ids)
+      .order("updated_at", { ascending: false });
+    const latestTokenByUser = new Map<string, string>();
+    for (const row of tokenRows ?? []) {
+      if (row.user_id && row.token && !latestTokenByUser.has(row.user_id)) {
+        latestTokenByUser.set(row.user_id, row.token);
+      }
+    }
+    const tokens = [...new Set(latestTokenByUser.values())];
 
     if (tokens.length === 0) {
       await admin.from("push_history").insert({
