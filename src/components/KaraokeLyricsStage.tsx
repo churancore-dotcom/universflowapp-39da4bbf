@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { fetchLyrics, findActiveLine, type LyricsResult, type LyricLine } from '@/lib/lyrics';
 import { playerProgressStore } from '@/lib/playerProgressStore';
@@ -135,11 +135,10 @@ const KaraokeView = ({ lines, activeIdx }: { lines: LyricLine[]; activeIdx: numb
         {visible.map(({ line, index }) => {
           const d = index - focusIdx;
           const isActive = index === activeIdx;
-          const isActive = d === 0;
           const absD = Math.abs(d);
-          const opacity = index === activeIdx ? 1 : Math.max(0.12, 0.54 - absD * 0.12);
-          const scale = index === activeIdx ? 1 : 0.88 - Math.min(absD * 0.035, 0.12);
-          const blur = index === activeIdx ? 0 : Math.min(absD * 0.45, 1.4);
+          const opacity = isActive ? 1 : Math.max(0.12, 0.54 - absD * 0.12);
+          const scale = isActive ? 1 : 0.88 - Math.min(absD * 0.035, 0.12);
+          const blur = isActive ? 0 : Math.min(absD * 0.45, 1.4);
 
           return (
             <motion.div
@@ -152,11 +151,11 @@ const KaraokeView = ({ lines, activeIdx }: { lines: LyricLine[]; activeIdx: numb
               style={{
                 minHeight: 96,
                 marginTop: -48,
-                fontSize: index === activeIdx ? 31 : 22,
+                fontSize: isActive ? 31 : 22,
                 color: 'hsl(var(--foreground) / 0.62)',
               }}
             >
-              {index === activeIdx ? (
+              {isActive ? (
                 <motion.span
                   key={`active-${index}`}
                   initial={{ opacity: 0, y: 18, scale: 0.92 }}
