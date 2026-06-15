@@ -10,11 +10,11 @@ const listeners = new Set<Listener>();
 let progress = 0;
 let duration = 0;
 let playing = false;
-let lastProgressAt = Date.now();
 
 let snapshot = { progress, duration, playing };
 
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+let lastProgressAt = now();
 
 const clampProgress = (v: number) => {
   if (!Number.isFinite(v)) return 0;
