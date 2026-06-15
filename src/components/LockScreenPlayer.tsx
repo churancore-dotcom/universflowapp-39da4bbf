@@ -6,11 +6,14 @@ import { Slider } from '@/components/ui/slider';
 import { setLockscreenOpen } from '@/lib/lockscreenState';
 import LockScreenBackground from '@/components/LockScreenBackground';
 import LockScreenArtwork from '@/components/LockScreenArtwork';
+import SyncedLyricsView from '@/components/SyncedLyricsView';
 import { getEQPresetLabel, useEQSettings } from '@/lib/eqSettings';
 import {
   Play, Pause, SkipBack, SkipForward, Music, Volume2, VolumeX,
-  Shuffle, Repeat, Repeat1, Lock
+  Shuffle, Repeat, Repeat1, Lock, Mic2
 } from 'lucide-react';
+
+const LYRICS_PREF_KEY = 'uf_lockscreen_lyrics';
 
 
 const formatTime = (seconds: number): string => {
@@ -74,8 +77,19 @@ const LockScreenPlayer = ({ isOpen, onClose }: LockScreenPlayerProps) => {
   const eqLabel = getEQPresetLabel(eqSettings);
 
   const [time, setTime] = useState(new Date());
+  const [showLyrics, setShowLyrics] = useState<boolean>(() => {
+    try { return localStorage.getItem(LYRICS_PREF_KEY) !== 'false'; } catch { return true; }
+  });
   const dragY = useMotionValue(0);
   const dragOpacity = useTransform(dragY, [-200, 0], [0, 1]);
+
+  const toggleLyrics = () => {
+    setShowLyrics((v) => {
+      const next = !v;
+      try { localStorage.setItem(LYRICS_PREF_KEY, String(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   // Keep screen awake
   useWakeLock(isOpen);
@@ -148,18 +162,44 @@ const LockScreenPlayer = ({ isOpen, onClose }: LockScreenPlayerProps) => {
               </div>
             </motion.div>
 
-            {/* Spacer */}
-            <div className="flex-1 min-h-[12px]" />
-
-            {/* Animated hero artwork — variant determined by selected lock-screen theme */}
-            <LockScreenArtwork
-              coverUrl={currentSong.cover_url}
-              title={currentSong.title}
-              songId={currentSong.id}
-              isPlaying={isPlaying}
-            />
-
-            <div className="min-h-[12px]" />
+            {/* Center area: synced lyrics view OR original spacer + artwork */}
+            <div className="flex-1 min-h-0 mt-3 mx-4 mb-2 relative">
+              <AnimatePresence mode="wait" initial={false}>
+                {showLyrics ? (
+                  <motion.div
+                    key={`lyrics-${currentSong.id}`}
+                    className="absolute inset-0"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25, ease: [0.32, 0.72, 0, 1] }}
+                  >
+                    <SyncedLyricsView
+                      artist={currentSong.artist}
+                      title={currentSong.title}
+                      duration={duration}
+                      bare
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="artwork"
+                    className="absolute inset-0 flex flex-col items-center justify-center"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <LockScreenArtwork
+                      coverUrl={currentSong.cover_url}
+                      title={currentSong.title}
+                      songId={currentSong.id}
+                      isPlaying={isPlaying}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             {/* Now Playing Widget - solid translucent (no backdrop-blur over animated themes) */}
             <motion.div
