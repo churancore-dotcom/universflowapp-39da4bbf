@@ -16,6 +16,7 @@ import PremiumFirstSection from '@/components/PremiumFirstSection';
 import TrendingNowSection from '@/components/TrendingNowSection';
 import FreshReleasesSection from '@/components/FreshReleasesSection';
 import AlbumsShelf from '@/components/AlbumsShelf';
+import FollowedArtistSongsSection from '@/components/FollowedArtistSongsSection';
 
 
 import CountryViralSection from '@/components/CountryViralSection';
@@ -348,8 +349,10 @@ const Home = () => {
               {/* Viral Now Rail — live country chart, real data */}
               {!isOffline && <CountryViralSection />}
 
-
-
+              {/* Restored below Trending Now: followed artists, new, trending catalog */}
+              {!isOffline && <FollowedArtistSongsSection songs={allSongs} />}
+              {!isOffline && <FreshReleasesSection songs={allSongs} />}
+              {!isOffline && <TrendingNowSection songs={allSongs} />}
 
               {/* Saved songs only when offline — uploaded catalog is hidden from online Home */}
               {isOffline && allSongs.length > 0 && (
