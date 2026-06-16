@@ -92,12 +92,15 @@ const PremiumPage = memo(function PremiumPage() {
         try { map[r.key] = typeof r.value === 'string' ? JSON.parse(r.value) : r.value; }
         catch { map[r.key] = r.value; }
       });
+      // Hardcoded fallback — real UPI VPA. Never show a placeholder VPA to users.
+      const FALLBACK_UPI = 'shashankyadav12367@okhdfcbank';
+      const rawUpi = String(map.upi_id ?? '').trim();
       setSettings({
         monthlyPrice: Number(map.premium_price_monthly_inr ?? 59),
         bimonthlyPrice: Number(map.premium_price_bimonthly_inr ?? 100),
         quarterlyPrice: Number(map.premium_price_quarterly_inr ?? 149),
-        upiId: String(map.upi_id ?? 'yourupi@okaxis'),
-        payeeName: String(map.upi_payee_name ?? 'UniversFlow'),
+        upiId: rawUpi && !/yourupi|example|@okaxis$/i.test(rawUpi) ? rawUpi : FALLBACK_UPI,
+        payeeName: String(map.upi_payee_name ?? 'Universflow') || 'Universflow',
       });
     })();
   }, []);
