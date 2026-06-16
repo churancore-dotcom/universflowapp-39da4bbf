@@ -104,6 +104,7 @@ export function isEqActive(settings = currentSettings): boolean {
   if (settings.spatialAudio) return true;
   if (settings.studioSpace && settings.studioSpace !== 'off') return true;
   if (settings.lateNight) return true;
+  if (settings.headphoneSurround) return true;
   if (settings.playbackSpeed && settings.playbackSpeed !== 1) return true;
   return false;
 }
