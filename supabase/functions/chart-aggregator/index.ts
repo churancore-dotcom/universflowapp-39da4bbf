@@ -161,6 +161,20 @@ function countryNameFromCode(cc: string): string {
 
 const CRON_SECRET = Deno.env.get("CRON_SECRET") ?? "";
 
+async function getCronSecret(supabase: ReturnType<typeof createClient>): Promise<string> {
+  if (CRON_SECRET.trim()) return CRON_SECRET.trim();
+  const { data, error } = await supabase
+    .from("internal_secrets")
+    .select("value")
+    .eq("key", "chart_aggregator_cron_secret")
+    .maybeSingle();
+  if (error) {
+    console.error("chart-aggregator cron secret lookup failed:", error.message);
+    return "";
+  }
+  return typeof data?.value === "string" ? data.value.trim() : "";
+}
+
 function safeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let r = 0;
@@ -187,9 +201,12 @@ async function isAdminCaller(req: Request): Promise<boolean> {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
+
   // Authorize: matching CRON_SECRET header (scheduler) OR admin JWT (manual trigger).
   const cronHeader = req.headers.get("x-cron-secret") ?? "";
-  const cronOk = CRON_SECRET.length > 0 && safeEqual(cronHeader, CRON_SECRET);
+  const cronSecret = await getCronSecret(supabase);
+  const cronOk = cronHeader.length > 0 && cronSecret.length > 0 && safeEqual(cronHeader, cronSecret);
   if (!cronOk) {
     const adminOk = await isAdminCaller(req);
     if (!adminOk) {
@@ -200,7 +217,6 @@ Deno.serve(async (req) => {
     }
   }
 
-  const supabase = createClient(SUPABASE_URL, SERVICE_KEY);
   const startedAt = Date.now();
 
   // Optional: ?country=IN to refresh a single country, otherwise all
