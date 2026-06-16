@@ -1754,11 +1754,30 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   }, []);
 
   const toggleCrossfade = useCallback(() => {
-    setCrossfade(prev => !prev);
+    setCrossfade(prev => {
+      const next = !prev;
+      try { localStorage.setItem('uf_crossfade', String(next)); } catch { /* noop */ }
+      return next;
+    });
   }, []);
 
   const setCrossfadeDurationFn = useCallback((seconds: number) => {
-    setCrossfadeDurationState(Math.max(1, Math.min(12, seconds)));
+    const clamped = Math.max(1, Math.min(12, seconds));
+    setCrossfadeDurationState(clamped);
+    try { localStorage.setItem('uf_crossfade_duration', String(clamped)); } catch { /* noop */ }
+  }, []);
+
+  const setCrossfadeCurveFn = useCallback((curve: 'linear' | 'equal-power' | 'smooth' | 'exponential') => {
+    setCrossfadeCurveState(curve);
+    try { localStorage.setItem('uf_crossfade_curve', curve); } catch { /* noop */ }
+  }, []);
+
+  const toggleGaplessPro = useCallback(() => {
+    setGaplessPro(prev => {
+      const next = !prev;
+      try { localStorage.setItem('uf_gapless_pro', String(next)); } catch { /* noop */ }
+      return next;
+    });
   }, []);
 
   // Media Session API for lock screen / notification controls
