@@ -12,6 +12,7 @@ export interface EQSettings {
   spatialAudio: boolean;
   studioSpace: StudioSpaceId;
   lateNight: boolean;
+  headphoneSurround: boolean;
   activePreset: string;
 }
 
@@ -23,6 +24,7 @@ export const DEFAULT_EQ_SETTINGS: EQSettings = {
   spatialAudio: false,
   studioSpace: 'off',
   lateNight: false,
+  headphoneSurround: false,
   activePreset: 'flat',
 };
 
@@ -45,6 +47,7 @@ export function normalizeEQSettings(input: Partial<EQSettings> | null | undefine
     spatialAudio: !!input?.spatialAudio,
     studioSpace: (input?.studioSpace as StudioSpaceId) || DEFAULT_EQ_SETTINGS.studioSpace,
     lateNight: !!input?.lateNight,
+    headphoneSurround: !!input?.headphoneSurround,
     activePreset: input?.activePreset || DEFAULT_EQ_SETTINGS.activePreset,
   };
 }
