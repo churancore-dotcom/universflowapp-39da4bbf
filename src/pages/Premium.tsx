@@ -39,6 +39,7 @@ const FEATURES = [
   { icon: Sliders,      title: '8-Band Studio EQ',        desc: 'Studio-grade tuning with crafted presets.' },
   { icon: Building2,    title: 'Studio Spaces',           desc: 'Vinyl Booth, Cathedral, Stadium — pick your room.' },
   { icon: Moon,         title: 'Late Night Mode',         desc: 'Whispered details lifted, loud peaks tamed.' },
+  { icon: Headphones,   title: 'Headphone 3D Surround',   desc: 'Binaural crossfeed lifts sound out of your head.' },
   { icon: Download,     title: 'Unlimited Downloads',     desc: 'Save anything. Listen offline. Anywhere.' },
   { icon: Music2,       title: 'Mood Playlists',          desc: 'Mood-matched playlists, made instantly.' },
   { icon: InfinityIcon, title: 'Crossfade & Gapless',     desc: 'Seamless transitions, end to end.' },
