@@ -282,8 +282,16 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [shuffle, setShuffle] = useState(false);
   const [repeat, setRepeat] = useState<'off' | 'all' | 'one'>('off');
   const [isExpanded, setExpanded] = useState(false);
-  const [crossfade, setCrossfade] = useState(false);
-  const [crossfadeDuration, setCrossfadeDurationState] = useState(3);
+  const [crossfade, setCrossfade] = useState(() => localStorage.getItem('uf_crossfade') === 'true');
+  const [crossfadeDuration, setCrossfadeDurationState] = useState(() => {
+    const v = Number(localStorage.getItem('uf_crossfade_duration'));
+    return Number.isFinite(v) && v >= 1 && v <= 12 ? v : 3;
+  });
+  const [crossfadeCurve, setCrossfadeCurveState] = useState<'linear' | 'equal-power' | 'smooth' | 'exponential'>(() => {
+    const v = localStorage.getItem('uf_crossfade_curve');
+    return (v === 'linear' || v === 'equal-power' || v === 'smooth' || v === 'exponential') ? v : 'equal-power';
+  });
+  const [gaplessPro, setGaplessPro] = useState(() => localStorage.getItem('uf_gapless_pro') === 'true');
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null);
   const [showPrerollAd, setShowPrerollAd] = useState(false);
   const [adType, setAdType] = useState<'start' | 'end'>('start');
