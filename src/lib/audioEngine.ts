@@ -328,6 +328,22 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   limiter.attack.value = 0.01;
   limiter.release.value = 0.18;
 
+  // --- Headphone 3D Surround crossfeed stage ---
+  // Real binaural-style crossfeed: each ear receives the opposite ear's
+  // signal, delayed ~0.3ms (inter-aural time difference) and low-passed
+  // ~700Hz (head shadow filter). Mimics what speakers do naturally and
+  // pulls the stereo image OUT of the head. Off = direct = bit-perfect.
+  const surroundSplitter = ctx.createChannelSplitter(2);
+  const surroundMerger = ctx.createChannelMerger(2);
+  const surroundDirectL = ctx.createGain(); surroundDirectL.gain.value = 1;
+  const surroundDirectR = ctx.createGain(); surroundDirectR.gain.value = 1;
+  const surroundDelayLR = ctx.createDelay(0.01); surroundDelayLR.delayTime.value = 0.00033;
+  const surroundDelayRL = ctx.createDelay(0.01); surroundDelayRL.delayTime.value = 0.00033;
+  const surroundLpLR = ctx.createBiquadFilter(); surroundLpLR.type = 'lowpass'; surroundLpLR.frequency.value = 700; surroundLpLR.Q.value = 0.7;
+  const surroundLpRL = ctx.createBiquadFilter(); surroundLpRL.type = 'lowpass'; surroundLpRL.frequency.value = 700; surroundLpRL.Q.value = 0.7;
+  const surroundXfeedLR = ctx.createGain(); surroundXfeedLR.gain.value = 0; // off until enabled
+  const surroundXfeedRL = ctx.createGain(); surroundXfeedRL.gain.value = 0;
+
   // Wire graph
   source.connect(filters[0]);
   for (let i = 0; i < filters.length - 1; i++) filters[i].connect(filters[i + 1]);
@@ -339,7 +355,23 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
 
   dryGain.connect(stereoPanner);
   wetGain.connect(stereoPanner);
-  stereoPanner.connect(limiter);
+
+  // stereoPanner -> [splitter L/R] -> direct + crossfeed -> [merger] -> limiter
+  stereoPanner.connect(surroundSplitter);
+  surroundSplitter.connect(surroundDirectL, 0); surroundDirectL.connect(surroundMerger, 0, 0);
+  surroundSplitter.connect(surroundDirectR, 1); surroundDirectR.connect(surroundMerger, 0, 1);
+  // L -> delay -> lp -> xfeed -> R (right ear hears delayed/dulled left)
+  surroundSplitter.connect(surroundDelayLR, 0);
+  surroundDelayLR.connect(surroundLpLR);
+  surroundLpLR.connect(surroundXfeedLR);
+  surroundXfeedLR.connect(surroundMerger, 0, 1);
+  // R -> delay -> lp -> xfeed -> L
+  surroundSplitter.connect(surroundDelayRL, 1);
+  surroundDelayRL.connect(surroundLpRL);
+  surroundLpRL.connect(surroundXfeedRL);
+  surroundXfeedRL.connect(surroundMerger, 0, 0);
+
+  surroundMerger.connect(limiter);
   limiter.connect(ctx.destination);
 
   engine.source = source;
@@ -349,6 +381,16 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   engine.wetGain = wetGain;
   engine.convolver = convolver;
   engine.stereoPanner = stereoPanner;
+  engine.surroundSplitter = surroundSplitter;
+  engine.surroundMerger = surroundMerger;
+  engine.surroundDirectL = surroundDirectL;
+  engine.surroundDirectR = surroundDirectR;
+  engine.surroundDelayLR = surroundDelayLR;
+  engine.surroundDelayRL = surroundDelayRL;
+  engine.surroundLpLR = surroundLpLR;
+  engine.surroundLpRL = surroundLpRL;
+  engine.surroundXfeedLR = surroundXfeedLR;
+  engine.surroundXfeedRL = surroundXfeedRL;
   engine.limiter = limiter;
   engine.panLfo = null;
   engine.panLfoGain = null;
@@ -359,6 +401,38 @@ function buildProcessedChain(ctx: AudioContext, source: MediaElementAudioSourceN
   if (currentSpaceId !== 'off') setStudioSpace(currentSpaceId);
   // Re-apply Late Night compression on the fresh chain
   applyLateNightToLimiter();
+  // Re-apply Headphone 3D Surround on the fresh chain
+  applySurround();
+}
+
+function applySurround() {
+  if (!engine.ctx || !engine.surroundXfeedLR || !engine.surroundXfeedRL
+      || !engine.surroundDirectL || !engine.surroundDirectR) return;
+  const now = engine.ctx.currentTime;
+  if (engine.surroundEnabled) {
+    // Crossfeed at -10 dB (gain 0.316) is the classic Linkwitz / Meier headphone
+    // amp setting. Pulls vocals to center-front, opens stereo width.
+    engine.surroundXfeedLR.gain.setTargetAtTime(0.32, now, SMOOTH);
+    engine.surroundXfeedRL.gain.setTargetAtTime(0.32, now, SMOOTH);
+    // Slight direct attenuation keeps the sum from clipping the limiter.
+    engine.surroundDirectL.gain.setTargetAtTime(0.85, now, SMOOTH);
+    engine.surroundDirectR.gain.setTargetAtTime(0.85, now, SMOOTH);
+  } else {
+    engine.surroundXfeedLR.gain.setTargetAtTime(0, now, SMOOTH);
+    engine.surroundXfeedRL.gain.setTargetAtTime(0, now, SMOOTH);
+    engine.surroundDirectL.gain.setTargetAtTime(1, now, SMOOTH);
+    engine.surroundDirectR.gain.setTargetAtTime(1, now, SMOOTH);
+  }
+}
+
+export function setHeadphoneSurround(enabled: boolean) {
+  engine.surroundEnabled = enabled;
+  if (engine.mode !== 'processed') return;
+  applySurround();
+}
+
+export function getHeadphoneSurround(): boolean {
+  return engine.surroundEnabled;
 }
 
 /**
