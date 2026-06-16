@@ -263,7 +263,13 @@ function disconnectAll() {
   const nodes: (AudioNode | null)[] = [
     engine.source, ...engine.filters, engine.preGain,
     engine.dryGain, engine.wetGain, engine.convolver,
-    engine.stereoPanner, engine.panLfoGain, engine.limiter,
+    engine.stereoPanner, engine.panLfoGain,
+    engine.surroundSplitter, engine.surroundMerger,
+    engine.surroundDirectL, engine.surroundDirectR,
+    engine.surroundDelayLR, engine.surroundDelayRL,
+    engine.surroundLpLR, engine.surroundLpRL,
+    engine.surroundXfeedLR, engine.surroundXfeedRL,
+    engine.limiter,
   ];
   for (const n of nodes) {
     if (!n) continue;
