@@ -1,9 +1,12 @@
-import { memo, useEffect, useMemo, useState } from 'react';
+import { memo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Music2, Disc3 } from 'lucide-react';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { useDownloads } from '@/contexts/DownloadContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getUserArtistPrefs } from '@/lib/userArtistPrefs';
+import { getArtistTopTracksByName } from '@/lib/musicIndexer';
+import { supabase } from '@/integrations/supabase/client';
 import { triggerHaptic } from '@/hooks/useHaptics';
 
 interface Props {
@@ -12,31 +15,108 @@ interface Props {
 
 const normalize = (value?: string | null) => value?.trim().toLowerCase() || '';
 
+const toCatalogSong = (row: any): Song => {
+  const artistData = row.artists as { id: string; photo_url: string | null } | null;
+  return {
+    id: row.id,
+    title: row.title,
+    artist: row.artist,
+    album: row.album || undefined,
+    cover_url: row.cover_url || undefined,
+    audio_url: row.audio_url,
+    duration: row.duration || undefined,
+    artist_id: artistData?.id || row.artist_id || undefined,
+    artist_photo_url: artistData?.photo_url || undefined,
+    genre: row.genre || undefined,
+    mood: row.mood || undefined,
+    created_at: row.created_at || undefined,
+    source: 'library',
+  };
+};
+
+const dedupeSongs = (songs: Song[]) => {
+  const seen = new Set<string>();
+  return songs.filter((song) => {
+    const key = `${normalize(song.artist)}::${normalize(song.title)}`;
+    if (!key.trim() || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const fetchFollowedArtistSongs = async (userId: string, seedSongs: Song[] = []) => {
+  const prefs = await getUserArtistPrefs(userId, true);
+  const followedNames = [...new Set(prefs.map((pref) => pref.artist_name).filter(Boolean))];
+  const followed = new Set(followedNames.map(normalize));
+  if (!followed.size) return [];
+
+  const seedMatches = seedSongs.filter((song) => followed.has(normalize(song.artist)));
+
+  const [{ data: catalog, error }, fallbackGroups] = await Promise.all([
+    supabase
+      .from('songs')
+      .select('*, artists(id, name, photo_url)')
+      .eq('is_visible', true)
+      .order('created_at', { ascending: false })
+      .limit(1000),
+    Promise.all(
+      followedNames.slice(0, 12).map((artist) =>
+        getArtistTopTracksByName(artist, 10).catch(() => []),
+      ),
+    ),
+  ]);
+
+  if (error) console.warn('Failed to load followed-artist catalog songs:', error);
+
+  const catalogMatches = ((catalog || []) as any[])
+    .map(toCatalogSong)
+    .filter((song) => followed.has(normalize(song.artist)));
+
+  const fallbackSongs = fallbackGroups.flat().map((track): Song => ({
+    id: track.id,
+    title: track.title,
+    artist: track.artist,
+    album: track.album,
+    cover_url: track.cover_url,
+    audio_url: track.audio_url || 'resolving',
+    duration: track.duration,
+    source: 'indexed',
+  }));
+
+  return dedupeSongs([...seedMatches, ...catalogMatches, ...fallbackSongs]).slice(0, 24);
+};
+
 const FollowedArtistSongsSection = memo(function FollowedArtistSongsSection({ songs }: Props) {
   const { user } = useAuth();
+  const userId = user?.id;
   const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
-  const [followed, setFollowed] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
+  const queryKey = ['followed-artist-songs', userId] as const;
 
   useEffect(() => {
-    let cancelled = false;
-    if (!user) {
-      setFollowed(new Set());
-      return;
-    }
-    getUserArtistPrefs(user.id).then((prefs) => {
-      if (!cancelled) setFollowed(new Set(prefs.map((pref) => normalize(pref.artist_name))));
-    });
-    return () => { cancelled = true; };
-  }, [user?.id]);
+    if (!userId) return;
+    const refresh = () => queryClient.invalidateQueries({ queryKey });
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh();
+    };
+    window.addEventListener('uf:artist-prefs-changed', refresh);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('uf:artist-prefs-changed', refresh);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [userId, queryClient]);
 
-  const followedSongs = useMemo(() => {
-    if (!followed.size) return [];
-    return songs
-      .filter((song) => followed.has(normalize(song.artist)))
-      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
-      .slice(0, 18);
-  }, [followed, songs]);
+  const { data: followedSongs = [] } = useQuery({
+    queryKey,
+    queryFn: () => fetchFollowedArtistSongs(userId!, songs),
+    enabled: !!userId,
+    staleTime: 15 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnMount: 'always',
+    refetchOnReconnect: true,
+  });
 
   if (!user || followedSongs.length === 0) return null;
 

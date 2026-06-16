@@ -2,13 +2,12 @@ import { memo, useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ChevronLeft, Crown, Check, Disc3, Download,
-  Zap, Gift, Copy, Loader2, ShieldCheck, Sliders, Music2, Infinity as InfinityIcon, Clock,
+  Zap, Copy, Loader2, ShieldCheck, Sliders, Music2, Infinity as InfinityIcon, Clock,
   Moon, Orbit, Building2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import BottomNav from '@/components/BottomNav';
 import PageTransition from '@/components/PageTransition';
-import RedeemCodeModal from '@/components/RedeemCodeModal';
 import { iosSpring, iosBounce } from '@/lib/animations';
 import { usePremium } from '@/hooks/usePremium';
 import { useHaptics } from '@/hooks/useHaptics';
@@ -60,7 +59,6 @@ const PremiumPage = memo(function PremiumPage() {
   const { isPremium, subscription, refetch: refetchPremium } = usePremium();
   const { user } = useAuth();
   const haptics = useHaptics();
-  const [showRedeem, setShowRedeem] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanId>('bimonthly');
   const [settings, setSettings] = useState<UpiSettings | null>(null);
@@ -384,18 +382,6 @@ const PremiumPage = memo(function PremiumPage() {
             <span>Cancel anytime</span>
           </div>
 
-          {/* Redeem code link */}
-          {!isPremium && !pending && (
-            <div className="text-center pb-4">
-              <button
-                onClick={() => { haptics.light(); setShowRedeem(true); }}
-                className="inline-flex items-center gap-2 text-[13px] font-semibold text-primary py-3 px-4"
-              >
-                <Gift className="w-4 h-4" />
-                Have a code? Redeem
-              </button>
-            </div>
-          )}
         </main>
 
         {/* ─── Sticky bottom CTA ─── */}
@@ -438,15 +424,12 @@ const PremiumPage = memo(function PremiumPage() {
 
         <BottomNav />
 
-        <RedeemCodeModal isOpen={showRedeem} onClose={() => setShowRedeem(false)} />
-
         <AnimatePresence>
           {showCheckout && settings && (
             <UpiCheckoutSheet
               settings={settings}
               plan={selectedPlan}
               onClose={() => setShowCheckout(false)}
-              onRedeem={() => { setShowCheckout(false); setShowRedeem(true); }}
             />
           )}
         </AnimatePresence>
@@ -537,12 +520,11 @@ interface CheckoutProps {
   settings: UpiSettings;
   plan: PlanId;
   onClose: () => void;
-  onRedeem: () => void;
 }
 
 type Step = 'pay' | 'confirm' | 'verifying';
 
-const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClose, onRedeem }: CheckoutProps) {
+const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClose }: CheckoutProps) {
   const haptics = useHaptics();
   const { user } = useAuth();
   const { requireVerified } = useEmailVerified();
@@ -767,19 +749,6 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
               I've paid · Submit transaction ID
             </button>
 
-            <div className="flex items-center gap-2 my-4">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            <button
-              onClick={onRedeem}
-              className="w-full py-3 text-[14px] font-semibold text-primary flex items-center justify-center gap-1.5"
-            >
-              <Gift className="w-4 h-4" />
-              Redeem a code instead
-            </button>
           </>
         )}
 

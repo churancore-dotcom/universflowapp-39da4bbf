@@ -12,6 +12,12 @@ export interface UserArtistPref {
 let cache: { userId: string; data: UserArtistPref[]; ts: number } | null = null;
 const TTL = 60 * 1000;
 
+const notifyArtistPrefsChanged = () => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('uf:artist-prefs-changed'));
+  }
+};
+
 export async function getUserArtistPrefs(userId: string, force = false): Promise<UserArtistPref[]> {
   if (!force && cache && cache.userId === userId && Date.now() - cache.ts < TTL) {
     return cache.data;
@@ -50,6 +56,7 @@ export async function followArtist(
     return false;
   }
   cache = null;
+  notifyArtistPrefsChanged();
   return true;
 }
 
@@ -64,6 +71,7 @@ export async function unfollowArtist(userId: string, artistName: string): Promis
     return false;
   }
   cache = null;
+  notifyArtistPrefsChanged();
   return true;
 }
 

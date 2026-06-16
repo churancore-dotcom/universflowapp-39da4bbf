@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { usePremium } from '@/hooks/usePremium';
 import BottomNav from '@/components/BottomNav';
-import RedeemCodeModal from '@/components/RedeemCodeModal';
 import PremiumBadge from '@/components/PremiumBadge';
 import ReviewModal from '@/components/ReviewModal';
 import ReviewsSheet from '@/components/ReviewsSheet';
@@ -34,7 +33,6 @@ const Profile = () => {
   const [stats, setStats] = useState({ likedSongs: 0, playlists: 0, downloads: 0 });
   const [listenStats, setListenStats] = useState<{ minutes: number; topArtist: string | null; topSong: string | null; streak: number }>({ minutes: 0, topArtist: null, topSong: null, streak: 0 });
   const [statsReady, setStatsReady] = useState(false);
-  const [showRedeemCode, setShowRedeemCode] = useState(false);
   const [showReview, setShowReview] = useState(false);
   const [showReviewsList, setShowReviewsList] = useState(false);
 
@@ -409,15 +407,6 @@ const Profile = () => {
               </button>
             )}
 
-            {profileSettled && !isPremium && (
-              <button
-                onClick={() => setShowRedeemCode(true)}
-                className="w-full rounded-2xl py-3 text-sm font-semibold bg-white/[0.04] border border-white/[0.08] active:bg-white/10 transition"
-              >
-                Redeem a code
-              </button>
-            )}
-
             {/* === Menu === */}
             <div className="rounded-3xl overflow-hidden bg-card border border-white/5">
               {profileSettled && isAdmin && (
@@ -448,7 +437,6 @@ const Profile = () => {
         </main>
 
         <BottomNav />
-        {showRedeemCode && <RedeemCodeModal isOpen={showRedeemCode} onClose={() => setShowRedeemCode(false)} />}
         <ReviewModal isOpen={showReview} onClose={() => setShowReview(false)} />
         <ReviewsSheet
           isOpen={showReviewsList}

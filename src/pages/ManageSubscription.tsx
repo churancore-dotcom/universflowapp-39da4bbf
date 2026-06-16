@@ -10,7 +10,6 @@ import {
   Calendar,
   Shield,
   Heart,
-  Gift,
   Zap,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -306,25 +305,6 @@ const ManageSubscription = () => {
 
           
 
-          {/* CTA strip */}
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
-            className="rounded-3xl p-4 flex items-center gap-3 bg-card/50 border border-white/5 backdrop-blur-sm"
-          >
-            <div className="w-10 h-10 rounded-3xl flex items-center justify-center bg-primary/15">
-              <Gift className="w-5 h-5 text-primary" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold">Got a promo code?</p>
-              <p className="text-[11px] text-muted-foreground">Extend your premium with a redemption code</p>
-            </div>
-            <button
-              onClick={() => navigate('/profile')}
-              className="px-3 py-1.5 rounded-3xl text-xs font-semibold bg-primary text-primary-foreground"
-            >
-              Redeem
-            </button>
-          </motion.div>
         </main>
 
         <BottomNav />
