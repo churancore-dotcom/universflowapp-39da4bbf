@@ -90,12 +90,25 @@ Deno.serve(async (req) => {
       body.email = callerEmail ?? body.email;
       body.user_id = callerId;
 
-      // Per-user rate limit: max 5 notifications per minute
-      const { data: allowed } = await supabaseClient.rpc('check_and_increment_rate_limit', {
+      // Per-user rate limit: max 5 notifications per minute.
+      // Must use service-role client — EXECUTE on check_and_increment_rate_limit
+      // is revoked from PUBLIC/anon/authenticated, so a user-JWT client gets
+      // a permissions error and the guard would silently no-op.
+      const adminClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      );
+      const { data: allowed, error: rlErr } = await adminClient.rpc('check_and_increment_rate_limit', {
         _user_id: callerId,
         _endpoint: 'telegram-notify',
         _max_per_minute: 5,
       });
+      if (rlErr) {
+        console.error('rate-limit check failed', rlErr);
+        return new Response(JSON.stringify({ error: 'Rate limit check failed' }), {
+          status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
       if (allowed === false) {
         return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
           status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
