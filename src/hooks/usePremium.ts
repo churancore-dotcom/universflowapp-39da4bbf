@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useContext } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { AuthContext } from '@/contexts/AuthContext';
 import { setRuntimePremium } from '@/lib/premiumState';
+import { toast } from 'sonner';
 
 export type SubscriptionType = 'free' | 'premium_monthly' | 'premium_yearly';
 export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'pending';
@@ -29,6 +30,7 @@ interface UsePremiumReturn {
 }
 
 const CACHE_KEY = 'uf_premium_cache_v1';
+const EXPIRY_ALERT_KEY = 'uf_premium_expiry_alerted_v1';
 
 interface CachedPremium {
   userId: string;
@@ -119,6 +121,15 @@ export const usePremium = (): UsePremiumReturn => {
       }
       setSubscription(next);
       writeCache(user.id, next);
+      if (next?.status === 'expired' && next.expires_at) {
+        const alertKey = `${user.id}:${next.id}:${next.expires_at}`;
+        if (localStorage.getItem(EXPIRY_ALERT_KEY) !== alertKey) {
+          toast.warning('Your Premium has ended', {
+            description: 'Renew anytime to restore ad-free listening, downloads and premium audio.',
+          });
+          localStorage.setItem(EXPIRY_ALERT_KEY, alertKey);
+        }
+      }
       setLastCheckedAt(new Date().toISOString());
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Failed to fetch subscription'));
