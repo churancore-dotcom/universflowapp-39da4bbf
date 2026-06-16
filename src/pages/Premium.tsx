@@ -16,6 +16,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEmailVerified } from '@/hooks/useEmailVerified';
 import { toast } from '@/hooks/use-toast';
 import SEOHead from '@/components/SEOHead';
+import appLogo from '@/assets/app-logo.png';
+
+const LogoBadge = ({ size = 56 }: { size?: number }) => (
+  <div
+    className="mx-auto rounded-3xl flex items-center justify-center overflow-hidden"
+    style={{
+      width: size,
+      height: size,
+      background: 'linear-gradient(135deg, hsl(var(--primary) / 0.22), hsl(var(--accent) / 0.16))',
+      border: '0.5px solid hsl(var(--primary) / 0.4)',
+      boxShadow: '0 10px 30px -10px hsl(var(--primary) / 0.5)',
+    }}
+  >
+    <img src={appLogo} alt="Universflow" className="w-[68%] h-[68%] object-contain" />
+  </div>
+);
 
 type PlanId = 'monthly' | 'bimonthly' | 'quarterly';
 
@@ -33,17 +49,17 @@ const PLAN_LABEL: Record<PlanId, string> = {
   quarterly: '3 Months',
 };
 
-const FEATURES = [
+const FEATURES: Array<{ icon: typeof Zap; title: string; desc: string; isNew?: boolean }> = [
+  { icon: InfinityIcon, title: 'Smart Crossfade + Gapless Pro', desc: 'DJ-grade equal-power curves and zero-gap track swaps.', isNew: true },
+  { icon: Headphones,   title: 'Headphone 3D Surround',   desc: 'Binaural crossfeed lifts sound out of your head.', isNew: true },
+  { icon: Building2,    title: 'Studio Spaces',           desc: 'Vinyl Booth, Cathedral, Stadium — pick your room.', isNew: true },
+  { icon: Moon,         title: 'Late Night Mode',         desc: 'Whispered details lifted, loud peaks tamed.', isNew: true },
   { icon: Zap,          title: 'Zero Ads',                desc: 'No pre-rolls, no banners. Music, uninterrupted.' },
   { icon: Orbit,        title: 'Spatial 3D Audio',        desc: 'Cinema-grade surround that orbits around your head.' },
   { icon: Sliders,      title: '8-Band Studio EQ',        desc: 'Studio-grade tuning with crafted presets.' },
-  { icon: Building2,    title: 'Studio Spaces',           desc: 'Vinyl Booth, Cathedral, Stadium — pick your room.' },
-  { icon: Moon,         title: 'Late Night Mode',         desc: 'Whispered details lifted, loud peaks tamed.' },
-  { icon: Headphones,   title: 'Headphone 3D Surround',   desc: 'Binaural crossfeed lifts sound out of your head.' },
   { icon: Download,     title: 'Unlimited Downloads',     desc: 'Save anything. Listen offline. Anywhere.' },
   { icon: Music2,       title: 'Mood Playlists',          desc: 'Mood-matched playlists, made instantly.' },
-  { icon: InfinityIcon, title: 'Smart Crossfade + Gapless Pro', desc: 'DJ-grade equal-power curves and zero-gap track swaps.' },
-  { icon: Disc3,     title: 'Premium-Only Tracks',     desc: 'Early drops and exclusive releases.' },
+  { icon: Disc3,        title: 'Premium-Only Tracks',     desc: 'Early drops and exclusive releases.' },
   { icon: ShieldCheck,  title: 'Priority Support',        desc: 'Skip the line — we answer first.' },
 ];
 
@@ -269,9 +285,7 @@ const PremiumPage = memo(function PremiumPage() {
                 border: '0.5px solid hsl(var(--primary) / 0.4)',
               }}
             >
-              <div className="w-14 h-14 mx-auto mb-3 rounded-3xl flex items-center justify-center bg-primary/15">
-                <Crown className="w-7 h-7 text-primary" fill="currentColor" />
-              </div>
+              <div className="mb-3"><LogoBadge size={56} /></div>
               <p className="text-[22px] font-bold mb-1">You're Premium</p>
               {expiryText && (
                 <p className="text-[12px] tracking-[0.12em] uppercase text-muted-foreground">
@@ -365,7 +379,17 @@ const PremiumPage = memo(function PremiumPage() {
                       <Icon className="w-5 h-5 text-primary" strokeWidth={2} />
                     </div>
                     <div className="flex-1 min-w-0 pt-0.5">
-                      <p className="text-[15px] font-semibold leading-tight mb-0.5">{f.title}</p>
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        <p className="text-[15px] font-semibold leading-tight">{f.title}</p>
+                        {f.isNew && (
+                          <span
+                            className="text-[9px] font-bold tracking-[0.12em] uppercase px-1.5 py-0.5 rounded"
+                            style={{ background: 'hsl(var(--primary))', color: 'hsl(var(--primary-foreground))' }}
+                          >
+                            New
+                          </span>
+                        )}
+                      </div>
                       <p className="text-[12.5px] text-muted-foreground leading-snug">{f.desc}</p>
                     </div>
                   </motion.div>
@@ -690,12 +714,7 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
         {step === 'pay' && (
           <>
             <div className="text-center mb-5">
-              <div
-                className="w-14 h-14 mx-auto mb-3 rounded-3xl flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))' }}
-              >
-                <Crown className="w-7 h-7 text-primary-foreground" />
-              </div>
+              <div className="mb-3"><LogoBadge size={56} /></div>
               <p className="text-[11px] uppercase tracking-widest text-muted-foreground mb-1">{planLabel} · Premium</p>
               <h3 className="text-[22px] font-bold">Pay ₹{amountFinal}</h3>
               <p className="text-[12px] text-muted-foreground mt-1">
@@ -836,13 +855,9 @@ const SubmittedConfirmation = memo(function SubmittedConfirmation({
       <div className="text-center py-4">
         <motion.div
           initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} transition={iosBounce}
-          className="w-24 h-24 mx-auto mb-5 rounded-full flex items-center justify-center"
-          style={{
-            background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))',
-            boxShadow: '0 20px 50px -10px hsl(var(--primary) / 0.6)',
-          }}
+          className="mx-auto mb-5"
         >
-          <Crown className="w-12 h-12 text-primary-foreground" fill="currentColor" />
+          <LogoBadge size={96} />
         </motion.div>
         <h3 className="text-[26px] font-bold mb-2">You're Premium 🎉</h3>
         <p className="text-[14px] text-muted-foreground mb-6 px-4">
