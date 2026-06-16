@@ -520,12 +520,11 @@ interface CheckoutProps {
   settings: UpiSettings;
   plan: PlanId;
   onClose: () => void;
-  onRedeem: () => void;
 }
 
 type Step = 'pay' | 'confirm' | 'verifying';
 
-const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClose, onRedeem }: CheckoutProps) {
+const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClose }: CheckoutProps) {
   const haptics = useHaptics();
   const { user } = useAuth();
   const { requireVerified } = useEmailVerified();
@@ -750,19 +749,6 @@ const UpiCheckoutSheet = memo(function UpiCheckoutSheet({ settings, plan, onClos
               I've paid · Submit transaction ID
             </button>
 
-            <div className="flex items-center gap-2 my-4">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-[10px] uppercase tracking-widest text-muted-foreground">or</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            <button
-              onClick={onRedeem}
-              className="w-full py-3 text-[14px] font-semibold text-primary flex items-center justify-center gap-1.5"
-            >
-              <Gift className="w-4 h-4" />
-              Redeem a code instead
-            </button>
           </>
         )}
 
