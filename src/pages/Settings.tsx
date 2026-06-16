@@ -215,6 +215,61 @@ const Settings = () => {
                   <Slider value={[cfDuration]} onValueChange={([val]) => setCrossfadeDuration(val)} max={12} step={1} className="[&_[role=slider]]:w-5 [&_[role=slider]]:h-5" />
                 )}
               </div>
+
+              {/* Crossfade Curve — Premium */}
+              <div className="px-4 py-3 border-b border-white/5">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm">Crossfade Curve</span>
+                    {!isPremium && <Crown className="w-3 h-3 text-primary" fill="currentColor" />}
+                  </div>
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-primary">Pro</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {([
+                    { id: 'linear', label: 'Linear' },
+                    { id: 'equal-power', label: 'DJ' },
+                    { id: 'smooth', label: 'Smooth' },
+                    { id: 'exponential', label: 'Punch' },
+                  ] as const).map((c) => {
+                    const active = crossfadeCurve === c.id;
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => {
+                          if (!isPremium) { navigate('/premium'); return; }
+                          setCrossfadeCurve(c.id);
+                          toast.success(`${c.label} curve applied`);
+                        }}
+                        className={`py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                          active ? 'bg-primary text-primary-foreground' : 'bg-muted/40 text-foreground/70 active:bg-muted'
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2 leading-snug">
+                  DJ = constant loudness, Smooth = S-curve, Punch = exponential drop-in.
+                </p>
+              </div>
+
+              {/* Gapless Pro — Premium */}
+              <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm">Gapless Pro</span>
+                  {!isPremium && <Crown className="w-3 h-3 text-primary" fill="currentColor" />}
+                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-primary">Pro</span>
+                </div>
+                <Switch
+                  checked={gaplessPro}
+                  onCheckedChange={() => {
+                    if (!isPremium) { navigate('/premium'); return; }
+                    toggleGaplessPro();
+                  }}
+                  className="data-[state=checked]:bg-primary scale-90"
+                />
               <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
                 <span className="text-sm">Gapless Playback</span>
                 <Switch checked={gaplessPlayback} onCheckedChange={handleGapless} className="data-[state=checked]:bg-primary scale-90" />
