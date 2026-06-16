@@ -130,13 +130,16 @@ interface SpaceProfile {
   dry: number;        // recommended dry gain
 }
 
+// Wet/dry rebalanced — old values were too polite to hear. Stadium worked
+// because its predelay/decay combo is naturally aggressive; the rest need
+// real wet level to register on phone speakers/earbuds.
 const SPACE_PROFILES: Record<Exclude<StudioSpaceId, 'off'>, SpaceProfile> = {
-  vinyl:     { duration: 0.4,  decay: 4.0, predelay: 0.001, density: 0.9, damping: 0.6, wet: 0.10, dry: 0.95 },
-  studio:    { duration: 0.6,  decay: 3.2, predelay: 0.005, density: 0.85, damping: 0.35, wet: 0.12, dry: 0.93 },
-  bedroom:   { duration: 0.9,  decay: 2.8, predelay: 0.008, density: 0.7, damping: 0.5, wet: 0.18, dry: 0.90 },
-  hall:      { duration: 2.4,  decay: 1.8, predelay: 0.025, density: 0.55, damping: 0.25, wet: 0.28, dry: 0.85 },
-  cathedral: { duration: 4.5,  decay: 1.2, predelay: 0.045, density: 0.4, damping: 0.15, wet: 0.34, dry: 0.80 },
-  stadium:   { duration: 3.5,  decay: 1.5, predelay: 0.080, density: 0.35, damping: 0.30, wet: 0.30, dry: 0.82 },
+  vinyl:     { duration: 0.5,  decay: 3.6, predelay: 0.002, density: 0.95, damping: 0.55, wet: 0.28, dry: 0.88 },
+  studio:    { duration: 0.8,  decay: 2.8, predelay: 0.006, density: 0.9,  damping: 0.30, wet: 0.32, dry: 0.85 },
+  bedroom:   { duration: 1.2,  decay: 2.4, predelay: 0.010, density: 0.75, damping: 0.45, wet: 0.40, dry: 0.82 },
+  hall:      { duration: 2.8,  decay: 1.6, predelay: 0.028, density: 0.55, damping: 0.22, wet: 0.55, dry: 0.75 },
+  cathedral: { duration: 5.0,  decay: 1.1, predelay: 0.050, density: 0.40, damping: 0.12, wet: 0.65, dry: 0.70 },
+  stadium:   { duration: 3.8,  decay: 1.4, predelay: 0.085, density: 0.32, damping: 0.28, wet: 0.58, dry: 0.72 },
 };
 
 let currentSpaceId: StudioSpaceId = 'off';
@@ -146,8 +149,11 @@ function applyReverbMix(percent: number) {
   if (engine.mode !== 'processed' || !engine.ctx || !engine.dryGain || !engine.wetGain) return;
   const ctx = engine.ctx;
   const now = ctx.currentTime;
-  const wet = Math.max(0, Math.min(0.35, percent / 100 * 0.45));
-  const dry = 1 - wet * 0.4;
+  // Old code clamped wet to 0.35 and barely dropped dry — slider felt dead.
+  // Now: 0..100 % maps linearly up to 0.85 wet, dry drops to 0.55 at full.
+  const p = Math.max(0, Math.min(100, percent)) / 100;
+  const wet = p * 0.85;
+  const dry = 1 - p * 0.45;
   engine.dryGain.gain.cancelScheduledValues(now);
   engine.wetGain.gain.cancelScheduledValues(now);
   engine.dryGain.gain.setTargetAtTime(dry, now, SMOOTH);
@@ -338,13 +344,16 @@ function applyLateNightToLimiter() {
   const now = ctx.currentTime;
   const c = engine.limiter;
   if (engine.lateNightEnabled) {
-    c.threshold.setTargetAtTime(-28, now, SMOOTH);
-    c.knee.setTargetAtTime(18, now, SMOOTH);
-    c.ratio.setTargetAtTime(8, now, SMOOTH);
-    c.attack.setTargetAtTime(0.012, now, SMOOTH);
-    c.release.setTargetAtTime(0.18, now, SMOOTH);
-    // Makeup gain — quiet content now sits ~6dB louder
-    engine.preGain.gain.setTargetAtTime(1.6, now, SMOOTH);
+    // Aggressive night compressor — squashes peaks hard, lifts whispers loud.
+    // Threshold -38 dB + ratio 14:1 means almost everything above a whisper
+    // gets pulled into a tight band, then makeup gain (×2.4 ≈ +7.6 dB) brings
+    // the quiet stuff up to comfortable nighttime listening level.
+    c.threshold.setTargetAtTime(-38, now, SMOOTH);
+    c.knee.setTargetAtTime(24, now, SMOOTH);
+    c.ratio.setTargetAtTime(14, now, SMOOTH);
+    c.attack.setTargetAtTime(0.006, now, SMOOTH);
+    c.release.setTargetAtTime(0.22, now, SMOOTH);
+    engine.preGain.gain.setTargetAtTime(2.4, now, SMOOTH);
   } else {
     c.threshold.setTargetAtTime(-6, now, SMOOTH);
     c.knee.setTargetAtTime(12, now, SMOOTH);
