@@ -107,10 +107,10 @@ export default function ArtistPublic() {
     source: 'indexed',
   });
 
-  const playSong = async (s: Song, idx: number) => {
+  const playSong = async (s: Song, _idx: number) => {
     if (!player || !profile) return;
     const queue = songs.map(toPlayerSong);
-    player.playSong(toPlayerSong(s), queue);
+    player.playSong(toPlayerSong(s), null, queue);
     // Increment play_count (best-effort)
     supabase.from('artist_songs').update({ play_count: (s.play_count || 0) + 1 }).eq('id', s.id);
   };
