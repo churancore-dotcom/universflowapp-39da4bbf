@@ -424,6 +424,7 @@ export type Database = {
           takedown_reason: string | null
           title: string
           updated_at: string
+          view_count: number
         }
         Insert: {
           artist_user_id: string
@@ -439,6 +440,7 @@ export type Database = {
           takedown_reason?: string | null
           title: string
           updated_at?: string
+          view_count?: number
         }
         Update: {
           artist_user_id?: string
@@ -454,6 +456,7 @@ export type Database = {
           takedown_reason?: string | null
           title?: string
           updated_at?: string
+          view_count?: number
         }
         Relationships: []
       }
@@ -1844,6 +1847,18 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      increment_artist_song_download: {
+        Args: { _song_id: string }
+        Returns: undefined
+      }
+      increment_artist_song_play: {
+        Args: { _song_id: string }
+        Returns: undefined
+      }
+      increment_artist_song_view: {
+        Args: { _song_id: string }
+        Returns: undefined
       }
       join_jam_room: {
         Args: { p_code: string; p_display_name?: string }
