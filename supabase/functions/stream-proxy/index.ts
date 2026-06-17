@@ -18,7 +18,6 @@ const ALLOWED_HOST_SUFFIXES = [
   '.saavncdn.com',
   'saavncdn.com',
   'jiosaavn-api.universflow.workers.dev',
-  '.workers.dev',
   // YouTube / Invidious mirrors
   '.googlevideo.com',
   '.youtube.com',
