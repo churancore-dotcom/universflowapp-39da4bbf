@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,7 +19,13 @@ function detectCountryCode(): string | undefined {
   } catch { return undefined; }
 }
 
-type Mode = 'login' | 'signup';
+type Mode = 'login' | 'signup' | 'artist';
+
+const labels: Record<Mode, string> = {
+  login: 'Sign in',
+  signup: 'Sign up',
+  artist: 'Artist',
+};
 
 const panelVariants = {
   initial: (isLogin: boolean) => ({ opacity: 0, y: 18, x: isLogin ? -10 : 10, filter: 'blur(8px)' }),
@@ -38,6 +44,14 @@ const Auth = () => {
   const navigate = useNavigate();
 
   const isLogin = mode === 'login';
+
+  // Navigate to the dedicated artist auth page when the Artist tab is selected.
+  useEffect(() => {
+    if (mode === 'artist') {
+      const t = setTimeout(() => navigate('/artist/auth', { replace: true }), 180);
+      return () => clearTimeout(t);
+    }
+  }, [mode, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,42 +161,43 @@ const Auth = () => {
             </p>
           </div>
 
-          {/* Segmented tabs — single accent, no gradients */}
+          {/* Segmented tabs — listener + artist signup together */}
           <div
-            className="relative grid grid-cols-2 p-1 rounded-full mb-5 mx-auto w-[78%]"
+            className="relative grid grid-cols-3 p-1 rounded-full mb-5 mx-auto w-[92%]"
             style={{
               background: 'rgba(255,255,255,0.04)',
               border: '1px solid rgba(255,255,255,0.06)',
             }}
           >
-            <motion.div
-              layout
-              transition={{ type: 'spring', stiffness: 420, damping: 34 }}
-              className="absolute top-1 bottom-1 rounded-full"
-              style={{
-                width: 'calc(50% - 4px)',
-                left: isLogin ? 4 : 'calc(50% + 0px)',
-                background: '#FF2D55',
-                boxShadow: '0 6px 18px hsl(340 100% 45% / 0.4)',
-              }}
-            />
-            {(['login', 'signup'] as Mode[]).map((m) => (
+            {(['login', 'signup', 'artist'] as Mode[]).map((m) => (
               <button
                 key={m}
                 type="button"
                 onClick={() => setMode(m)}
-                className="relative z-10 h-9 text-[12.5px] font-semibold tracking-tight transition-colors"
+                className="relative z-10 h-9 text-[12px] font-semibold tracking-tight transition-colors"
                 style={{ color: mode === m ? '#fff' : 'hsl(var(--muted-foreground))' }}
               >
-                {m === 'login' ? 'Sign in' : 'Create account'}
+                {mode === m && (
+                  <motion.div
+                    layoutId="activeAuthTab"
+                    className="absolute inset-0 rounded-full"
+                    style={{
+                      background: '#FF2D55',
+                      boxShadow: '0 6px 18px hsl(340 100% 45% / 0.4)',
+                    }}
+                    transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                  />
+                )}
+                <span className="relative z-10">{labels[m]}</span>
               </button>
             ))}
           </div>
 
           <AnimatePresence mode="wait" initial={false} custom={isLogin}>
-            <motion.form
-              key={mode}
-              custom={isLogin}
+            {mode !== 'artist' && (
+              <motion.form
+                key={mode}
+                custom={isLogin}
               variants={panelVariants}
               onSubmit={handleSubmit}
               className="relative rounded-[26px] p-5 space-y-3.5"
@@ -305,14 +320,8 @@ const Auth = () => {
                 </p>
               )}
             </motion.form>
+          )}
           </AnimatePresence>
-
-          <p className="text-center text-[11.5px] text-muted-foreground/70 mt-5">
-            Are you an artist?{' '}
-            <a href={user ? '/artist/apply' : '/artist/auth'} className="text-primary font-semibold">
-              Apply for verification →
-            </a>
-          </p>
         </motion.div>
 
         <p className="relative z-10 text-[10px] tracking-[0.22em] uppercase text-muted-foreground/50 mt-8">
