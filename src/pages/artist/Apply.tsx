@@ -122,7 +122,8 @@ export default function ArtistApply() {
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
 
-  // Bounce to status page if an application already exists
+  // Bounce to status page if an application already exists. Otherwise prefill
+  // fields the user already gave on the artist signup screen.
   useEffect(() => {
     if (isLoading) return;
     if (!user) {
@@ -135,6 +136,17 @@ export default function ArtistApply() {
         navigate('/artist/status', { replace: true });
         return;
       }
+      try {
+        const raw = localStorage.getItem('uf_artist_signup');
+        if (raw) {
+          const s = JSON.parse(raw) as {
+            full_name?: string; phone?: string; country_code?: string;
+          };
+          if (s.full_name) setRealName(s.full_name);
+          if (s.phone) setPhone(s.phone);
+          if (s.country_code) setCountry(s.country_code);
+        }
+      } catch { /* ignore */ }
       setBootChecked(true);
     })();
   }, [user, isLoading, navigate]);
