@@ -101,7 +101,13 @@ const ArtistApplications = lazy(() => import("./pages/admin/ArtistApplications")
 const ArtistApply = lazy(() => import("./pages/artist/Apply"));
 const ArtistAuth = lazy(() => import("./pages/artist/ArtistAuth"));
 const ArtistStatus = lazy(() => import("./pages/artist/Status"));
-const ArtistStudio = lazy(() => import("./pages/artist/Studio"));
+const ArtistLayout = lazy(() => import("./pages/artist/ArtistLayout"));
+const ArtistOverview = lazy(() => import("./pages/artist/Overview"));
+const ArtistUploadPage = lazy(() => import("./pages/artist/Upload"));
+const ArtistSongsPage = lazy(() => import("./pages/artist/Songs"));
+const ArtistAnalyticsPage = lazy(() => import("./pages/artist/Analytics"));
+const ArtistFollowersPage = lazy(() => import("./pages/artist/Followers"));
+const ArtistEditProfile = lazy(() => import("./pages/artist/EditProfile"));
 const ArtistPublic = lazy(() => import("./pages/artist/ArtistPublic"));
 
 // Legal
@@ -239,7 +245,14 @@ const AnimatedRoutes = () => {
           <Route path="/artist/auth" element={user ? <Navigate to="/artist/apply" replace /> : <ArtistAuth />} />
           <Route path="/artist/apply" element={<ProtectedRoute><ArtistApply /></ProtectedRoute>} />
           <Route path="/artist/status" element={<ProtectedRoute><ArtistStatus /></ProtectedRoute>} />
-          <Route path="/artist/studio" element={<ProtectedRoute><ArtistStudio /></ProtectedRoute>} />
+          <Route path="/artist/studio" element={<ProtectedRoute><ArtistLayout /></ProtectedRoute>}>
+            <Route index element={<ArtistOverview />} />
+            <Route path="upload" element={<ArtistUploadPage />} />
+            <Route path="songs" element={<ArtistSongsPage />} />
+            <Route path="analytics" element={<ArtistAnalyticsPage />} />
+            <Route path="followers" element={<ArtistFollowersPage />} />
+            <Route path="profile" element={<ArtistEditProfile />} />
+          </Route>
           <Route path="/artist/:artistId" element={<ProtectedRoute><ArtistDetail /></ProtectedRoute>} />
           <Route path="/a/:slug" element={<ArtistPublic />} />
 

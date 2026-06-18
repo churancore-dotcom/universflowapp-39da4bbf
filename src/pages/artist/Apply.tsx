@@ -8,6 +8,7 @@ import { FadeTransition } from '@/components/PageTransition';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import FaceLivenessCapture, { LivenessShots } from '@/components/FaceLivenessCapture';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -19,7 +20,8 @@ import {
   uploadKycFile,
 } from '@/lib/artist';
 
-type Step = 1 | 2 | 3 | 4 | 5;
+type Step = 1 | 2 | 3 | 4 | 5 | 6;
+const TOTAL_STEPS = 6;
 
 const COUNTRIES = [
   ['IN', '🇮🇳 India'],
@@ -121,6 +123,7 @@ export default function ArtistApply() {
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [livenessShots, setLivenessShots] = useState<LivenessShots | null>(null);
 
   // Bounce to status page if an application already exists. Otherwise prefill
   // fields the user already gave on the artist signup screen.
@@ -166,7 +169,8 @@ export default function ArtistApply() {
     if (step === 1) return stageName.trim().length >= 2 && realName.trim().length >= 2 && phone.trim().length >= 5;
     if (step === 2) return [instagram, youtube, spotify, appleMusic].some((s) => s.trim().length > 4);
     if (step === 3) return !!docFront && (!needsBack || !!docBack) && !!selfie;
-    if (step === 4) return !!photo;
+    if (step === 4) return !!livenessShots;
+    if (step === 5) return !!photo;
     return agreeTerms && agreePrivacy;
   };
 
@@ -178,6 +182,17 @@ export default function ArtistApply() {
     }
     setSubmitting(true);
     try {
+      const blobToFile = (b: Blob, name: string) =>
+        new File([b], name, { type: b.type || 'image/jpeg' });
+
+      const faceUploads = livenessShots
+        ? await Promise.all(
+            (['center', 'left', 'right', 'up'] as const).map((k) =>
+              uploadKycFile(user.id, 'selfie', blobToFile(livenessShots[k], `face-${k}.jpg`)),
+            ),
+          )
+        : [];
+
       const [frontPath, backPath, selfiePath, photoUrl] = await Promise.all([
         docFront ? uploadKycFile(user.id, 'front', docFront) : Promise.resolve(null),
         needsBack && docBack ? uploadKycFile(user.id, 'back', docBack) : Promise.resolve(null),
@@ -197,6 +212,7 @@ export default function ArtistApply() {
           spotify: spotify.trim() || null,
           apple_music: appleMusic.trim() || null,
           bio: bio.trim() || null,
+          face_shots: faceUploads,
         },
         id_doc_type: docType,
         id_doc_front_path: frontPath,
@@ -236,13 +252,13 @@ export default function ArtistApply() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-[15px] font-semibold tracking-tight">Apply as Artist</h1>
-            <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">Step {step}/5</span>
+            <span className="ml-auto text-[11px] text-muted-foreground tabular-nums">Step {step}/{TOTAL_STEPS}</span>
           </div>
           <div className="h-0.5 bg-white/5">
             <motion.div
               className="h-full bg-primary"
               initial={false}
-              animate={{ width: `${(step / 5) * 100}%` }}
+              animate={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
               transition={{ type: 'spring', stiffness: 200, damping: 30 }}
             />
           </div>
@@ -327,6 +343,36 @@ export default function ArtistApply() {
 
           {step === 4 && (
             <section className="space-y-4">
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/10 border border-primary/20">
+                <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-[12.5px] leading-relaxed text-foreground/90">
+                  Quick face check. Look at the camera and follow the prompts —{' '}
+                  <strong>turn left, right, then up</strong>. We capture 4 photos to confirm you're a real person.
+                </p>
+              </div>
+              {livenessShots ? (
+                <div className="rounded-2xl p-4 bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-3">
+                  <Check className="w-5 h-5 text-emerald-300" />
+                  <div className="flex-1">
+                    <p className="text-[13px] font-semibold text-emerald-200">Face check complete</p>
+                    <p className="text-[11.5px] text-emerald-200/80">4 photos captured. Tap Continue.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLivenessShots(null)}
+                    className="text-[11.5px] text-emerald-200 underline"
+                  >
+                    Redo
+                  </button>
+                </div>
+              ) : (
+                <FaceLivenessCapture onComplete={(s) => setLivenessShots(s)} />
+              )}
+            </section>
+          )}
+
+          {step === 5 && (
+            <section className="space-y-4">
               <p className="text-[12.5px] text-muted-foreground">
                 A clean, high-quality photo of you. This becomes your public profile picture once verified.
               </p>
@@ -334,7 +380,7 @@ export default function ArtistApply() {
             </section>
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <section className="space-y-4">
               <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
                 <p className="text-[13px] font-semibold mb-2">Almost done</p>
@@ -374,7 +420,7 @@ export default function ArtistApply() {
           )}
 
           <div className="pt-2 flex gap-3">
-            {step < 5 ? (
+            {step < TOTAL_STEPS ? (
               <Button
                 className="flex-1 h-12 rounded-xl text-[14px] font-semibold"
                 disabled={!canNext()}

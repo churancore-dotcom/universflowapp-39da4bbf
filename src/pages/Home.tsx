@@ -106,10 +106,26 @@ const fetchHomeSongs = async (): Promise<Song[]> => {
 const Home = () => {
   const { currentSong, playSong } = usePlayer();
   const { cachedSongs, updateCache } = useSongCache();
-  const { isOffline } = useAuth();
+  const { isOffline, user } = useAuth() as any;
   const { downloads } = useDownloads();
   const { isPremium } = usePremium();
   const queryClient = useQueryClient();
+
+  // Artist users land on their Studio dashboard, not the listener home.
+  // We only auto-route once per session so they can browse later if they wish.
+  useEffect(() => {
+    if (!user?.id) return;
+    const key = `uf_artist_routed_${user.id}`;
+    if (sessionStorage.getItem(key)) return;
+    (async () => {
+      const { data: isArtist } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'artist' });
+      if (isArtist) {
+        sessionStorage.setItem(key, '1');
+        window.location.replace('/artist/studio');
+      }
+    })();
+  }, [user?.id]);
+
   const [showLockScreen, setShowLockScreen] = useState(false);
   const [showSleepTimer, setShowSleepTimer] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
