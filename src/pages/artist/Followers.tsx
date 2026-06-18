@@ -23,12 +23,12 @@ export default function ArtistFollowers() {
     (async () => {
       const { data: follows } = await supabase
         .from('artist_followers')
-        .select('user_id, created_at')
+        .select("follower_user_id, created_at")
         .eq('artist_user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(200);
       if (!alive) return;
-      const ids = (follows ?? []).map((f) => f.user_id);
+      const ids = (follows ?? []).map((f) => f.follower_user_id);
       let profilesMap: Record<string, { username: string | null; avatar_url: string | null }> = {};
       if (ids.length) {
         const { data: profs } = await supabase
@@ -41,10 +41,10 @@ export default function ArtistFollowers() {
       }
       setRows(
         (follows ?? []).map((f) => ({
-          user_id: f.user_id,
+          user_id: f.follower_user_id,
           created_at: f.created_at,
-          username: profilesMap[f.user_id]?.username ?? null,
-          avatar_url: profilesMap[f.user_id]?.avatar_url ?? null,
+          username: profilesMap[f.follower_user_id]?.username ?? null,
+          avatar_url: profilesMap[f.follower_user_id]?.avatar_url ?? null,
         })),
       );
       setLoading(false);
