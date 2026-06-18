@@ -126,6 +126,13 @@ export default function ArtistStudio() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <h1 className="text-[15px] font-semibold tracking-tight">Artist Studio</h1>
+            <span className="ml-1.5 inline-flex items-center gap-1 text-[10px] font-semibold tracking-wider uppercase text-emerald-300/90">
+              <span className="relative flex w-1.5 h-1.5">
+                <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
+                <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              </span>
+              Live
+            </span>
             <button
               onClick={() => navigate(`/a/${profile.slug}`)}
               className="ml-auto text-[11.5px] text-primary inline-flex items-center gap-1"
@@ -134,6 +141,7 @@ export default function ArtistStudio() {
             </button>
           </div>
         </header>
+
 
         <main className="max-w-md mx-auto px-5 pt-5">
           {/* Hero */}
