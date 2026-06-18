@@ -8,6 +8,7 @@ import { FadeTransition } from '@/components/PageTransition';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import FaceLivenessCapture, { LivenessShots } from '@/components/FaceLivenessCapture';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import {
