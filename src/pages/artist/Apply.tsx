@@ -343,6 +343,36 @@ export default function ArtistApply() {
 
           {step === 4 && (
             <section className="space-y-4">
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/10 border border-primary/20">
+                <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <p className="text-[12.5px] leading-relaxed text-foreground/90">
+                  Quick face check. Look at the camera and follow the prompts —{' '}
+                  <strong>turn left, right, then up</strong>. We capture 4 photos to confirm you're a real person.
+                </p>
+              </div>
+              {livenessShots ? (
+                <div className="rounded-2xl p-4 bg-emerald-500/10 border border-emerald-500/25 flex items-center gap-3">
+                  <Check className="w-5 h-5 text-emerald-300" />
+                  <div className="flex-1">
+                    <p className="text-[13px] font-semibold text-emerald-200">Face check complete</p>
+                    <p className="text-[11.5px] text-emerald-200/80">4 photos captured. Tap Continue.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setLivenessShots(null)}
+                    className="text-[11.5px] text-emerald-200 underline"
+                  >
+                    Redo
+                  </button>
+                </div>
+              ) : (
+                <FaceLivenessCapture onComplete={(s) => setLivenessShots(s)} />
+              )}
+            </section>
+          )}
+
+          {step === 5 && (
+            <section className="space-y-4">
               <p className="text-[12.5px] text-muted-foreground">
                 A clean, high-quality photo of you. This becomes your public profile picture once verified.
               </p>
@@ -350,7 +380,7 @@ export default function ArtistApply() {
             </section>
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <section className="space-y-4">
               <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10">
                 <p className="text-[13px] font-semibold mb-2">Almost done</p>
@@ -390,7 +420,7 @@ export default function ArtistApply() {
           )}
 
           <div className="pt-2 flex gap-3">
-            {step < 5 ? (
+            {step < TOTAL_STEPS ? (
               <Button
                 className="flex-1 h-12 rounded-xl text-[14px] font-semibold"
                 disabled={!canNext()}
