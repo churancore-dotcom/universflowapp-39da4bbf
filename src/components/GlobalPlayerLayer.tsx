@@ -21,6 +21,8 @@ const GlobalPlayerLayer = memo(function GlobalPlayerLayer() {
     pathname === '/verify' ||
     pathname === '/check-email' ||
     pathname.startsWith('/admin') ||
+    pathname.startsWith('/artist/') ||
+    pathname.startsWith('/legal/artist-') ||
     pathname === '/offline-player';
 
   if (hidden) return null;
