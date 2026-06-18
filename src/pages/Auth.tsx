@@ -320,14 +320,8 @@ const Auth = () => {
                 </p>
               )}
             </motion.form>
+          )}
           </AnimatePresence>
-
-          <p className="text-center text-[11.5px] text-muted-foreground/70 mt-5">
-            Are you an artist?{' '}
-            <a href={user ? '/artist/apply' : '/artist/auth'} className="text-primary font-semibold">
-              Apply for verification →
-            </a>
-          </p>
         </motion.div>
 
         <p className="relative z-10 text-[10px] tracking-[0.22em] uppercase text-muted-foreground/50 mt-8">
