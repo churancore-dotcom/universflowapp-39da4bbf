@@ -169,7 +169,8 @@ export default function ArtistApply() {
     if (step === 1) return stageName.trim().length >= 2 && realName.trim().length >= 2 && phone.trim().length >= 5;
     if (step === 2) return [instagram, youtube, spotify, appleMusic].some((s) => s.trim().length > 4);
     if (step === 3) return !!docFront && (!needsBack || !!docBack) && !!selfie;
-    if (step === 4) return !!photo;
+    if (step === 4) return !!livenessShots;
+    if (step === 5) return !!photo;
     return agreeTerms && agreePrivacy;
   };
 
