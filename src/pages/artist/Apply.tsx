@@ -182,6 +182,17 @@ export default function ArtistApply() {
     }
     setSubmitting(true);
     try {
+      const blobToFile = (b: Blob, name: string) =>
+        new File([b], name, { type: b.type || 'image/jpeg' });
+
+      const faceUploads = livenessShots
+        ? await Promise.all(
+            (['center', 'left', 'right', 'up'] as const).map((k) =>
+              uploadKycFile(user.id, 'selfie', blobToFile(livenessShots[k], `face-${k}.jpg`)),
+            ),
+          )
+        : [];
+
       const [frontPath, backPath, selfiePath, photoUrl] = await Promise.all([
         docFront ? uploadKycFile(user.id, 'front', docFront) : Promise.resolve(null),
         needsBack && docBack ? uploadKycFile(user.id, 'back', docBack) : Promise.resolve(null),
@@ -201,6 +212,7 @@ export default function ArtistApply() {
           spotify: spotify.trim() || null,
           apple_music: appleMusic.trim() || null,
           bio: bio.trim() || null,
+          face_shots: faceUploads,
         },
         id_doc_type: docType,
         id_doc_front_path: frontPath,
