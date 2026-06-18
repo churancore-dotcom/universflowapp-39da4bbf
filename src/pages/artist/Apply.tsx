@@ -123,6 +123,7 @@ export default function ArtistApply() {
 
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [livenessShots, setLivenessShots] = useState<LivenessShots | null>(null);
 
   // Bounce to status page if an application already exists. Otherwise prefill
   // fields the user already gave on the artist signup screen.
