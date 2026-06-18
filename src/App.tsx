@@ -101,7 +101,13 @@ const ArtistApplications = lazy(() => import("./pages/admin/ArtistApplications")
 const ArtistApply = lazy(() => import("./pages/artist/Apply"));
 const ArtistAuth = lazy(() => import("./pages/artist/ArtistAuth"));
 const ArtistStatus = lazy(() => import("./pages/artist/Status"));
-const ArtistStudio = lazy(() => import("./pages/artist/Studio"));
+const ArtistLayout = lazy(() => import("./pages/artist/ArtistLayout"));
+const ArtistOverview = lazy(() => import("./pages/artist/Overview"));
+const ArtistUploadPage = lazy(() => import("./pages/artist/Upload"));
+const ArtistSongsPage = lazy(() => import("./pages/artist/Songs"));
+const ArtistAnalyticsPage = lazy(() => import("./pages/artist/Analytics"));
+const ArtistFollowersPage = lazy(() => import("./pages/artist/Followers"));
+const ArtistEditProfile = lazy(() => import("./pages/artist/EditProfile"));
 const ArtistPublic = lazy(() => import("./pages/artist/ArtistPublic"));
 
 // Legal
