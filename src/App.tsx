@@ -226,7 +226,6 @@ const AnimatedRoutes = () => {
           <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
           <Route path="/library" element={<ProtectedRoute><Library /></ProtectedRoute>} />
           <Route path="/playlist/:id" element={<ProtectedRoute><PlaylistDetail /></ProtectedRoute>} />
-          <Route path="/artist/:artistId" element={<ProtectedRoute><ArtistDetail /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/support" element={<Support />} />
@@ -236,11 +235,12 @@ const AnimatedRoutes = () => {
           <Route path="/premium" element={<Premium />} />
           <Route path="/downloads" element={<ProtectedRoute><Downloads /></ProtectedRoute>} />
 
-          {/* Artist program */}
+          {/* Artist program — these MUST come before /artist/:artistId so static segments win */}
           <Route path="/artist/auth" element={user ? <Navigate to="/artist/apply" replace /> : <ArtistAuth />} />
           <Route path="/artist/apply" element={<ProtectedRoute><ArtistApply /></ProtectedRoute>} />
           <Route path="/artist/status" element={<ProtectedRoute><ArtistStatus /></ProtectedRoute>} />
           <Route path="/artist/studio" element={<ProtectedRoute><ArtistStudio /></ProtectedRoute>} />
+          <Route path="/artist/:artistId" element={<ProtectedRoute><ArtistDetail /></ProtectedRoute>} />
           <Route path="/a/:slug" element={<ArtistPublic />} />
 
           {/* Legal */}
