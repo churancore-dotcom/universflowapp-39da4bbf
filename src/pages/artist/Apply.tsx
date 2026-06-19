@@ -297,18 +297,27 @@ export default function ArtistApply() {
       />
       <div className="min-h-[100dvh] bg-background text-foreground pb-36">
         {/* Header with title + dot progress */}
-        <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-white/5">
+        <header
+          className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-white/5"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
           <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
             <button
-              onClick={() => (step === 1 ? navigate(-1) : setStep((s) => (s - 1) as Step))}
-              className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.05] active:scale-95 transition"
+              onClick={() => {
+                if (step > 1) { setStep((s) => (s - 1) as Step); return; }
+                // Step 1 back: leave the apply flow entirely.
+                // History may be empty (deep-link after signup) — fall back to home.
+                if (window.history.length > 1) navigate(-1);
+                else navigate('/', { replace: true });
+              }}
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-white/[0.06] active:scale-95 transition"
               aria-label="Back"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex-1 min-w-0">
-              <h1 className="text-[15px] font-semibold tracking-tight leading-tight">Apply as Artist</h1>
-              <p className="text-[11px] text-muted-foreground leading-tight">{meta.label}</p>
+              <h1 className="text-[15px] font-semibold tracking-tight leading-tight truncate">Apply as Artist</h1>
+              <p className="text-[11px] text-muted-foreground leading-tight truncate">{meta.label}</p>
             </div>
             <div className="flex items-center gap-1">
               {Array.from({ length: TOTAL_STEPS }).map((_, i) => {
@@ -522,7 +531,10 @@ export default function ArtistApply() {
         </main>
 
         {/* Sticky bottom CTA */}
-        <div className="fixed bottom-0 inset-x-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-6 pb-5 px-5">
+        <div
+          className="fixed bottom-0 inset-x-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pt-6 px-5"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}
+        >
           <div className="max-w-md mx-auto">
             {step < TOTAL_STEPS ? (
               <Button
