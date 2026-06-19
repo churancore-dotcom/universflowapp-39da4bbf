@@ -33,8 +33,8 @@ export async function getArtistDestination(user?: User | null): Promise<ArtistDe
       .eq('user_id', user.id)
       .maybeSingle();
 
-    if (application?.status === 'approved') return '/artist/studio';
     if (application?.status === 'pending' || application?.status === 'rejected') return '/artist/status';
+    if (application?.status === 'approved') return '/artist/status';
   } catch {
     // Fall back to signup intent below.
   }
