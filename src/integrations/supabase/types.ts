@@ -1784,6 +1784,10 @@ export type Database = {
       }
     }
     Functions: {
+      admin_get_artist_application_note: {
+        Args: { _app_id: string }
+        Returns: string
+      }
       admin_log_event: {
         Args: { p_details?: Json; p_event_type: string; p_severity?: string }
         Returns: string
@@ -1813,6 +1817,10 @@ export type Database = {
           user_id: string
           username: string
         }[]
+      }
+      get_my_artist_application_note: {
+        Args: { _app_id: string }
+        Returns: string
       }
       get_user_count: { Args: never; Returns: number }
       get_viral_song_events: {
