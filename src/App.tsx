@@ -163,8 +163,8 @@ const ListenerRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (isLoading) return <LazyFallback />;
   if (!user) return <Navigate to="/auth" replace />;
-  if (emailVerified === null || artistDestination === undefined) return <LazyFallback />;
   if (emailVerified === false) return <Navigate to="/check-email" replace />;
+  if (emailVerified === null || artistDestination === undefined) return <LazyFallback />;
   if (artistDestination) return <Navigate to={artistDestination} replace />;
   return <>{children}</>;
 };
@@ -285,7 +285,7 @@ const AnimatedRoutes = () => {
           <Route path="/downloads" element={<ListenerRoute><Downloads /></ListenerRoute>} />
 
           {/* Artist program — these MUST come before /artist/:artistId so static segments win */}
-          <Route path="/artist/auth" element={user ? <Navigate to="/artist/apply" replace /> : <ArtistAuth />} />
+          <Route path="/artist/auth" element={user ? <Navigate to="/" replace /> : <ArtistAuth />} />
           <Route path="/artist/apply" element={<ProtectedRoute><ArtistApply /></ProtectedRoute>} />
           <Route path="/artist/status" element={<ProtectedRoute><ArtistStatus /></ProtectedRoute>} />
           <Route path="/artist/studio" element={<ProtectedRoute><ArtistLayout /></ProtectedRoute>}>
