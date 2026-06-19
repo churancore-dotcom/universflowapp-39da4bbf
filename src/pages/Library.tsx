@@ -252,7 +252,7 @@ const Library = () => {
 
         {/* Rose-ember hero — matches Home aesthetic */}
         <header className="flex-shrink-0 z-30 px-3 pt-3 pb-2 safe-area-pt">
-          <h1 className="sr-only">Your Library</h1>
+          
           <RoseHero
             eyebrow="Universflow"
             title="YOUR LIBRARY"
