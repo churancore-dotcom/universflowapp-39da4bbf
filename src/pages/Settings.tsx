@@ -371,7 +371,26 @@ const Settings = () => {
                 <span className="text-sm">Push Notifications</span>
                 <Switch checked={notifications} onCheckedChange={handleNotifications} className="data-[state=checked]:bg-primary scale-90" />
               </div>
+              <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
+                <div className="flex flex-col">
+                  <span className="text-sm">Smart Mood Picks</span>
+                  <span className="text-[11px] text-white/40">A daily song that matches your vibe</span>
+                </div>
+                <Switch
+                  checked={moodPushes}
+                  onCheckedChange={async (val) => {
+                    setMoodPushes(val);
+                    localStorage.setItem('uf_mood_pushes', String(val));
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                      await supabase.from('profiles').update({ mood_pushes_enabled: val }).eq('user_id', user.id);
+                    }
+                  }}
+                  className="data-[state=checked]:bg-primary scale-90"
+                />
+              </div>
               <div className="px-4 py-3 border-b border-white/5">
+
                 <div className="flex items-center gap-2 mb-2">
                   <Bell className="w-4 h-4 text-primary" />
                   <span className="text-sm">App Banners</span>
