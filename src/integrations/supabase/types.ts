@@ -409,6 +409,27 @@ export type Database = {
         }
         Relationships: []
       }
+      artist_push_throttle: {
+        Row: {
+          artist_user_id: string
+          count_since_last: number
+          event_kind: string
+          last_notified_at: string
+        }
+        Insert: {
+          artist_user_id: string
+          count_since_last?: number
+          event_kind: string
+          last_notified_at?: string
+        }
+        Update: {
+          artist_user_id?: string
+          count_since_last?: number
+          event_kind?: string
+          last_notified_at?: string
+        }
+        Relationships: []
+      }
       artist_songs: {
         Row: {
           artist_user_id: string
