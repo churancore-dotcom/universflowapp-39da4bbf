@@ -93,12 +93,22 @@ export function isBlockedStreamHost(url: string): string | null {
 }
 
 export async function getMyApplication(userId: string) {
+  // admin_note column is no longer SELECT-able by regular authenticated users;
+  // fetch the rest of the row, then pull the owner-scoped note via RPC.
   const { data } = await supabase
     .from('artist_applications')
-    .select('*')
+    .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, reviewed_by, created_at, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
-  return data;
+  if (!data) return data;
+  let admin_note: string | null = null;
+  try {
+    const { data: note } = await (supabase.rpc as any)('get_my_artist_application_note', { _app_id: (data as any).id });
+    admin_note = (note as string | null) ?? null;
+  } catch {
+    admin_note = null;
+  }
+  return { ...(data as any), admin_note };
 }
 
 export async function getMyArtistProfile(userId: string) {
