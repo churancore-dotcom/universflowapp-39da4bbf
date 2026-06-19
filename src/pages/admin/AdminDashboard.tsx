@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Music, Users, PlayCircle, TrendingUp, Upload, Disc, Clock, Download, Activity, BarChart3, RefreshCw } from 'lucide-react';
+import { Music, Users, PlayCircle, TrendingUp, Upload, Disc, Clock, Download, Activity, BarChart3, RefreshCw, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -27,6 +27,14 @@ interface GenreData {
   value: number;
 }
 
+interface TopSong {
+  id: string;
+  title: string;
+  artist: string;
+  cover_url: string | null;
+  play_count: number | null;
+}
+
 const CHART_COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#22c55e', '#f59e0b', '#8b5cf6', '#ec4899'];
 
 const AdminDashboard = () => {
@@ -36,7 +44,7 @@ const AdminDashboard = () => {
   });
   const [playData, setPlayData] = useState<PlayData[]>([]);
   const [genreData, setGenreData] = useState<GenreData[]>([]);
-  const [topSongs, setTopSongs] = useState<any[]>([]);
+  const [topSongs, setTopSongs] = useState<TopSong[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   const navigate = useNavigate();
@@ -88,13 +96,13 @@ const AdminDashboard = () => {
     try {
       const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
-      const [songsRes, usersRes, albumsRes, activeUsersRes] = await Promise.all([
+      const [songsRes, usersRes, albumsRes, activeUsersRes, pendingRequestsRes] = await Promise.all([
         supabase.from('songs').select('id, play_count, download_count, file_size, cover_size'),
         supabase.from('profiles').select('id'),
         supabase.from('albums').select('id'),
         supabase.from('recently_played').select('user_id, played_at').gte('played_at', fifteenMinutesAgo),
+        supabase.from('artist_applications').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
       ]);
-      const pendingRequestsRes = { count: 0 } as { count: number };
 
       if (songsRes.error || usersRes.error) throw new Error('fetch failed');
 
@@ -210,6 +218,7 @@ const AdminDashboard = () => {
 
   const quickActions = [
     { label: 'Upload Music', icon: Upload, path: '/admin/upload', gradient: 'from-primary/20 to-accent/20 hover:from-primary/30 hover:to-accent/30' },
+    { label: 'Verify Artists', icon: ShieldCheck, path: '/admin/artist-applications', gradient: 'from-emerald-500/20 to-primary/20 hover:from-emerald-500/30 hover:to-primary/30' },
     { label: 'Manage Songs', icon: Music, path: '/admin/songs', gradient: 'bg-muted/50 hover:bg-muted/70' },
     { label: 'View Analytics', icon: TrendingUp, path: '/admin/analytics', gradient: 'bg-muted/50 hover:bg-muted/70' },
     { label: 'System Health', icon: Activity, path: '/admin/health', gradient: 'bg-muted/50 hover:bg-muted/70' },

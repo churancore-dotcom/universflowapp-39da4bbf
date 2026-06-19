@@ -20,6 +20,7 @@ import {
   ToggleLeft,
   Bell,
   Shield,
+  ShieldCheck,
   Gift,
   Key,
   Zap,
@@ -33,6 +34,7 @@ const navItems = [
   { icon: LayoutDashboard, label: 'Dashboard', path: '/admin' },
   { icon: Upload, label: 'Upload Music', path: '/admin/upload' },
   { icon: Music, label: 'Manage Songs', path: '/admin/songs' },
+  { icon: ShieldCheck, label: 'Artist Verification', path: '/admin/artist-applications' },
   { icon: Users, label: 'Manage Artists', path: '/admin/artists' },
   { icon: Disc, label: 'Manage Albums', path: '/admin/albums' },
   { icon: ListMusic, label: 'Playlists', path: '/admin/playlists' },
@@ -101,7 +103,7 @@ const SidebarContent = memo(({ currentPath, onNavigate, onClose, onLogout, showC
 
     <nav className="flex-1 p-3 md:p-4 space-y-1 overflow-y-auto">
       {navItems.map((item) => {
-        const isActive = currentPath === item.path;
+        const isActive = currentPath === item.path || (item.path !== '/admin' && currentPath.startsWith(`${item.path}/`));
         const Icon = item.icon;
         return (
           <button

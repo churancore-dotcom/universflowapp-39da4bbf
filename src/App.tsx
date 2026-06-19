@@ -170,7 +170,7 @@ const ListenerRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, isAdmin, isLoading } = useAuth();
+  const { user, isLoading } = useAuth();
   // Server-side re-verification on every admin mount. Cached `isAdmin` from
   // context is not trusted on its own — we hit the SECURITY DEFINER RPC
   // (`has_role`) which queries the `user_roles` table directly. If the role
@@ -196,9 +196,9 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
 
   if (isLoading || verified === null) return <LazyFallback />;
   if (!user) return <Navigate to="/auth" replace />;
-  // Cloak: if not admin (cached OR re-verified), render 404 instead of
+  // Cloak: if the fresh backend role check fails, render 404 instead of
   // redirecting. URL guessing reveals nothing about /admin existence.
-  if (!isAdmin || !verified) return <NotFound />;
+  if (!verified) return <NotFound />;
   return <>{children}</>;
 };
 
@@ -336,7 +336,11 @@ const AnimatedRoutes = () => {
             <Route path="security" element={<SecurityCenter />} />
             <Route path="support" element={<SupportInbox />} />
             <Route path="app-updates" element={<AppUpdates />} />
-            <Route path="artists-applications" element={<ArtistApplications />} />
+            <Route path="artist-applications" element={<ArtistApplications />} />
+            <Route path="artist-applications/:status" element={<ArtistApplications />} />
+            <Route path="artist-verification" element={<Navigate to="/admin/artist-applications" replace />} />
+            <Route path="verify-artists" element={<Navigate to="/admin/artist-applications" replace />} />
+            <Route path="artists-applications" element={<Navigate to="/admin/artist-applications" replace />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>
