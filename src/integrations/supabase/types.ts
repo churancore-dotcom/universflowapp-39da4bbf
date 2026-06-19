@@ -1854,6 +1854,66 @@ export type Database = {
         }
         Relationships: []
       }
+      artist_applications_safe: {
+        Row: {
+          artist_photo_path: string | null
+          country_code: string | null
+          created_at: string | null
+          id: string | null
+          id_doc_back_path: string | null
+          id_doc_front_path: string | null
+          id_doc_type: Database["public"]["Enums"]["id_doc_type"] | null
+          phone: string | null
+          real_name: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          selfie_path: string | null
+          social_links: Json | null
+          stage_name: string | null
+          status: Database["public"]["Enums"]["artist_app_status"] | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          artist_photo_path?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          id?: string | null
+          id_doc_back_path?: string | null
+          id_doc_front_path?: string | null
+          id_doc_type?: Database["public"]["Enums"]["id_doc_type"] | null
+          phone?: string | null
+          real_name?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_path?: string | null
+          social_links?: Json | null
+          stage_name?: string | null
+          status?: Database["public"]["Enums"]["artist_app_status"] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          artist_photo_path?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          id?: string | null
+          id_doc_back_path?: string | null
+          id_doc_front_path?: string | null
+          id_doc_type?: Database["public"]["Enums"]["id_doc_type"] | null
+          phone?: string | null
+          real_name?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          selfie_path?: string | null
+          social_links?: Json | null
+          stage_name?: string | null
+          status?: Database["public"]["Enums"]["artist_app_status"] | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_get_artist_application_note: {
@@ -1881,6 +1941,10 @@ export type Database = {
           user_id: string
           username: string
         }[]
+      }
+      get_artist_follower_count: {
+        Args: { _artist_user_id: string }
+        Returns: number
       }
       get_friend_profile: {
         Args: { _friend_user_id: string }
@@ -1939,6 +2003,10 @@ export type Database = {
       increment_artist_song_view: {
         Args: { _song_id: string }
         Returns: undefined
+      }
+      is_following_artist: {
+        Args: { _artist_user_id: string }
+        Returns: boolean
       }
       join_jam_room: {
         Args: { p_code: string; p_display_name?: string }
