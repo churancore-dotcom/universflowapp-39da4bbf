@@ -43,9 +43,9 @@ export default function ArtistApplications() {
     setLoading(true);
     const { data } = await supabase
       .from('artist_applications')
-      .select('*')
+      .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, created_at')
       .order('created_at', { ascending: false });
-    setApps((data ?? []) as App[]);
+    setApps(((data ?? []) as any[]).map((a) => ({ ...a, admin_note: null })) as App[]);
     setLoading(false);
   };
 
@@ -53,7 +53,14 @@ export default function ArtistApplications() {
 
   const openReview = async (app: App) => {
     setActive(app);
-    setNote(app.admin_note ?? '');
+    // admin_note is fetched on demand via the admin RPC so the column stays
+    // hidden from regular signed-in users at the database level.
+    let currentNote: string | null = null;
+    try {
+      const { data: note } = await (supabase.rpc as any)('admin_get_artist_application_note', { _app_id: app.id });
+      currentNote = (note as string | null) ?? null;
+    } catch { /* ignore */ }
+    setNote(currentNote ?? '');
     setPreviews({});
     const [front, back, selfie] = await Promise.all([
       signed(app.id_doc_front_path),

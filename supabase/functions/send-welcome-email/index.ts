@@ -86,17 +86,11 @@ Deno.serve(async (req) => {
     }
     const lookupData = await lookup.json().catch(() => ({}));
     const u = (lookupData?.users ?? []).find((x: any) => String(x?.email ?? '').toLowerCase() === email);
-    if (!u) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    // Uniform success to prevent account enumeration — never reveal whether
+    // an email exists or how recently it was created.
+    if (!u) return UNIFORM_OK;
     const createdAt = new Date(u.created_at).getTime();
-    if (!createdAt || Date.now() - createdAt > 10 * 60 * 1000) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), {
-        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    if (!createdAt || Date.now() - createdAt > 10 * 60 * 1000) return UNIFORM_OK;
 
     // Per-email throttle: at most 1 welcome email every 5 minutes, max 3 total.
     const throttleRes = await fetch(
@@ -108,9 +102,8 @@ Deno.serve(async (req) => {
     if (prev) {
       const last = new Date(prev.last_sent_at).getTime();
       if (Date.now() - last < 5 * 60 * 1000 || (prev.send_count ?? 0) >= 3) {
-        return new Response(JSON.stringify({ success: true, throttled: true }), {
-          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        // Uniform success — never expose throttling state.
+        return UNIFORM_OK;
       }
     }
 
