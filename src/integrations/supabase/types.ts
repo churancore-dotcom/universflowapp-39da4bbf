@@ -1123,6 +1123,8 @@ export type Database = {
           email_verified_at: string | null
           id: string
           is_admin: boolean
+          last_mood_push_at: string | null
+          mood_pushes_enabled: boolean
           share_code: string | null
           status: string
           updated_at: string
@@ -1139,6 +1141,8 @@ export type Database = {
           email_verified_at?: string | null
           id?: string
           is_admin?: boolean
+          last_mood_push_at?: string | null
+          mood_pushes_enabled?: boolean
           share_code?: string | null
           status?: string
           updated_at?: string
@@ -1155,6 +1159,8 @@ export type Database = {
           email_verified_at?: string | null
           id?: string
           is_admin?: boolean
+          last_mood_push_at?: string | null
+          mood_pushes_enabled?: boolean
           share_code?: string | null
           status?: string
           updated_at?: string
