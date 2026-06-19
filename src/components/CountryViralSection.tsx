@@ -128,7 +128,36 @@ const CountryViralSection = memo(function CountryViralSection() {
     tracks.slice(0, 6).forEach((t) => prefetchIndexedTrack(t.artist, t.title));
   }, [tracks]);
 
-  const queueAsSongs: Song[] = useMemo(() => tracks.map((t) => ({
+  // ── Silent time/day personalization (zero-PII) ──
+  // Deterministically rotate which slice of the chart we show based on the
+  // user's local hour bucket + weekday. No tracking, no storage, just a
+  // different "view" of the same public chart so the feed feels alive.
+  const { label, rotated } = useMemo(() => {
+    const now = new Date();
+    const h = now.getHours();
+    const dow = now.getDay();
+    const isWeekend = dow === 0 || dow === 6;
+    const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dow];
+    let b: 'morning'|'afternoon'|'evening'|'night';
+    let timeWord: string;
+    if (h < 6)        { b = 'night';     timeWord = 'Late Night'; }
+    else if (h < 12)  { b = 'morning';   timeWord = 'Morning';    }
+    else if (h < 17)  { b = 'afternoon'; timeWord = 'Afternoon';  }
+    else if (h < 22)  { b = 'evening';   timeWord = 'Evening';    }
+    else              { b = 'night';     timeWord = 'Tonight';    }
+    const lbl = isWeekend
+      ? `Trending this ${dayName} ${timeWord}`
+      : `Trending ${timeWord}`;
+    const bucketIdx = { morning:0, afternoon:1, evening:2, night:3 }[b];
+    const offset = (bucketIdx * 3) % Math.max(tracks.length, 1);
+    const rot = tracks.length > 0
+      ? [...tracks.slice(offset), ...tracks.slice(0, offset)]
+      : tracks;
+    return { label: lbl, rotated: isWeekend ? [...rot].reverse() : rot };
+  }, [tracks]);
+
+  // Build queue from the *rotated* view so taps line up with what's visible.
+  const queueAsSongs: Song[] = useMemo(() => rotated.map((t) => ({
     id: t.id,
     title: t.title,
     artist: t.artist,
@@ -137,7 +166,7 @@ const CountryViralSection = memo(function CountryViralSection() {
     audio_url: t.audio_url || 'resolving',
     duration: t.duration,
     source: 'indexed' as const,
-  })), [tracks]);
+  })), [rotated]);
 
   const handleTap = useCallback((track: IndexedTrack, idx: number) => {
     triggerHaptic('impactLight');
@@ -147,7 +176,8 @@ const CountryViralSection = memo(function CountryViralSection() {
     else playSong(song, undefined, queueAsSongs);
   }, [queueAsSongs, currentSong?.id, togglePlay, playSong]);
 
-  const hasViral = loading || tracks.length > 0;
+  const hasViral = loading || rotated.length > 0;
+
 
   return (
     <div className="space-y-6">
@@ -156,9 +186,11 @@ const CountryViralSection = memo(function CountryViralSection() {
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <Flame className="w-4 h-4" style={{ color: '#FF6B2D' }} />
-              <h2 className="text-sm font-bold text-foreground">Trending Now</h2>
+              <h2 className="text-sm font-bold text-foreground">{label}</h2>
             </div>
           </div>
+
+
 
 
           {loading ? (
@@ -167,7 +199,7 @@ const CountryViralSection = memo(function CountryViralSection() {
             </div>
           ) : (
             <div className="flex gap-3 overflow-x-auto hide-scrollbar pb-1">
-              {tracks.map((track, i) => {
+              {rotated.map((track, i) => {
                 const active = currentSong?.id === track.id;
                 return (
                   <button
