@@ -46,6 +46,7 @@ const Settings = () => {
   const [gaplessPlayback, setGaplessPlayback] = useState(() => localStorage.getItem('uf_gapless') !== 'false');
   const [autoplay, setAutoplay] = useState(() => localStorage.getItem('uf_autoplay') !== 'false');
   const [notifications, setNotifications] = useState(() => localStorage.getItem('uf_notifications') !== 'false');
+  const [moodPushes, setMoodPushes] = useState(() => localStorage.getItem('uf_mood_pushes') !== 'false');
   const [haptics, setHaptics] = useState(() => localStorage.getItem('uf_haptics') !== 'false');
   const [theme, setTheme] = useState<ThemeMode>(() => (localStorage.getItem('uf_theme') as ThemeMode) || 'default');
   const [cacheSize, setCacheSize] = useState('0 MB');
