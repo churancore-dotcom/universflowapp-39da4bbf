@@ -943,6 +943,51 @@ export type Database = {
         }
         Relationships: []
       }
+      perf_events: {
+        Row: {
+          created_at: string
+          details: Json
+          event_type: string
+          id: string
+          latency_ms: number | null
+          message: string | null
+          route: string | null
+          severity: string
+          source: string | null
+          track_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          event_type: string
+          id?: string
+          latency_ms?: number | null
+          message?: string | null
+          route?: string | null
+          severity?: string
+          source?: string | null
+          track_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          event_type?: string
+          id?: string
+          latency_ms?: number | null
+          message?: string | null
+          route?: string | null
+          severity?: string
+          source?: string | null
+          track_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       playback_state: {
         Row: {
           device_id: string | null
