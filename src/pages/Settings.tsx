@@ -14,6 +14,7 @@ import EmailVerificationCard from '@/components/EmailVerificationCard';
 import EqualizerModal from '@/components/EqualizerModal';
 import { SettingsUpdateButton } from '@/components/SettingsUpdateButton';
 import AnnouncementBanner from '@/components/AnnouncementBanner';
+import { supabase } from '@/integrations/supabase/client';
 
 import { applyTheme, type ThemeMode } from '@/lib/themeBoot';
 import { setEQSettings } from '@/lib/eqSettings';
