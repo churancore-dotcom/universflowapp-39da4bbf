@@ -5,6 +5,7 @@ import { Mail, ArrowLeft, RefreshCw, CheckCircle2, ShieldCheck } from 'lucide-re
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getArtistDestination } from '@/lib/artistRouting';
 import { toast } from 'sonner';
 import SEOHead from '@/components/SEOHead';
 
@@ -14,7 +15,7 @@ const CheckEmail = () => {
   const [params] = useSearchParams();
   const { user, refreshEmailVerified, signOut } = useAuth();
 
-  const state = (location.state || {}) as { email?: string; username?: string };
+  const state = (location.state || {}) as { email?: string; username?: string; next?: string };
   const email =
     state.email ||
     params.get('email') ||
@@ -22,6 +23,10 @@ const CheckEmail = () => {
     user?.email ||
     '';
   const username = state.username || params.get('u') || '';
+  const nextPath =
+    state.next ||
+    params.get('next') ||
+    (typeof window !== 'undefined' ? localStorage.getItem('uf_post_verify_next') || '' : '');
 
   const [cooldown, setCooldown] = useState(45);
   const [resending, setResending] = useState(false);
@@ -42,7 +47,7 @@ const CheckEmail = () => {
 
   // Poll profile.email_verified every 3s while we have a session, and also on
   // tab focus. The moment it flips true, refresh context + show the success
-  // state, then land in /home — without ever asking for the password again.
+  // state, then land in the correct workspace — without ever asking for the password again.
   useEffect(() => {
     if (!user || verified) return;
 
@@ -57,7 +62,9 @@ const CheckEmail = () => {
           setVerified(true);
           try { localStorage.removeItem('uf_pending_verify_email'); } catch { /* ignore */ }
           await refreshEmailVerified();
-          window.setTimeout(() => navigate('/home', { replace: true }), 1100);
+          const artistDestination = await getArtistDestination(user);
+          const destination = artistDestination || (nextPath.startsWith('/artist') ? nextPath : '/home');
+          window.setTimeout(() => navigate(destination, { replace: true }), 1100);
         }
       } catch { /* swallow */ }
     };
@@ -72,7 +79,7 @@ const CheckEmail = () => {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onFocus);
     };
-  }, [user, verified, navigate, refreshEmailVerified]);
+  }, [user, verified, navigate, refreshEmailVerified, nextPath]);
 
   const handleResend = async () => {
     if (cooldown > 0 || resending) return;
@@ -94,7 +101,12 @@ const CheckEmail = () => {
       } else if (data?.already) {
         toast.success('Your email is already verified.');
         if (user) await refreshEmailVerified();
-        navigate(user ? '/home' : '/auth');
+        if (!user) {
+          navigate('/auth');
+          return;
+        }
+        const artistDestination = await getArtistDestination(user);
+        navigate(artistDestination || (nextPath.startsWith('/artist') ? nextPath : '/home'));
       } else {
         toast.success('Verification email sent again');
         setCooldown(45);
