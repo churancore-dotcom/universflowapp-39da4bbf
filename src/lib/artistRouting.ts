@@ -28,7 +28,7 @@ export async function getArtistDestination(user?: User | null): Promise<ArtistDe
 
   try {
     const { data: application } = await supabase
-      .from('artist_applications')
+      .from('artist_applications_safe' as any)
       .select('status')
       .eq('user_id', user.id)
       .maybeSingle();
