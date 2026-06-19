@@ -14,10 +14,21 @@ export const ID_DOC_LABELS: Record<IdDocType, string> = {
 
 export function docsForCountry(cc: string): IdDocType[] {
   const c = (cc || '').toUpperCase();
+  // India — Voter ID, PAN and Passport are the documents Indians actually have
   if (c === 'IN') return ['voter_id', 'pan', 'passport'];
-  if (c === 'US') return ['passport', 'drivers_license'];
-  return ['national_id', 'passport'];
+  // US — no national ID
+  if (c === 'US') return ['drivers_license', 'passport'];
+  // UK — driving licence + passport
+  if (c === 'GB') return ['drivers_license', 'passport'];
+  // EU & most other countries have a National ID card
+  if (['DE','FR','IT','ES','NL','BE','PT','PL','SE','NO','DK','FI','AT','CH','IE','GR','CZ','RO','HU'].includes(c))
+    return ['national_id', 'passport', 'drivers_license'];
+  // Anglosphere without National ID
+  if (['CA','AU','NZ'].includes(c)) return ['drivers_license', 'passport'];
+  // Default: National ID + Passport + Driver's Licence
+  return ['national_id', 'passport', 'drivers_license'];
 }
+
 
 const KYC_BUCKET = 'artist-kyc';
 const COVERS_BUCKET = 'covers';
