@@ -147,7 +147,37 @@ const CountryViralSection = memo(function CountryViralSection() {
     else playSong(song, undefined, queueAsSongs);
   }, [queueAsSongs, currentSong?.id, togglePlay, playSong]);
 
-  const hasViral = loading || tracks.length > 0;
+  // ── Silent time/day personalization (zero-PII) ──
+  // Deterministically rotate which slice of the chart we show based on the
+  // user's local hour bucket + weekday. No tracking, no storage, just a
+  // different "view" of the same public chart so the feed feels alive.
+  const { bucket, label, rotated } = useMemo(() => {
+    const now = new Date();
+    const h = now.getHours();
+    const dow = now.getDay(); // 0=Sun
+    const isWeekend = dow === 0 || dow === 6;
+    const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dow];
+    let b: 'morning'|'afternoon'|'evening'|'night';
+    let timeWord: string;
+    if (h < 6)        { b = 'night';     timeWord = 'Late Night'; }
+    else if (h < 12)  { b = 'morning';   timeWord = 'Morning';    }
+    else if (h < 17)  { b = 'afternoon'; timeWord = 'Afternoon';  }
+    else if (h < 22)  { b = 'evening';   timeWord = 'Evening';    }
+    else              { b = 'night';     timeWord = 'Tonight';    }
+    const lbl = isWeekend
+      ? `Trending this ${dayName} ${timeWord}`
+      : `Trending ${timeWord}`;
+    // Rotation: bucket-index * 3 deterministic offset; weekend reverses
+    // so weekday vs weekend visibly differ without any data collection.
+    const bucketIdx = { morning:0, afternoon:1, evening:2, night:3 }[b];
+    const offset = (bucketIdx * 3) % Math.max(tracks.length, 1);
+    const rot = tracks.length > 0
+      ? [...tracks.slice(offset), ...tracks.slice(0, offset)]
+      : tracks;
+    return { bucket: b, label: lbl, rotated: isWeekend ? [...rot].reverse() : rot };
+  }, [tracks]);
+
+  const hasViral = loading || rotated.length > 0;
 
   return (
     <div className="space-y-6">
@@ -156,9 +186,11 @@ const CountryViralSection = memo(function CountryViralSection() {
           <div className="flex items-center justify-between px-1">
             <div className="flex items-center gap-2">
               <Flame className="w-4 h-4" style={{ color: '#FF6B2D' }} />
-              <h2 className="text-sm font-bold text-foreground">Trending Now</h2>
+              <h2 className="text-sm font-bold text-foreground">{label}</h2>
             </div>
           </div>
+
+
 
 
           {loading ? (
