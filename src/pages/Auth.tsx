@@ -9,7 +9,7 @@ import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, AtSign } from 'lucide-rea
 import { toast } from 'sonner';
 import { FadeTransition } from '@/components/PageTransition';
 import SEOHead from '@/components/SEOHead';
-import appLogo from '@/assets/app-logo.webp.asset.json';
+import appLogo from '@/assets/app-logo.webp';
 
 
 function detectCountryCode(): string | undefined {
@@ -134,14 +134,14 @@ const Auth = () => {
                 style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.28), transparent 70%)', filter: 'blur(14px)' }}
               />
               <div
-                className="relative w-[124px] h-[124px] rounded-[36px] overflow-hidden"
+                className="relative w-[124px] h-[124px] rounded-full overflow-hidden"
                 style={{
                   background: 'linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--background)) 100%)',
                   boxShadow: 'inset 0 0 0 0.5px hsl(var(--foreground) / 0.08), 0 18px 56px hsl(var(--primary) / 0.24)',
                 }}
               >
                 <img
-                  src={appLogo.url}
+                  src={appLogo}
                   alt="Universflow app logo"
                   className="w-full h-full object-cover scale-[1.18]"
                 />

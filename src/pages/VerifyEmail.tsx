@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getArtistDestination } from '@/lib/artistRouting';
-import appLogo from '@/assets/app-logo.webp.asset.json';
+import appLogo from '@/assets/app-logo.webp';
 import SEOHead from '@/components/SEOHead';
 
 
@@ -102,7 +102,7 @@ const VerifyEmail = () => {
             boxShadow: '0 0 28px hsl(var(--primary) / 0.35)',
           }}
         >
-          <img src={appLogo.url} alt="Universflow" className="w-full h-full object-cover" />
+          <img src={appLogo} alt="Universflow" className="w-full h-full object-cover" />
         </motion.div>
 
         <h1 className="text-3xl font-bold tracking-tight mb-2">
