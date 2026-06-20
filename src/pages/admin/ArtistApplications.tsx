@@ -40,7 +40,14 @@ type App = {
   admin_note: string | null;
   created_at: string;
   reviewed_at: string | null;
+  face_match_score: number | null;
+  face_match_status: string | null;
+  ocr_extracted_name: string | null;
+  name_match_score: number | null;
+  auto_check_warnings: string[] | null;
+  auto_checks_at: string | null;
 };
+
 
 type PreviewMap = {
   front?: string;
