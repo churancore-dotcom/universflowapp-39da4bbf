@@ -244,6 +244,8 @@ export default function ArtistApplications() {
                   </div>
                 </section>
 
+                <AutoChecksPanel app={active} />
+
                 <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
                   <h3 className="font-semibold mb-3 flex items-center gap-2"><Camera className="w-4 h-4" /> Face liveness check</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -253,6 +255,7 @@ export default function ArtistApplications() {
                     <DocPreview label="Look up" url={previews.up} />
                   </div>
                 </section>
+
               </div>
 
               <div className="space-y-5">
