@@ -246,7 +246,245 @@ public class NativeAudioPlayerService extends Service {
             .setWakeMode(C.WAKE_MODE_NETWORK)
             .build();
 
+        // Allocate our own audio session ID so we can attach DSP effects
+        // BEFORE the first track plays (no first-track gap of unprocessed audio).
+        try {
+            AudioManager am = (AudioManager) getSystemService(AUDIO_SERVICE);
+            audioSessionId = am != null
+                ? am.generateAudioSessionId()
+                : AudioManager.AUDIO_SESSION_ID_GENERATE;
+            if (audioSessionId != AudioManager.ERROR && audioSessionId != 0) {
+                player.setAudioSessionId(audioSessionId);
+                attachAudioEffects();
+            }
+        } catch (Throwable t) {
+            NativeAudioPlayerPlugin.emitEvent("error", "audiofx init failed: " + t.getMessage(), null);
+        }
+
         player.addListener(listener);
+    }
+
+    // ===== Native DSP (android.media.audiofx) =====
+
+    private void attachAudioEffects() {
+        releaseAudioEffects();
+        try {
+            equalizer = new Equalizer(0, audioSessionId);
+            equalizer.setEnabled(true);
+        } catch (Throwable t) { equalizer = null; }
+        try {
+            bassBoost = new BassBoost(0, audioSessionId);
+            bassBoost.setEnabled(false);
+        } catch (Throwable t) { bassBoost = null; }
+        try {
+            presetReverb = new PresetReverb(0, audioSessionId);
+            presetReverb.setPreset(PresetReverb.PRESET_NONE);
+            presetReverb.setEnabled(false);
+        } catch (Throwable t) { presetReverb = null; }
+        try {
+            virtualizer = new Virtualizer(0, audioSessionId);
+            virtualizer.setEnabled(false);
+        } catch (Throwable t) { virtualizer = null; }
+        try {
+            loudnessEnhancer = new LoudnessEnhancer(audioSessionId);
+            loudnessEnhancer.setEnabled(false);
+        } catch (Throwable t) { loudnessEnhancer = null; }
+
+        // Re-apply persisted intent (e.g. service was restarted).
+        applyAllEffects();
+    }
+
+    private void releaseAudioEffects() {
+        try { if (equalizer != null) { equalizer.release(); } } catch (Throwable ignore) {}
+        try { if (bassBoost != null) { bassBoost.release(); } } catch (Throwable ignore) {}
+        try { if (presetReverb != null) { presetReverb.release(); } } catch (Throwable ignore) {}
+        try { if (virtualizer != null) { virtualizer.release(); } } catch (Throwable ignore) {}
+        try { if (loudnessEnhancer != null) { loudnessEnhancer.release(); } } catch (Throwable ignore) {}
+        equalizer = null; bassBoost = null; presetReverb = null;
+        virtualizer = null; loudnessEnhancer = null;
+    }
+
+    private void applyAllEffects() {
+        applyEqualizer();
+        applyBassBoost();
+        applyReverb();
+        applyVirtualizer();
+        applyLoudness();
+        applyPlaybackSpeed();
+        applySpatial8d();
+    }
+
+    /** Map our 10-band web EQ onto the device Equalizer's (typically 5) bands. */
+    private void applyEqualizer() {
+        if (equalizer == null) return;
+        try {
+            short numBands = equalizer.getNumberOfBands();
+            short[] range = equalizer.getBandLevelRange(); // millibels (min, max)
+            short min = range[0], max = range[1];
+            for (short b = 0; b < numBands; b++) {
+                int centerHz = equalizer.getCenterFreq(b) / 1000; // mHz -> Hz
+                // Pick the nearest web band by log distance
+                int bestIdx = 0; double bestDist = Double.MAX_VALUE;
+                int[] webHz = new int[]{32,64,125,250,500,1000,2000,4000,8000,16000};
+                for (int i = 0; i < webHz.length; i++) {
+                    double d = Math.abs(Math.log(webHz[i]) - Math.log(Math.max(1, centerHz)));
+                    if (d < bestDist) { bestDist = d; bestIdx = i; }
+                }
+                // Web gain is dB ±12; native is millibels.
+                int dB = eqBandGainsDb[bestIdx];
+                int mB = Math.max(min, Math.min(max, dB * 100));
+                equalizer.setBandLevel(b, (short) mB);
+            }
+            // Equalizer stays enabled even at flat — cheaper than toggling.
+            equalizer.setEnabled(true);
+        } catch (Throwable ignore) {}
+    }
+
+    private void applyBassBoost() {
+        if (bassBoost == null) return;
+        try {
+            short s = (short) Math.max(0, Math.min(1000, bassBoostPercent * 10));
+            if (s > 0 && bassBoost.getStrengthSupported()) {
+                bassBoost.setStrength(s);
+                bassBoost.setEnabled(true);
+            } else {
+                bassBoost.setEnabled(false);
+            }
+        } catch (Throwable ignore) {}
+    }
+
+    /** Reverb % + studio space → PresetReverb preset + level. */
+    private void applyReverb() {
+        if (presetReverb == null) return;
+        try {
+            short preset = PresetReverb.PRESET_NONE;
+            switch (studioSpaceId == null ? "off" : studioSpaceId) {
+                case "vinyl":     preset = PresetReverb.PRESET_SMALLROOM;  break;
+                case "studio":    preset = PresetReverb.PRESET_SMALLROOM;  break;
+                case "bedroom":   preset = PresetReverb.PRESET_MEDIUMROOM; break;
+                case "hall":      preset = PresetReverb.PRESET_MEDIUMHALL; break;
+                case "cathedral": preset = PresetReverb.PRESET_LARGEHALL;  break;
+                case "stadium":   preset = PresetReverb.PRESET_LARGEHALL;  break;
+                case "off":
+                default:
+                    // Fall back to the wet-mix slider
+                    if (reverbPercent >= 60)      preset = PresetReverb.PRESET_LARGEHALL;
+                    else if (reverbPercent >= 30) preset = PresetReverb.PRESET_MEDIUMHALL;
+                    else if (reverbPercent >= 10) preset = PresetReverb.PRESET_MEDIUMROOM;
+                    else if (reverbPercent > 0)   preset = PresetReverb.PRESET_SMALLROOM;
+                    else                          preset = PresetReverb.PRESET_NONE;
+                    break;
+            }
+            boolean active = preset != PresetReverb.PRESET_NONE;
+            presetReverb.setPreset(preset);
+            presetReverb.setEnabled(active);
+        } catch (Throwable ignore) {}
+    }
+
+    private void applyVirtualizer() {
+        if (virtualizer == null) return;
+        try {
+            boolean on = virtualizerEnabled || spatial8dEnabled;
+            if (on && virtualizer.getStrengthSupported()) {
+                if (!spatial8dEnabled) virtualizer.setStrength((short) 1000);
+                virtualizer.setEnabled(true);
+            } else {
+                virtualizer.setEnabled(false);
+            }
+        } catch (Throwable ignore) {}
+    }
+
+    private void applyLoudness() {
+        if (loudnessEnhancer == null) return;
+        try {
+            if (lateNightEnabled) {
+                // +8 dB makeup gain — quiet vocals audible without loud peaks.
+                loudnessEnhancer.setTargetGain(800);
+                loudnessEnhancer.setEnabled(true);
+            } else {
+                loudnessEnhancer.setEnabled(false);
+            }
+        } catch (Throwable ignore) {}
+    }
+
+    private void applyPlaybackSpeed() {
+        if (player == null) return;
+        try { player.setPlaybackParameters(new PlaybackParameters(playbackSpeed, 1.0f)); }
+        catch (Throwable ignore) {}
+    }
+
+    private void applySpatial8d() {
+        // Sweep Virtualizer strength + reverb between two presets to simulate
+        // the rotating spatial motion of "8D audio". Approximation only —
+        // Android audiofx has no stereo panner.
+        if (spatialTicker != null) { mainHandler.removeCallbacks(spatialTicker); spatialTicker = null; }
+        if (!spatial8dEnabled) {
+            // Restore static state
+            applyVirtualizer();
+            applyReverb();
+            return;
+        }
+        try { if (virtualizer != null) virtualizer.setEnabled(true); } catch (Throwable ignore) {}
+        try {
+            if (presetReverb != null) {
+                presetReverb.setPreset(PresetReverb.PRESET_LARGEHALL);
+                presetReverb.setEnabled(true);
+            }
+        } catch (Throwable ignore) {}
+        spatialStartMs = System.currentTimeMillis();
+        spatialTicker = new Runnable() {
+            @Override public void run() {
+                if (!spatial8dEnabled || virtualizer == null) return;
+                try {
+                    double t = (System.currentTimeMillis() - spatialStartMs) / 1000.0;
+                    // 5.5s period sine — matches the web engine's SPATIAL_RATE_HZ.
+                    double phase = Math.sin(2 * Math.PI * t / 5.5);
+                    short strength = (short) (500 + (int) (phase * 500));
+                    strength = (short) Math.max(0, Math.min(1000, strength));
+                    if (virtualizer.getStrengthSupported()) virtualizer.setStrength(strength);
+                } catch (Throwable ignore) {}
+                mainHandler.postDelayed(this, 80);
+            }
+        };
+        mainHandler.post(spatialTicker);
+    }
+
+    // ===== Setters called from the plugin =====
+
+    public void setEqBands(short[] dB) {
+        for (int i = 0; i < Math.min(eqBandGainsDb.length, dB.length); i++) {
+            eqBandGainsDb[i] = (short) Math.max(-15, Math.min(15, (int) dB[i]));
+        }
+        applyEqualizer();
+    }
+    public void setBassBoostPercent(int pct) {
+        bassBoostPercent = Math.max(0, Math.min(100, pct));
+        applyBassBoost();
+    }
+    public void setReverbPercent(int pct) {
+        reverbPercent = Math.max(0, Math.min(100, pct));
+        applyReverb();
+    }
+    public void setStudioSpace(String id) {
+        studioSpaceId = id == null ? "off" : id;
+        applyReverb();
+    }
+    public void setLateNight(boolean on) {
+        lateNightEnabled = on;
+        applyLoudness();
+    }
+    public void setHeadphoneSurround(boolean on) {
+        virtualizerEnabled = on;
+        applyVirtualizer();
+    }
+    public void setSpatial8D(boolean on) {
+        spatial8dEnabled = on;
+        applySpatial8d();
+    }
+    public void setPlaybackSpeed(float speed) {
+        playbackSpeed = Math.max(0.5f, Math.min(2.0f, speed));
+        applyPlaybackSpeed();
+    }
     }
 
     private void initSession() {
