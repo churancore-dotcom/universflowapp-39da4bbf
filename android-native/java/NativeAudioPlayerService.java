@@ -537,6 +537,8 @@ public class NativeAudioPlayerService extends Service {
     // ===== Internals =====
 
     private void stopSelfFully() {
+        if (spatialTicker != null) { mainHandler.removeCallbacks(spatialTicker); spatialTicker = null; }
+        releaseAudioEffects();
         try { if (player != null) { player.stop(); player.release(); } } catch (Throwable ignore) {}
         player = null;
         stopForegroundCompat();
