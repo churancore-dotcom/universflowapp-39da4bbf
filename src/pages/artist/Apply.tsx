@@ -262,7 +262,7 @@ export default function ArtistApply() {
         user_id: user.id,
         stage_name: stageName.trim(),
         real_name: realName.trim(),
-        phone: phone.trim(),
+        phone: phoneCheck.e164 || phone.trim(),
         country_code: country,
         social_links: {
           instagram: instagram.trim() || null,
