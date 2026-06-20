@@ -130,11 +130,12 @@ export default function FaceLivenessCapture({
         setShots(next);
         setArmed(false);
         if (stepIdx >= ORDER.length - 1) {
-          // done
           streamRef.current?.getTracks().forEach((t) => t.stop());
           onComplete(next as LivenessShots);
         } else {
           setStepIdx((i) => i + 1);
+          // Auto-arm the next pose so the user never gets stuck on a dead screen.
+          setTimeout(() => setArmed(true), 1200);
         }
       },
       'image/jpeg',
