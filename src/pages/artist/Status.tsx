@@ -139,6 +139,20 @@ export default function ArtistStatus() {
         <div className="mt-5 text-[11.5px] text-center text-muted-foreground/70">
           Submitted {new Date(app.created_at).toLocaleString()}
         </div>
+
+        {/* Logout — only shown once the user has submitted for review. */}
+        <button
+          type="button"
+          onClick={async () => {
+            await supabase.auth.signOut();
+            toast.success('Signed out');
+            navigate('/auth', { replace: true });
+          }}
+          className="mt-6 mx-auto flex items-center justify-center gap-2 text-[12.5px] font-medium text-white/70 hover:text-white px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 active:scale-[0.98] transition"
+        >
+          <LogOut className="w-3.5 h-3.5" /> Log out of this account
+        </button>
+
       </Shell>
     </FadeTransition>
   );
