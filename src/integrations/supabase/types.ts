@@ -2050,6 +2050,19 @@ export type Database = {
         Returns: undefined
       }
       process_premium_expiry_notifications: { Args: never; Returns: Json }
+      reapply_artist_application: {
+        Args: {
+          p_application_id: string
+          p_artist_photo_path: string
+          p_id_doc_back_path: string
+          p_id_doc_front_path: string
+          p_id_doc_type: Database["public"]["Enums"]["id_doc_type"]
+          p_id_image_hash: string
+          p_selfie_path: string
+          p_social_links: Json
+        }
+        Returns: Json
+      }
       redeem_promo_code: { Args: { p_code: string }; Returns: Json }
       register_device_token: {
         Args: { _device_info?: Json; _platform?: string; _token: string }
