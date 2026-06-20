@@ -1869,6 +1869,10 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     },
   }), [currentSong, queue, currentIndex, shuffle, repeat, getNextIndex, playSongAtIndex, markIntentionalPause]);
 
+  useEffect(() => {
+    initNativeBridge(mediaSessionCallbacks.onPause, mediaSessionCallbacks.onPlay);
+  }, [mediaSessionCallbacks]);
+
   const { progress: liveProgress, duration: liveDuration } = usePlayerProgress();
 
   useMediaSession({
