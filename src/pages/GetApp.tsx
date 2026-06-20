@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Download, Share2 } from "lucide-react";
 import SEOHead from "@/components/SEOHead";
-import appLogo from "@/assets/app-logo.gif.asset.json";
+import appLogo from "@/assets/app-logo.webp.asset.json";
 
 
 const APK_URL = "https://kzaeahjeqlihmxrfhjqd.supabase.co/storage/v1/object/public/music/releases/UniversFlow.apk";

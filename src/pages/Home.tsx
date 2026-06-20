@@ -32,7 +32,7 @@ import { TabTransition } from '@/components/PageTransition';
 import { Music, Lock, ListMusic, Sliders, Headphones } from 'lucide-react';
 import { triggerHaptic } from '@/hooks/useHaptics';
 import { usePremium } from '@/hooks/usePremium';
-import appLogo from '@/assets/app-logo.gif.asset.json';
+import appLogo from '@/assets/app-logo.webp.asset.json';
 import { HomeSkeleton } from '@/components/PageSkeletons';
 
 import SEOHead from '@/components/SEOHead';

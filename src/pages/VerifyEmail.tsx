@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getArtistDestination } from '@/lib/artistRouting';
-import appLogo from '@/assets/app-logo.gif.asset.json';
+import appLogo from '@/assets/app-logo.webp.asset.json';
 import SEOHead from '@/components/SEOHead';
 
 

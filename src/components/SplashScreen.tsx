@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import appLogo from '@/assets/app-logo.gif.asset.json';
+import appLogo from '@/assets/app-logo.webp.asset.json';
 
 
 interface SplashScreenProps {

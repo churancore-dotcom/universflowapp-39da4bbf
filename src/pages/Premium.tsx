@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEmailVerified } from '@/hooks/useEmailVerified';
 import { toast } from '@/hooks/use-toast';
 import SEOHead from '@/components/SEOHead';
-import appLogo from '@/assets/app-logo.gif.asset.json';
+import appLogo from '@/assets/app-logo.webp.asset.json';
 
 
 const LogoBadge = ({ size = 56 }: { size?: number }) => (
