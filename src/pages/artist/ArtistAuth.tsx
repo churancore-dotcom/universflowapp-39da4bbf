@@ -497,17 +497,28 @@ const ArtistAuth = () => {
                       <IconInput icon={Phone} className="flex-1">
                         <Input
                           type="tel"
+                          inputMode="numeric"
                           value={phone}
-                          onChange={(e) => setPhone(e.target.value.replace(/[^\d\s-]/g, '').slice(0, 16))}
-                          placeholder="98xxx xxxxx"
+                          onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
+                          placeholder={`${PHONE_DIGITS[dial[0]] ?? 10}-digit mobile`}
                           className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
                           required
                           autoComplete="tel-national"
                         />
                       </IconInput>
                     </div>
-                    <p className="text-[10.5px] text-muted-foreground/60 mt-1.5 pl-1">
-                      Used for account recovery. Never shown publicly.
+                    {phone.length > 0 && !phoneCheck.ok && (
+                      <p className="text-[10.5px] text-rose-300 mt-1.5 pl-1 leading-snug">
+                        {phoneCheck.troll || phoneCheck.reason}
+                      </p>
+                    )}
+                    {phoneCheck.ok && (
+                      <p className="text-[10.5px] text-emerald-300 mt-1.5 pl-1">
+                        ✓ Verified mobile format. Locked after signup.
+                      </p>
+                    )}
+                    <p className="text-[10.5px] text-muted-foreground/60 mt-1 pl-1">
+                      Used for account recovery. Can&apos;t be changed later.
                     </p>
                   </div>
 
