@@ -107,7 +107,7 @@ export function isBlockedStreamHost(url: string): string | null {
   return null;
 }
 
-export async function getMyApplication(userId: string) {
+export async function getMyApplication(userId: string): Promise<ArtistApplicationSafe | null> {
   // admin_note column is no longer SELECT-able by regular authenticated users;
   // fetch the rest of the row, then pull the owner-scoped note via RPC.
   const { data } = await supabase
