@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, ArrowRight, RotateCw } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, ArrowRight, RotateCw, LogOut } from 'lucide-react';
 import SEOHead from '@/components/SEOHead';
 import { FadeTransition } from '@/components/PageTransition';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { getMyApplication, type ArtistAppStatus } from '@/lib/artist';
 import { toast } from 'sonner';
+
 
 export default function ArtistStatus() {
   const { user, isLoading } = useAuth();
