@@ -116,6 +116,10 @@ const ArtistAuth = () => {
         toast.error('You must be at least 13 to create an artist account.');
         return;
       }
+      if (!phoneCheck.ok) {
+        toast.error(phoneCheck.troll || phoneCheck.reason || 'Enter a valid mobile number.');
+        return;
+      }
       if (!agreeTerms || !agreePrivacy) {
         toast.error('Please accept the Artist Terms and Privacy Policy.');
         return;
