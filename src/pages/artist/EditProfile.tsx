@@ -13,7 +13,7 @@ type Ctx = { profile: ArtistProfile; user: { id: string } };
 
 export default function EditProfile() {
   const { profile, user } = useOutletContext<Ctx>();
-  const [stage, setStage] = useState(profile.stage_name);
+  const stage = profile.stage_name;
   const [bio, setBio] = useState(profile.bio ?? '');
   const [insta, setInsta] = useState(profile.social_links?.instagram ?? '');
   const [yt, setYt] = useState(profile.social_links?.youtube ?? '');
