@@ -169,36 +169,6 @@
     <priority>0.4</priority>
   </url>
   <url>
-    <loc>https://universflow.in/artist/studio/upload</loc>
-    <lastmod>2026-06-20</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://universflow.in/artist/studio/songs</loc>
-    <lastmod>2026-06-20</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://universflow.in/artist/studio/analytics</loc>
-    <lastmod>2026-06-20</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://universflow.in/artist/studio/followers</loc>
-    <lastmod>2026-06-20</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
-    <loc>https://universflow.in/artist/studio/profile</loc>
-    <lastmod>2026-06-20</lastmod>
-    <changefreq>monthly</changefreq>
-    <priority>0.3</priority>
-  </url>
-  <url>
     <loc>https://universflow.in/legal/terms</loc>
     <lastmod>2026-06-20</lastmod>
     <changefreq>yearly</changefreq>
