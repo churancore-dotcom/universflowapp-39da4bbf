@@ -1,0 +1,3 @@
+REVOKE EXECUTE ON FUNCTION public.reapply_artist_application(uuid, jsonb, public.id_doc_type, text, text, text, text, text) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.reapply_artist_application(uuid, jsonb, public.id_doc_type, text, text, text, text, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.reapply_artist_application(uuid, jsonb, public.id_doc_type, text, text, text, text, text) TO authenticated;
