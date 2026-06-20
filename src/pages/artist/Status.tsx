@@ -1,20 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, ArrowRight, RotateCw, LogOut } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, ArrowRight, RotateCw, LogOut, LockKeyhole } from 'lucide-react';
 import SEOHead from '@/components/SEOHead';
 import { FadeTransition } from '@/components/PageTransition';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { getMyApplication, type ArtistAppStatus } from '@/lib/artist';
+import { getArtistReapplyState, getMyApplication, type ArtistApplicationSafe, type ArtistAppStatus } from '@/lib/artist';
 import { toast } from 'sonner';
 
 
 export default function ArtistStatus() {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [app, setApp] = useState<any>(null);
+  const [app, setApp] = useState<ArtistApplicationSafe | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
@@ -60,12 +60,14 @@ export default function ArtistStatus() {
   }
 
   const status: ArtistAppStatus = app.status;
+  const reapply = status === 'rejected' ? getArtistReapplyState(app) : null;
 
-  const resetAndReapply = async () => {
-    if (!user) return;
-    const { error } = await supabase.from('artist_applications').delete().eq('user_id', user.id);
-    if (error) { toast.error(error.message); return; }
-    navigate('/artist/apply');
+  const goToReapply = () => {
+    if (!reapply?.canReapply) {
+      toast.error(reapply?.waitText || 'You can re-submit 7 days after rejection.');
+      return;
+    }
+    navigate('/artist/apply?mode=reapply');
   };
 
   return (
@@ -115,22 +117,29 @@ export default function ArtistStatus() {
               <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center bg-rose-500/10 text-rose-400 mb-4">
                 <XCircle className="w-8 h-8" />
               </div>
-              <h2 className="text-[20px] font-semibold mb-1.5">Application needs changes</h2>
-              {app.admin_note ? (
-                <p className="text-[13.5px] text-muted-foreground leading-relaxed mb-4 px-2">
-                  "{app.admin_note}"
+              <h2 className="text-[20px] font-semibold mb-1.5">Verification rejected</h2>
+              <div className="text-left rounded-2xl bg-white/[0.04] border border-white/10 p-4 mb-4">
+                <p className="text-[11px] uppercase tracking-[0.16em] text-rose-300/80 mb-2">Reason from review team</p>
+                <p className="text-[13.5px] text-foreground/90 leading-relaxed">
+                  {app.admin_note || 'Your ID, selfie, face check, or artist links did not pass review. Fix the missing proof before trying again.'}
                 </p>
-              ) : (
-                <p className="text-[13.5px] text-muted-foreground leading-relaxed mb-4">
-                  We couldn't verify your application. You can resubmit with corrected details.
-                </p>
-              )}
+              </div>
+              <div className="text-left rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 mb-4 flex gap-3">
+                <LockKeyhole className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-[13px] font-semibold text-amber-100">Re-submit cooldown</p>
+                  <p className="text-[12.5px] text-amber-100/80 leading-relaxed">
+                    {reapply?.waitText} {reapply?.reapplyAt && !reapply.canReapply ? `Available after ${reapply.reapplyAt.toLocaleString()}.` : ''}
+                  </p>
+                </div>
+              </div>
               <Button
                 variant="outline"
                 className="w-full h-12 rounded-xl text-[14px] font-semibold"
-                onClick={resetAndReapply}
+                disabled={!reapply?.canReapply}
+                onClick={goToReapply}
               >
-                <RotateCw className="w-4 h-4 mr-1.5" /> Re-apply
+                <RotateCw className="w-4 h-4 mr-1.5" /> Re-submit verification
               </Button>
             </>
           )}

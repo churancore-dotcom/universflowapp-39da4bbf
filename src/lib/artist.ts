@@ -1,8 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { compressImage } from './imageCompression';
 
 export type ArtistAppStatus = 'pending' | 'approved' | 'rejected';
 export type IdDocType = 'voter_id' | 'pan' | 'passport' | 'drivers_license' | 'national_id';
+export type ArtistApplicationSafe = Database['public']['Views']['artist_applications_safe']['Row'] & { admin_note: string | null };
+
+const REAPPLY_COOLDOWN_DAYS = 7;
 
 export const ID_DOC_LABELS: Record<IdDocType, string> = {
   voter_id: 'Voter ID',
@@ -103,23 +107,39 @@ export function isBlockedStreamHost(url: string): string | null {
   return null;
 }
 
-export async function getMyApplication(userId: string) {
+export async function getMyApplication(userId: string): Promise<ArtistApplicationSafe | null> {
   // admin_note column is no longer SELECT-able by regular authenticated users;
   // fetch the rest of the row, then pull the owner-scoped note via RPC.
   const { data } = await supabase
-    .from('artist_applications_safe' as any)
+    .from('artist_applications_safe')
     .select('id, user_id, stage_name, real_name, phone, country_code, social_links, id_doc_type, id_doc_front_path, id_doc_back_path, selfie_path, artist_photo_path, status, reviewed_at, reviewed_by, created_at, updated_at')
     .eq('user_id', userId)
     .maybeSingle();
-  if (!data) return data;
+  if (!data) return null;
   let admin_note: string | null = null;
-  try {
-    const { data: note } = await (supabase.rpc as any)('get_my_artist_application_note', { _app_id: (data as any).id });
+  if (data.id) try {
+    const { data: note } = await supabase.rpc('get_my_artist_application_note', { _app_id: data.id });
     admin_note = (note as string | null) ?? null;
   } catch {
     admin_note = null;
   }
-  return { ...(data as any), admin_note };
+  return { ...data, admin_note } as ArtistApplicationSafe;
+}
+
+export function getArtistReapplyAt(app: { reviewed_at?: string | null; updated_at?: string | null; created_at?: string | null }) {
+  const base = app.reviewed_at || app.updated_at || app.created_at;
+  if (!base) return null;
+  return new Date(new Date(base).getTime() + REAPPLY_COOLDOWN_DAYS * 24 * 60 * 60 * 1000);
+}
+
+export function getArtistReapplyState(app: { reviewed_at?: string | null; updated_at?: string | null; created_at?: string | null }) {
+  const reapplyAt = getArtistReapplyAt(app);
+  if (!reapplyAt) return { reapplyAt: null, canReapply: false, waitText: '' };
+  const diff = reapplyAt.getTime() - Date.now();
+  const canReapply = diff <= 0;
+  const days = Math.ceil(diff / (24 * 60 * 60 * 1000));
+  const waitText = canReapply ? 'You can re-submit now.' : `You can re-submit in ${days} day${days === 1 ? '' : 's'}.`;
+  return { reapplyAt, canReapply, waitText };
 }
 
 export async function getMyArtistProfile(userId: string) {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Loader2, Upload, Check, ShieldCheck, Globe2, User, Link2, FileCheck2, Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,20 +11,36 @@ import { Textarea } from '@/components/ui/textarea';
 import FaceLivenessCapture, { LivenessShots } from '@/components/FaceLivenessCapture';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 import { detectCountrySilently } from '@/lib/geoCountry';
 import {
   ID_DOC_LABELS,
   IdDocType,
   docsForCountry,
+  getArtistReapplyState,
   getMyApplication,
   uploadArtistPhoto,
   uploadKycFile,
 } from '@/lib/artist';
+import type { ArtistApplicationSafe } from '@/lib/artist';
 import { validatePhone, getDialCode, PHONE_DIGITS } from '@/lib/phoneValidator';
 import { validateSocialLink, atLeastOneValidLink, SocialPlatform } from '@/lib/socialLinkValidator';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 const TOTAL_STEPS = 6;
+
+type SocialLinksDraft = { instagram?: unknown; youtube?: unknown; spotify?: unknown; apple_music?: unknown; bio?: unknown };
+
+function asSocialLinks(value: Json | null): SocialLinksDraft {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function getApplicationId(value: unknown): string | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const record = value as { application_id?: unknown; id?: unknown };
+  const id = record.application_id ?? record.id;
+  return typeof id === 'string' ? id : null;
+}
 
 // Wide country list. Order: Top-of-mind first, then alphabetical.
 const COUNTRIES: ReadonlyArray<readonly [string, string]> = [
@@ -156,9 +172,13 @@ function FilePicker({
 export default function ArtistApply() {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isReapplyMode = searchParams.get('mode') === 'reapply';
   const [bootChecked, setBootChecked] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
+  const [existingApp, setExistingApp] = useState<ArtistApplicationSafe | null>(null);
+  const isLockedReapply = isReapplyMode && !!existingApp;
 
   // form
   const [stageName, setStageName] = useState('');
@@ -186,7 +206,30 @@ export default function ArtistApply() {
     if (!user) { navigate('/auth', { replace: true }); return; }
     (async () => {
       const existing = await getMyApplication(user.id);
-      if (existing) { navigate('/artist/status', { replace: true }); return; }
+      if (existing) {
+        const reapply = getArtistReapplyState(existing);
+        if (!isReapplyMode || existing.status !== 'rejected' || !reapply.canReapply) {
+          if (isReapplyMode && existing.status === 'rejected') toast.error(reapply.waitText || 'You can re-submit 7 days after rejection.');
+          navigate('/artist/status', { replace: true });
+          return;
+        }
+        setExistingApp(existing);
+        setStageName(existing.stage_name || '');
+        setRealName(existing.real_name || '');
+        const lockedCountry = existing.country_code || '';
+        const lockedDial = lockedCountry ? getDialCode(lockedCountry) : '';
+        const lockedPhone = String(existing.phone || '');
+        setPhone(lockedDial && lockedPhone.startsWith(lockedDial) ? lockedPhone.slice(lockedDial.length) : lockedPhone.replace(/\D/g, ''));
+        setCountry(existing.country_code || '');
+        const links = asSocialLinks(existing.social_links);
+        setInstagram(typeof links.instagram === 'string' ? links.instagram : '');
+        setYoutube(typeof links.youtube === 'string' ? links.youtube : '');
+        setSpotify(typeof links.spotify === 'string' ? links.spotify : '');
+        setAppleMusic(typeof links.apple_music === 'string' ? links.apple_music : '');
+        setBio(typeof links.bio === 'string' ? links.bio : '');
+        setBootChecked(true);
+        return;
+      }
 
       let prefilledCountry = '';
       try {
@@ -209,7 +252,7 @@ export default function ArtistApply() {
 
       setBootChecked(true);
     })();
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, navigate, isReapplyMode]);
 
   // Update doc type when country changes — but never auto-pick if user hasn't chosen country yet.
   useEffect(() => {
@@ -269,28 +312,41 @@ export default function ArtistApply() {
       const phoneHash = await sha256Hex(phoneE164.toLowerCase());
       const idImageHash = docFront ? await sha256Hex(await docFront.arrayBuffer()) : null;
 
-      const { data: inserted, error } = await supabase.from('artist_applications').insert({
-        user_id: user.id,
-        stage_name: stageName.trim(),
-        real_name: realName.trim(),
-        phone: phoneE164,
-        country_code: country,
-        social_links: {
-          instagram: instagram.trim() || null,
-          youtube: youtube.trim() || null,
-          spotify: spotify.trim() || null,
-          apple_music: appleMusic.trim() || null,
-          bio: bio.trim() || null,
-          face_shots: faceUploads,
-        },
-        id_doc_type: docType,
-        id_doc_front_path: frontPath,
-        id_doc_back_path: backPath,
-        selfie_path: selfiePath,
-        artist_photo_path: photoUrl,
-        phone_hash: phoneHash,
-        id_image_hash: idImageHash,
-      }).select('id').maybeSingle();
+      const socialLinks = {
+        instagram: instagram.trim() || null,
+        youtube: youtube.trim() || null,
+        spotify: spotify.trim() || null,
+        apple_music: appleMusic.trim() || null,
+        bio: bio.trim() || null,
+        face_shots: faceUploads,
+      };
+
+      const { data: inserted, error } = isLockedReapply
+        ? await supabase.rpc('reapply_artist_application', {
+            p_application_id: existingApp.id,
+            p_social_links: socialLinks,
+            p_id_doc_type: docType,
+            p_id_doc_front_path: frontPath,
+            p_id_doc_back_path: backPath,
+            p_selfie_path: selfiePath,
+            p_artist_photo_path: photoUrl,
+            p_id_image_hash: idImageHash ?? '',
+          })
+        : await supabase.from('artist_applications').insert({
+            user_id: user.id,
+            stage_name: stageName.trim(),
+            real_name: realName.trim(),
+            phone: phoneE164,
+            country_code: country,
+            social_links: socialLinks,
+            id_doc_type: docType,
+            id_doc_front_path: frontPath,
+            id_doc_back_path: backPath,
+            selfie_path: selfiePath,
+            artist_photo_path: photoUrl,
+            phone_hash: phoneHash,
+            id_image_hash: idImageHash,
+          }).select('id').maybeSingle();
 
       if (error) {
         // Surface friendly errors for the new anti-abuse rules.
@@ -306,17 +362,18 @@ export default function ArtistApply() {
       }
 
       // Kick off automated verification in the background — non-blocking.
-      if (inserted?.id) {
+      const applicationId = getApplicationId(inserted);
+      if (applicationId) {
         supabase.functions
-          .invoke('artist-verify-checks', { body: { application_id: inserted.id } })
+          .invoke('artist-verify-checks', { body: { application_id: applicationId } })
           .catch((e) => console.warn('verify-checks invoke failed', e));
       }
 
-      toast.success('Application submitted ✓ Auto-verification running…');
+      toast.success(isLockedReapply ? 'Verification re-submitted ✓' : 'Application submitted ✓ Auto-verification running…');
       navigate('/artist/status', { replace: true });
-    } catch (e: any) {
+    } catch (e: unknown) {
       console.error(e);
-      toast.error(e?.message || 'Could not submit application.');
+      toast.error(e instanceof Error ? e.message : 'Could not submit application.');
     } finally {
       setSubmitting(false);
     }
@@ -356,7 +413,7 @@ export default function ArtistApply() {
               <ArrowLeft className="w-5 h-5" />
             </button>
             <div className="flex-1 min-w-0">
-              <h1 className="text-[15px] font-semibold tracking-tight leading-tight truncate">Apply as Artist</h1>
+              <h1 className="text-[15px] font-semibold tracking-tight leading-tight truncate">{isLockedReapply ? 'Re-submit Verification' : 'Apply as Artist'}</h1>
               <p className="text-[11px] text-muted-foreground leading-tight truncate">{meta.label}</p>
             </div>
             <div className="flex items-center gap-1">
@@ -400,6 +457,12 @@ export default function ArtistApply() {
             >
               {step === 1 && (
                 <>
+                  {isLockedReapply && existingApp?.admin_note && (
+                    <div className="rounded-2xl bg-rose-500/10 border border-rose-500/20 p-4">
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-rose-300/80 mb-2">Rejected reason</p>
+                      <p className="text-[13px] leading-relaxed text-foreground/90">{existingApp.admin_note}</p>
+                    </div>
+                  )}
                   <div className="flex items-start gap-3 p-4 rounded-2xl bg-primary/8 border border-primary/15">
                     <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                     <p className="text-[12.5px] leading-relaxed text-foreground/90">
@@ -408,10 +471,10 @@ export default function ArtistApply() {
                     </p>
                   </div>
                   <Field label="Stage / Artist name">
-                    <Input value={stageName} onChange={(e) => setStageName(e.target.value)} placeholder="e.g. KAYO" maxLength={50} />
+                    <Input value={stageName} onChange={(e) => setStageName(e.target.value)} placeholder="e.g. KAYO" maxLength={50} disabled={isLockedReapply} />
                   </Field>
                   <Field label="Legal full name">
-                    <Input value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="As shown on ID" maxLength={80} />
+                    <Input value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="As shown on ID" maxLength={80} disabled={isLockedReapply} />
                   </Field>
                   <Field label={`Phone number${country ? ` · ${getDialCode(country)} (${PHONE_DIGITS[country] ?? '—'} digits)` : ''}`}>
                     <div className="flex gap-2">
@@ -425,7 +488,7 @@ export default function ArtistApply() {
                         onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
                         placeholder={country ? `${PHONE_DIGITS[country] ?? 10}-digit mobile number` : 'Pick country first'}
                         maxLength={15}
-                        disabled={!country}
+                        disabled={!country || isLockedReapply}
                       />
                     </div>
                     {country && phone.length > 0 && !phoneCheck.ok && (
@@ -448,6 +511,7 @@ export default function ArtistApply() {
                       <select
                         value={country}
                         onChange={(e) => setCountry(e.target.value)}
+                        disabled={isLockedReapply}
                         className={`flex h-11 w-full rounded-xl border border-white/10 bg-white/[0.03] pl-9 pr-3 py-2 text-sm appearance-none focus:outline-none focus:border-primary/50 ${
                           !country ? 'text-muted-foreground' : ''
                         }`}

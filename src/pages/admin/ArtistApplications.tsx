@@ -147,6 +147,10 @@ export default function ArtistApplications() {
 
   const review = async (status: Exclude<Status, 'pending'>) => {
     if (!active) return;
+    if (status === 'rejected' && note.trim().length < 10) {
+      toast.error('Add a clear rejection reason first — the artist must know what to fix.');
+      return;
+    }
     setBusy(true);
     const { error } = await supabase
       .from('artist_applications')
@@ -282,7 +286,8 @@ export default function ArtistApplications() {
 
                 <section className="rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4">
                   <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Admin note</p>
-                  <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3} placeholder="Required if rejecting. Visible to artist." />
+                  <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4} placeholder="Required if rejecting. Tell the artist exactly what failed and what to upload next time." />
+                  <p className="mt-2 text-[11px] text-muted-foreground">Visible on the artist rejection screen. Keep it direct and useful.</p>
                 </section>
 
                 {active.status === 'pending' ? (
