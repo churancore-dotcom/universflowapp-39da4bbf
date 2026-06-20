@@ -48,6 +48,11 @@ export default function FaceLivenessCapture({
     setStarting(true);
     setStarted(true);
     try {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error(
+          'Your app version can\'t access the camera. Update Universflow to the latest APK, or finish verification on a browser.',
+        );
+      }
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 720 } },
         audio: false,
@@ -58,8 +63,23 @@ export default function FaceLivenessCapture({
         await videoRef.current.play();
       }
       setStreaming(true);
+      // Arm the first capture automatically so the user sees the countdown
+      // and knows the system is alive — fixes the "screen just sits dead" bug.
+      setTimeout(() => setArmed(true), 600);
     } catch (e: any) {
-      setErr(e?.message || 'Camera access denied. Please allow camera permission and retry.');
+      const msg = e?.message || '';
+      const name = e?.name || '';
+      let friendly = msg;
+      if (name === 'NotAllowedError' || /denied|permission/i.test(msg)) {
+        friendly = 'Camera permission denied. Open phone Settings → Apps → Universflow → Permissions → allow Camera, then come back and tap Retry.';
+      } else if (name === 'NotFoundError') {
+        friendly = 'No front camera found on this device.';
+      } else if (name === 'NotReadableError') {
+        friendly = 'Another app is using the camera. Close it and tap Retry.';
+      } else if (!msg) {
+        friendly = 'Camera unavailable. Make sure you allowed Camera permission for Universflow.';
+      }
+      setErr(friendly);
     } finally {
       setStarting(false);
     }
@@ -110,11 +130,12 @@ export default function FaceLivenessCapture({
         setShots(next);
         setArmed(false);
         if (stepIdx >= ORDER.length - 1) {
-          // done
           streamRef.current?.getTracks().forEach((t) => t.stop());
           onComplete(next as LivenessShots);
         } else {
           setStepIdx((i) => i + 1);
+          // Auto-arm the next pose so the user never gets stuck on a dead screen.
+          setTimeout(() => setArmed(true), 1200);
         }
       },
       'image/jpeg',

@@ -13,7 +13,7 @@ type Ctx = { profile: ArtistProfile; user: { id: string } };
 
 export default function EditProfile() {
   const { profile, user } = useOutletContext<Ctx>();
-  const [stage, setStage] = useState(profile.stage_name);
+  const stage = profile.stage_name;
   const [bio, setBio] = useState(profile.bio ?? '');
   const [insta, setInsta] = useState(profile.social_links?.instagram ?? '');
   const [yt, setYt] = useState(profile.social_links?.youtube ?? '');
@@ -24,17 +24,16 @@ export default function EditProfile() {
   const [saving, setSaving] = useState(false);
 
   const save = async () => {
-    if (!stage.trim()) return;
     setSaving(true);
     try {
       const [newAvatar, newBanner] = await Promise.all([
         avatar ? uploadArtistPhoto(user.id, avatar) : Promise.resolve(profile.avatar_url),
         banner ? uploadArtistCover(user.id, banner) : Promise.resolve(profile.banner_url),
       ]);
+      // NOTE: stage_name is locked after verification. To change it, contact support.
       const { error } = await supabase
         .from('artist_profiles')
         .update({
-          stage_name: stage.trim(),
           bio: bio.trim() || null,
           avatar_url: newAvatar,
           banner_url: newBanner,
@@ -63,8 +62,11 @@ export default function EditProfile() {
       </p>
 
       <div className="space-y-4 mt-5">
-        <Field label="Stage name">
-          <Input value={stage} onChange={(e) => setStage(e.target.value)} maxLength={60} />
+        <Field label="Stage name (locked)">
+          <Input value={stage} disabled readOnly className="opacity-70 cursor-not-allowed" />
+          <p className="mt-1.5 text-[11px] text-muted-foreground/80">
+            Your verified stage name is locked. Contact support if you really need to change it.
+          </p>
         </Field>
 
         <Field label="Bio">
@@ -89,7 +91,7 @@ export default function EditProfile() {
         <Button
           className="w-full h-12 rounded-xl font-semibold text-white"
           style={{ background: '#FF2D55' }}
-          disabled={saving || !stage.trim()}
+          disabled={saving}
           onClick={save}
         >
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (

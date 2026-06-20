@@ -20,6 +20,8 @@ import {
   uploadArtistPhoto,
   uploadKycFile,
 } from '@/lib/artist';
+import { validatePhone, getDialCode, PHONE_DIGITS } from '@/lib/phoneValidator';
+import { validateSocialLink, atLeastOneValidLink, SocialPlatform } from '@/lib/socialLinkValidator';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 const TOTAL_STEPS = 6;
@@ -219,9 +221,13 @@ export default function ArtistApply() {
   const needsBack = docType !== 'pan' && docType !== 'passport';
   const allowedDocs = country ? docsForCountry(country) : [];
 
+  const phoneCheck = country ? validatePhone(country, phone) : { ok: false, reason: '' };
+  const linksCheck = atLeastOneValidLink({ instagram, youtube, spotify, apple_music: appleMusic });
+  const countryLabel = COUNTRIES.find(([c]) => c === country)?.[1] ?? country;
+
   const canNext = () => {
-    if (step === 1) return stageName.trim().length >= 2 && realName.trim().length >= 2 && phone.trim().length >= 5 && !!country;
-    if (step === 2) return [instagram, youtube, spotify, appleMusic].some((s) => s.trim().length > 4);
+    if (step === 1) return stageName.trim().length >= 2 && realName.trim().length >= 2 && !!country && phoneCheck.ok;
+    if (step === 2) return linksCheck.ok;
     if (step === 3) return !!docType && !!docFront && (!needsBack || !!docBack) && !!selfie;
     if (step === 4) return !!livenessShots;
     if (step === 5) return !!photo;
@@ -256,7 +262,7 @@ export default function ArtistApply() {
         user_id: user.id,
         stage_name: stageName.trim(),
         real_name: realName.trim(),
-        phone: phone.trim(),
+        phone: phoneCheck.e164 || phone.trim(),
         country_code: country,
         social_links: {
           instagram: instagram.trim() || null,
@@ -373,8 +379,34 @@ export default function ArtistApply() {
                   <Field label="Legal full name">
                     <Input value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="As shown on ID" maxLength={80} />
                   </Field>
-                  <Field label="Phone number">
-                    <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="With country code" maxLength={20} />
+                  <Field label={`Phone number${country ? ` · ${getDialCode(country)} (${PHONE_DIGITS[country] ?? '—'} digits)` : ''}`}>
+                    <div className="flex gap-2">
+                      <span className="h-11 px-3 inline-flex items-center rounded-xl bg-white/[0.04] border border-white/10 text-[13px] tabular-nums text-muted-foreground shrink-0">
+                        {country ? getDialCode(country) : '+—'}
+                      </span>
+                      <Input
+                        type="tel"
+                        inputMode="numeric"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
+                        placeholder={country ? `${PHONE_DIGITS[country] ?? 10}-digit mobile number` : 'Pick country first'}
+                        maxLength={15}
+                        disabled={!country}
+                      />
+                    </div>
+                    {country && phone.length > 0 && !phoneCheck.ok && (
+                      <p className="mt-1.5 text-[11.5px] text-rose-300 leading-snug">
+                        {phoneCheck.troll || phoneCheck.reason}
+                      </p>
+                    )}
+                    {country && phoneCheck.ok && (
+                      <p className="mt-1.5 text-[11.5px] text-emerald-300 leading-snug">
+                        ✓ Valid {countryLabel.replace(/^[^\s]+\s/, '')} mobile number.
+                      </p>
+                    )}
+                    <p className="mt-1 text-[10.5px] text-muted-foreground/70">
+                      You can&apos;t change this later. Use a real number — we check it.
+                    </p>
                   </Field>
                   <Field label="Country">
                     <div className="relative">
@@ -407,12 +439,16 @@ export default function ArtistApply() {
               {step === 2 && (
                 <>
                   <p className="text-[12.5px] text-muted-foreground -mt-1">
-                    Paste at least <strong>one</strong> artist profile link so we can match it to your ID.
+                    Paste at least <strong>one</strong> real artist profile link so we can match it to your ID.
+                    Plain handles or fake text won&apos;t pass.
                   </p>
-                  <Field label="Instagram"><Input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="https://instagram.com/yourhandle" /></Field>
-                  <Field label="YouTube"><Input value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="https://youtube.com/@yourchannel" /></Field>
-                  <Field label="Spotify artist"><Input value={spotify} onChange={(e) => setSpotify(e.target.value)} placeholder="https://open.spotify.com/artist/…" /></Field>
-                  <Field label="Apple Music artist"><Input value={appleMusic} onChange={(e) => setAppleMusic(e.target.value)} placeholder="https://music.apple.com/…" /></Field>
+                  <LinkField platform="instagram" value={instagram} onChange={setInstagram} placeholder="https://instagram.com/yourhandle" />
+                  <LinkField platform="youtube" value={youtube} onChange={setYoutube} placeholder="https://youtube.com/@yourchannel" />
+                  <LinkField platform="spotify" value={spotify} onChange={setSpotify} placeholder="https://open.spotify.com/artist/…" />
+                  <LinkField platform="apple_music" value={appleMusic} onChange={setAppleMusic} placeholder="https://music.apple.com/…/artist/…" />
+                  {!linksCheck.ok && (instagram || youtube || spotify || appleMusic) && (
+                    <p className="text-[11.5px] text-rose-300">{linksCheck.reason}</p>
+                  )}
                 </>
               )}
 
@@ -424,6 +460,11 @@ export default function ArtistApply() {
                     </div>
                   ) : (
                     <>
+                      <div className="p-4 rounded-2xl bg-primary/10 border border-primary/25 text-[12.5px] text-foreground/90 leading-relaxed">
+                        You picked <strong>{countryLabel}</strong>. We only accept{' '}
+                        <strong>{countryLabel.replace(/^[^\s]+\s/, '')}</strong>-issued ID documents.
+                        Submitting an ID from any other country will get your application rejected instantly.
+                      </div>
                       <Field label="Document type">
                         <div className="space-y-2">
                           {allowedDocs.map((d) => (
@@ -572,3 +613,34 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
+const LINK_LABELS: Record<SocialPlatform, string> = {
+  instagram: 'Instagram',
+  youtube: 'YouTube',
+  spotify: 'Spotify artist',
+  apple_music: 'Apple Music artist',
+};
+
+function LinkField({
+  platform, value, onChange, placeholder,
+}: {
+  platform: SocialPlatform;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const check = validateSocialLink(platform, value);
+  const hasValue = value.trim().length > 0;
+  return (
+    <Field label={LINK_LABELS[platform]}>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} inputMode="url" />
+      {hasValue && !check.ok && (
+        <p className="mt-1.5 text-[11px] text-rose-300 leading-snug">{check.reason}</p>
+      )}
+      {hasValue && check.ok && (
+        <p className="mt-1.5 text-[11px] text-emerald-300 leading-snug">✓ Looks like a real link.</p>
+      )}
+    </Field>
+  );
+}
+
