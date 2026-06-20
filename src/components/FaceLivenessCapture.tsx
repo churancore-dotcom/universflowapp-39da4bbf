@@ -1,17 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Check, ArrowRight, Loader2, AlertTriangle, RotateCcw } from 'lucide-react';
+import { Camera, ArrowRight, Loader2, AlertTriangle, RotateCcw, ArrowLeft, ArrowUp, Smile } from 'lucide-react';
 
 type Pose = 'center' | 'left' | 'right' | 'up';
 
 const POSE_PROMPT: Record<Pose, string> = {
   center: 'Look straight at the camera',
-  left: 'Slowly turn your head LEFT',
-  right: 'Slowly turn your head RIGHT',
-  up: 'Tilt your head UP',
+  left: 'Slowly turn your head left',
+  right: 'Slowly turn your head right',
+  up: 'Tilt your head up',
 };
 
 const ORDER: Pose[] = ['center', 'left', 'right', 'up'];
+
 
 export interface LivenessShots {
   center: Blob;
