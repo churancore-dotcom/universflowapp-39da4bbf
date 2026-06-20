@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Loader2, Upload, Check, ShieldCheck, Globe2, User, Link2, FileCheck2, Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ import {
   ID_DOC_LABELS,
   IdDocType,
   docsForCountry,
+  getArtistReapplyState,
   getMyApplication,
   uploadArtistPhoto,
   uploadKycFile,
@@ -156,9 +157,12 @@ function FilePicker({
 export default function ArtistApply() {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isReapplyMode = searchParams.get('mode') === 'reapply';
   const [bootChecked, setBootChecked] = useState(false);
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
+  const [existingApp, setExistingApp] = useState<any>(null);
 
   // form
   const [stageName, setStageName] = useState('');
@@ -186,7 +190,27 @@ export default function ArtistApply() {
     if (!user) { navigate('/auth', { replace: true }); return; }
     (async () => {
       const existing = await getMyApplication(user.id);
-      if (existing) { navigate('/artist/status', { replace: true }); return; }
+      if (existing) {
+        const reapply = getArtistReapplyState(existing);
+        if (!isReapplyMode || existing.status !== 'rejected' || !reapply.canReapply) {
+          if (isReapplyMode && existing.status === 'rejected') toast.error(reapply.waitText || 'You can re-submit 7 days after rejection.');
+          navigate('/artist/status', { replace: true });
+          return;
+        }
+        setExistingApp(existing);
+        setStageName(existing.stage_name || '');
+        setRealName(existing.real_name || '');
+        setPhone(String(existing.phone || '').replace(/^\+?\d{1,4}/, ''));
+        setCountry(existing.country_code || '');
+        const links = existing.social_links || {};
+        setInstagram(typeof links.instagram === 'string' ? links.instagram : '');
+        setYoutube(typeof links.youtube === 'string' ? links.youtube : '');
+        setSpotify(typeof links.spotify === 'string' ? links.spotify : '');
+        setAppleMusic(typeof links.apple_music === 'string' ? links.apple_music : '');
+        setBio(typeof links.bio === 'string' ? links.bio : '');
+        setBootChecked(true);
+        return;
+      }
 
       let prefilledCountry = '';
       try {
@@ -209,7 +233,7 @@ export default function ArtistApply() {
 
       setBootChecked(true);
     })();
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, navigate, isReapplyMode]);
 
   // Update doc type when country changes — but never auto-pick if user hasn't chosen country yet.
   useEffect(() => {
