@@ -275,13 +275,21 @@ export type Database = {
         Row: {
           admin_note: string | null
           artist_photo_path: string | null
+          auto_check_warnings: Json | null
+          auto_checks_at: string | null
           country_code: string
           created_at: string
+          face_match_score: number | null
+          face_match_status: string | null
           id: string
           id_doc_back_path: string | null
           id_doc_front_path: string | null
           id_doc_type: Database["public"]["Enums"]["id_doc_type"]
+          id_image_hash: string | null
+          name_match_score: number | null
+          ocr_extracted_name: string | null
           phone: string
+          phone_hash: string | null
           real_name: string
           reviewed_at: string | null
           reviewed_by: string | null
@@ -295,13 +303,21 @@ export type Database = {
         Insert: {
           admin_note?: string | null
           artist_photo_path?: string | null
+          auto_check_warnings?: Json | null
+          auto_checks_at?: string | null
           country_code: string
           created_at?: string
+          face_match_score?: number | null
+          face_match_status?: string | null
           id?: string
           id_doc_back_path?: string | null
           id_doc_front_path?: string | null
           id_doc_type: Database["public"]["Enums"]["id_doc_type"]
+          id_image_hash?: string | null
+          name_match_score?: number | null
+          ocr_extracted_name?: string | null
           phone: string
+          phone_hash?: string | null
           real_name: string
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -315,13 +331,21 @@ export type Database = {
         Update: {
           admin_note?: string | null
           artist_photo_path?: string | null
+          auto_check_warnings?: Json | null
+          auto_checks_at?: string | null
           country_code?: string
           created_at?: string
+          face_match_score?: number | null
+          face_match_status?: string | null
           id?: string
           id_doc_back_path?: string | null
           id_doc_front_path?: string | null
           id_doc_type?: Database["public"]["Enums"]["id_doc_type"]
+          id_image_hash?: string | null
+          name_match_score?: number | null
+          ocr_extracted_name?: string | null
           phone?: string
+          phone_hash?: string | null
           real_name?: string
           reviewed_at?: string | null
           reviewed_by?: string | null
