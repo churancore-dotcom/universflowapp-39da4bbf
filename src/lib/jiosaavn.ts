@@ -108,6 +108,27 @@ function albumName(album: SaavnSong['album']): string {
 
 const clean = (value = '') => decodeEntities(value).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
+const SPAM_TRACK_PATTERNS = [
+  /\b(top|best)\s*\d+\b/i,
+  /\b\d+\s*(top|best|hit|hits|songs)\b/i,
+  /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|full album|all songs)\b/i,
+  /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental|ringtone)\b/i,
+  /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
+];
+
+function numericPlayCount(value: SaavnSong['playCount']): number | undefined {
+  const n = typeof value === 'number' ? value : Number(String(value || '').replace(/,/g, ''));
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+function looksSpammy(song: SaavnSong): boolean {
+  const haystack = `${song.name || song.title || ''} ${primaryArtists(song)} ${albumName(song.album)}`;
+  const duration = typeof song.duration === 'number' ? song.duration : Number(song.duration) || 0;
+  if (duration && (duration < 75 || duration > 540)) return true;
+  if (/\boriginals?\b/i.test(primaryArtists(song))) return true;
+  return SPAM_TRACK_PATTERNS.some((pattern) => pattern.test(haystack));
+}
+
 function scoreSong(song: SaavnSong, title: string, artist = ''): number {
   const songTitle = clean(song?.name || song?.title || '');
   const songArtist = clean(primaryArtists(song));
@@ -149,6 +170,7 @@ function isConfidentMatch(song: SaavnSong, title: string, artist = ''): boolean 
 export async function searchSongsAsTracks(query: string, limit = 30): Promise<IndexedTrack[]> {
   const results = await searchSongs(query, limit);
   return (results || [])
+    .filter((song) => !looksSpammy(song))
     .map((song): IndexedTrack | null => {
       if (!song?.id) return null;
       const audio = bestAudio(song.downloadUrl);
@@ -160,7 +182,7 @@ export async function searchSongsAsTracks(query: string, limit = 30): Promise<In
         cover_url: bestImage(song.image),
         duration: typeof song.duration === 'number' ? song.duration : Number(song.duration) || undefined,
         audio_url: audio || 'resolving',
-        listeners: typeof song.playCount === 'number' ? song.playCount : undefined,
+        listeners: numericPlayCount(song.playCount),
       };
     })
     .filter((t): t is IndexedTrack => !!t && !!t.title && !!t.artist);
