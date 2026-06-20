@@ -258,11 +258,22 @@ export default function ArtistApply() {
         photo ? uploadArtistPhoto(user.id, photo) : Promise.resolve(null),
       ]);
 
-      const { error } = await supabase.from('artist_applications').insert({
+      // Anti-duplicate hashes (sha256). Phone is hashed in E.164 form so the
+      // same number typed two different ways still collides.
+      const sha256Hex = async (data: ArrayBuffer | string) => {
+        const buf = typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
+        const digest = await crypto.subtle.digest('SHA-256', buf);
+        return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('');
+      };
+      const phoneE164 = phoneCheck.e164 || `${getDialCode(country)}${phone.replace(/\D/g, '')}`;
+      const phoneHash = await sha256Hex(phoneE164.toLowerCase());
+      const idImageHash = docFront ? await sha256Hex(await docFront.arrayBuffer()) : null;
+
+      const { data: inserted, error } = await supabase.from('artist_applications').insert({
         user_id: user.id,
         stage_name: stageName.trim(),
         real_name: realName.trim(),
-        phone: phoneCheck.e164 || phone.trim(),
+        phone: phoneE164,
         country_code: country,
         social_links: {
           instagram: instagram.trim() || null,
@@ -277,9 +288,31 @@ export default function ArtistApply() {
         id_doc_back_path: backPath,
         selfie_path: selfiePath,
         artist_photo_path: photoUrl,
-      });
-      if (error) throw error;
-      toast.success('Application submitted ✓');
+        phone_hash: phoneHash,
+        id_image_hash: idImageHash,
+      }).select('id').maybeSingle();
+
+      if (error) {
+        // Surface friendly errors for the new anti-abuse rules.
+        const msg = error.message || '';
+        if (msg.includes('re-apply 7 days') || msg.includes('Next attempt allowed')) {
+          toast.error(msg);
+        } else if (msg.toLowerCase().includes('already linked to another artist')) {
+          toast.error(msg);
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      // Kick off automated verification in the background — non-blocking.
+      if (inserted?.id) {
+        supabase.functions
+          .invoke('artist-verify-checks', { body: { application_id: inserted.id } })
+          .catch((e) => console.warn('verify-checks invoke failed', e));
+      }
+
+      toast.success('Application submitted ✓ Auto-verification running…');
       navigate('/artist/status', { replace: true });
     } catch (e: any) {
       console.error(e);
@@ -288,6 +321,7 @@ export default function ArtistApply() {
       setSubmitting(false);
     }
   };
+
 
   if (isLoading || !bootChecked) return <div className="min-h-[100dvh] bg-background" />;
 
