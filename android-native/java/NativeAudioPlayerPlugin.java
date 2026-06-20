@@ -157,6 +157,62 @@ public class NativeAudioPlayerPlugin extends Plugin {
         call.resolve(ret);
     }
 
+    // ===== Native DSP setters (EQ / BassBoost / Reverb / 3D / 8D / LateNight / Speed) =====
+
+    @PluginMethod public void setEqBands(PluginCall call) {
+        com.getcapacitor.JSArray arr = call.getArray("bands");
+        short[] bands = new short[10];
+        if (arr != null) {
+            for (int i = 0; i < Math.min(10, arr.length()); i++) {
+                try { bands[i] = (short) arr.getInt(i); } catch (Throwable t) { bands[i] = 0; }
+            }
+        }
+        if (service != null) service.setEqBands(bands);
+        call.resolve();
+    }
+
+    @PluginMethod public void setBassBoost(PluginCall call) {
+        Integer pct = call.getInt("percent", 0);
+        if (service != null) service.setBassBoostPercent(pct == null ? 0 : pct);
+        call.resolve();
+    }
+
+    @PluginMethod public void setReverb(PluginCall call) {
+        Integer pct = call.getInt("percent", 0);
+        if (service != null) service.setReverbPercent(pct == null ? 0 : pct);
+        call.resolve();
+    }
+
+    @PluginMethod public void setStudioSpace(PluginCall call) {
+        String id = call.getString("id", "off");
+        if (service != null) service.setStudioSpace(id);
+        call.resolve();
+    }
+
+    @PluginMethod public void setLateNight(PluginCall call) {
+        Boolean on = call.getBoolean("enabled", false);
+        if (service != null) service.setLateNight(on != null && on);
+        call.resolve();
+    }
+
+    @PluginMethod public void setHeadphoneSurround(PluginCall call) {
+        Boolean on = call.getBoolean("enabled", false);
+        if (service != null) service.setHeadphoneSurround(on != null && on);
+        call.resolve();
+    }
+
+    @PluginMethod public void setSpatial8D(PluginCall call) {
+        Boolean on = call.getBoolean("enabled", false);
+        if (service != null) service.setSpatial8D(on != null && on);
+        call.resolve();
+    }
+
+    @PluginMethod public void setPlaybackSpeed(PluginCall call) {
+        Double speed = call.getDouble("speed", 1.0);
+        if (service != null) service.setPlaybackSpeed(speed == null ? 1f : speed.floatValue());
+        call.resolve();
+    }
+
     @Override
     protected void handleOnDestroy() {
         try { if (bound) { getContext().unbindService(conn); bound = false; } } catch (Throwable ignore) {}
