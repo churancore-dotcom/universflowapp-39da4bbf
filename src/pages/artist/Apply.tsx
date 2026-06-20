@@ -613,3 +613,34 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
+const LINK_LABELS: Record<SocialPlatform, string> = {
+  instagram: 'Instagram',
+  youtube: 'YouTube',
+  spotify: 'Spotify artist',
+  apple_music: 'Apple Music artist',
+};
+
+function LinkField({
+  platform, value, onChange, placeholder,
+}: {
+  platform: SocialPlatform;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+}) {
+  const check = validateSocialLink(platform, value);
+  const hasValue = value.trim().length > 0;
+  return (
+    <Field label={LINK_LABELS[platform]}>
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} inputMode="url" />
+      {hasValue && !check.ok && (
+        <p className="mt-1.5 text-[11px] text-rose-300 leading-snug">{check.reason}</p>
+      )}
+      {hasValue && check.ok && (
+        <p className="mt-1.5 text-[11px] text-emerald-300 leading-snug">✓ Looks like a real link.</p>
+      )}
+    </Field>
+  );
+}
+
