@@ -1,4 +1,4 @@
-package PACKAGE_PLACEHOLDER.media;
+package com.universeflow.app.media;
 
 import android.Manifest;
 import android.content.Intent;
