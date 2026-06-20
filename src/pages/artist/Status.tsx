@@ -7,14 +7,14 @@ import { FadeTransition } from '@/components/PageTransition';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { getArtistReapplyState, getMyApplication, type ArtistAppStatus } from '@/lib/artist';
+import { getArtistReapplyState, getMyApplication, type ArtistApplicationSafe, type ArtistAppStatus } from '@/lib/artist';
 import { toast } from 'sonner';
 
 
 export default function ArtistStatus() {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
-  const [app, setApp] = useState<any>(null);
+  const [app, setApp] = useState<ArtistApplicationSafe | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
