@@ -846,8 +846,26 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         preloadedNextIdRef.current = upcoming.id;
       } catch { /* ignore preload errors */ }
     } else if (upcoming.source === 'indexed' || upcoming.audio_url === 'resolving') {
-      prefetchIndexedTrack(upcoming.artist, upcoming.title);
       preloadedNextIdRef.current = upcoming.id;
+      prefetchIndexedTrack(upcoming.artist, upcoming.title);
+      resolveAudioUrl(upcoming).then((resolved) => {
+        if (!resolved || preloadedNextIdRef.current !== upcoming.id) return;
+        const activeQueue = queueRef.current;
+        const idx = activeQueue.findIndex((item) => getSongIdentity(item) === getSongIdentity(upcoming));
+        if (idx >= 0 && !isPlayableUrl(activeQueue[idx].audio_url)) {
+          const warmed = { ...activeQueue[idx], audio_url: resolved };
+          const nextQueue = [...activeQueue];
+          nextQueue[idx] = warmed;
+          queueRef.current = nextQueue;
+          setQueueState(nextQueue);
+        }
+        if (nextAudioRef.current && !isYouTubeFallbackUrl(resolved)) {
+          configureAudioElementSource(nextAudioRef.current, buildStreamProxyUrl(resolved));
+          nextAudioRef.current.preload = 'auto';
+          nextAudioRef.current.volume = 0;
+          nextAudioRef.current.load();
+        }
+      }).catch(() => null);
     }
 
     // Also warm the track AFTER next so two-tap skips feel instant.
@@ -858,7 +876,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         prefetchIndexedTrack(afterNext.artist, afterNext.title);
       }
     }
-  }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl]);
+  }, [queue, currentIndex, shuffle, repeat, getNextIndex, isPlayableUrl, resolveAudioUrl]);
 
   // ── YouTube IFrame fallback helpers ──
   const stopYouTubeProgressLoop = useCallback(() => {
