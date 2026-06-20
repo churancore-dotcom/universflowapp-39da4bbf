@@ -12,6 +12,7 @@ import {
   Check, Shield, Headphones, TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { validatePhone, PHONE_DIGITS } from '@/lib/phoneValidator';
 import { FadeTransition } from '@/components/PageTransition';
 import SEOHead from '@/components/SEOHead';
 
