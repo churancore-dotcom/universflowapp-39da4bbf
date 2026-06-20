@@ -371,7 +371,7 @@ const Settings = () => {
             <div className="rounded-3xl overflow-hidden bg-card/50 border border-white/5 backdrop-blur-sm">
               <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
                 <span className="text-sm">Push Notifications</span>
-                <Switch checked={notifications} onCheckedChange={handleNotifications} className="data-[state=checked]:bg-primary scale-90" />
+                <Switch checked={notifications} onCheckedChange={handleNotifications} className="data-[state=checked]:bg-primary scale-90" aria-label="Toggle push notifications" />
               </div>
               <div className="px-4 py-3 flex items-center justify-between border-b border-white/5">
                 <div className="flex flex-col">
