@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import appLogo from '@/assets/app-logo.webp.asset.json';
+import appLogo from '@/assets/app-logo.webp';
 
 
 interface SplashScreenProps {
@@ -47,14 +47,14 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
     <div className="fixed inset-0 z-50 flex h-[100dvh] w-full flex-col items-center justify-center overflow-hidden bg-black">
       <div className="flex flex-col items-center justify-center">
         <img
-          src={appLogo.url}
+          src={appLogo}
           alt="Univers Flow"
           width={160}
           height={160}
           loading="eager"
           decoding="async"
           {...({ fetchpriority: "high" } as any)}
-          className={`h-40 w-40 object-contain transition-all duration-[600ms] ease-out ${logoScale}`}
+          className={`h-40 w-40 rounded-full object-cover transition-all duration-[600ms] ease-out ${logoScale}`}
           draggable={false}
         />
         <div
