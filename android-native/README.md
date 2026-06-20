@@ -47,7 +47,24 @@ the same URL, bandwidth roughly doubles on Android. Phase-2 will switch
 PlayerContext to drive progress/ended directly from ExoPlayer events and
 stop the HTMLAudio fetch.
 
-Premium DSP effects (EQ, Reverb, Headphone 3D Surround, Smart Crossfade Pro,
-Gapless Pro) remain Web-Audio-only and are inaudible on Android in phase 1
-because the HTMLAudio is muted. They can be reimplemented natively via
-ExoPlayer `AudioProcessor`s in a follow-up.
+## Native DSP (EQ / Bass / Reverb / 3D / 8D / Late Night / Speed)
+
+Implemented natively on Android via `android.media.audiofx` attached to the
+ExoPlayer audio session ID:
+
+- **Equalizer** — 10 web bands mapped onto the device's native bands (usually 5)
+  by nearest-log-frequency. Gain in dB → millibels, clamped to the device range.
+- **BassBoost** — 0-100% → strength 0-1000.
+- **PresetReverb** — `reverb%` + `studioSpace` → preset
+  (SMALL/MEDIUM/LARGE ROOM/HALL).
+- **Virtualizer** — Headphone 3D Surround (strength 1000 when on).
+- **LoudnessEnhancer** — Late Night mode (+8 dB makeup gain).
+- **PlaybackParameters** — playback speed (0.5x-2.0x).
+- **8D Spatial** — `Handler` LFO sweeping Virtualizer strength on a ~5.5s
+  sine + LARGEHALL reverb (Android has no stereo panner, so this approximates
+  the web `stereoPanner` rotation).
+
+All effects run inside the foreground service and survive backgrounding /
+screen lock. The web `audioEngine.ts` graph is bypassed on Android — the
+WebView `<audio>` is muted, so no DSP happens there.
+
