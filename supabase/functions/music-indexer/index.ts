@@ -766,7 +766,7 @@ const BAD_VIDEO_PATTERNS = [
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
   /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|album full|full album|all songs)\b/i,
   /\b(90'?s|80'?s|70'?s|evergreen|old is gold|purane|old songs?)\b/i,
-  /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental)\b/i,
+  /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental|ringtone|shorts)\b/i,
   /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
 ];
 
@@ -777,6 +777,7 @@ function isBadVideoCandidate(item: Record<string, unknown>, artist: string, titl
   const dur = Number(item.lengthSeconds || item.duration || 0);
   const isLongFormWanted = /\b(lofi|mix|playlist|live|concert|podcast|mashup|medley|jukebox)\b/.test(normalizedWanted);
   if (dur && (dur < 45 || (!isLongFormWanted && dur > 720) || dur > 7200)) return true;
+  if (/\boriginals?\b/i.test(raw) && !normalizedWanted.includes('original')) return true;
   if (BAD_VIDEO_PATTERNS.some((pattern) => pattern.test(raw))) return true;
   if (!normalizedWanted.includes('lofi') && normalizedRaw.includes('lofi')) return true;
   return false;

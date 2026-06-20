@@ -48,7 +48,7 @@ const SPAM_PATTERNS = [
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
   /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|album full|full album|all songs)\b/i,
   /\b(90'?s|80'?s|70'?s|evergreen|old is gold|purane|old songs?)\b/i,
-  /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental)\b/i,
+  /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental|ringtone|shorts)\b/i,
   /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
 ];
 
@@ -87,6 +87,7 @@ function looksSpammy(item: any, query: string) {
   const duration = Number(item?.lengthSeconds || item?.duration || 0);
 
   if (duration && (duration < 75 || duration > 540)) return true;
+  if (/\boriginals?\b/i.test(rawAuthor) && !q.includes('original')) return true;
   if (SPAM_PATTERNS.some((pattern) => pattern.test(haystack))) return true;
   if (!q.includes('lofi') && /\b(lofi|lo-fi)\b/i.test(haystack)) return true;
   return false;
