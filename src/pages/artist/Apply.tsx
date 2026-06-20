@@ -163,6 +163,7 @@ export default function ArtistApply() {
   const [step, setStep] = useState<Step>(1);
   const [submitting, setSubmitting] = useState(false);
   const [existingApp, setExistingApp] = useState<any>(null);
+  const isLockedReapply = isReapplyMode && !!existingApp;
 
   // form
   const [stageName, setStageName] = useState('');
@@ -200,7 +201,10 @@ export default function ArtistApply() {
         setExistingApp(existing);
         setStageName(existing.stage_name || '');
         setRealName(existing.real_name || '');
-        setPhone(String(existing.phone || '').replace(/^\+?\d{1,4}/, ''));
+        const lockedCountry = existing.country_code || '';
+        const lockedDial = lockedCountry ? getDialCode(lockedCountry) : '';
+        const lockedPhone = String(existing.phone || '');
+        setPhone(lockedDial && lockedPhone.startsWith(lockedDial) ? lockedPhone.slice(lockedDial.length) : lockedPhone.replace(/\D/g, ''));
         setCountry(existing.country_code || '');
         const links = existing.social_links || {};
         setInstagram(typeof links.instagram === 'string' ? links.instagram : '');
