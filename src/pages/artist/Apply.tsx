@@ -439,12 +439,16 @@ export default function ArtistApply() {
               {step === 2 && (
                 <>
                   <p className="text-[12.5px] text-muted-foreground -mt-1">
-                    Paste at least <strong>one</strong> artist profile link so we can match it to your ID.
+                    Paste at least <strong>one</strong> real artist profile link so we can match it to your ID.
+                    Plain handles or fake text won&apos;t pass.
                   </p>
-                  <Field label="Instagram"><Input value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="https://instagram.com/yourhandle" /></Field>
-                  <Field label="YouTube"><Input value={youtube} onChange={(e) => setYoutube(e.target.value)} placeholder="https://youtube.com/@yourchannel" /></Field>
-                  <Field label="Spotify artist"><Input value={spotify} onChange={(e) => setSpotify(e.target.value)} placeholder="https://open.spotify.com/artist/…" /></Field>
-                  <Field label="Apple Music artist"><Input value={appleMusic} onChange={(e) => setAppleMusic(e.target.value)} placeholder="https://music.apple.com/…" /></Field>
+                  <LinkField platform="instagram" value={instagram} onChange={setInstagram} placeholder="https://instagram.com/yourhandle" />
+                  <LinkField platform="youtube" value={youtube} onChange={setYoutube} placeholder="https://youtube.com/@yourchannel" />
+                  <LinkField platform="spotify" value={spotify} onChange={setSpotify} placeholder="https://open.spotify.com/artist/…" />
+                  <LinkField platform="apple_music" value={appleMusic} onChange={setAppleMusic} placeholder="https://music.apple.com/…/artist/…" />
+                  {!linksCheck.ok && (instagram || youtube || spotify || appleMusic) && (
+                    <p className="text-[11.5px] text-rose-300">{linksCheck.reason}</p>
+                  )}
                 </>
               )}
 
@@ -456,6 +460,11 @@ export default function ArtistApply() {
                     </div>
                   ) : (
                     <>
+                      <div className="p-4 rounded-2xl bg-primary/10 border border-primary/25 text-[12.5px] text-foreground/90 leading-relaxed">
+                        You picked <strong>{countryLabel}</strong>. We only accept{' '}
+                        <strong>{countryLabel.replace(/^[^\s]+\s/, '')}</strong>-issued ID documents.
+                        Submitting an ID from any other country will get your application rejected instantly.
+                      </div>
                       <Field label="Document type">
                         <div className="space-y-2">
                           {allowedDocs.map((d) => (
