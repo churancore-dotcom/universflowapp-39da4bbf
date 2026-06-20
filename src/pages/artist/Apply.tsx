@@ -379,8 +379,34 @@ export default function ArtistApply() {
                   <Field label="Legal full name">
                     <Input value={realName} onChange={(e) => setRealName(e.target.value)} placeholder="As shown on ID" maxLength={80} />
                   </Field>
-                  <Field label="Phone number">
-                    <Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="With country code" maxLength={20} />
+                  <Field label={`Phone number${country ? ` · ${getDialCode(country)} (${PHONE_DIGITS[country] ?? '—'} digits)` : ''}`}>
+                    <div className="flex gap-2">
+                      <span className="h-11 px-3 inline-flex items-center rounded-xl bg-white/[0.04] border border-white/10 text-[13px] tabular-nums text-muted-foreground shrink-0">
+                        {country ? getDialCode(country) : '+—'}
+                      </span>
+                      <Input
+                        type="tel"
+                        inputMode="numeric"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 15))}
+                        placeholder={country ? `${PHONE_DIGITS[country] ?? 10}-digit mobile number` : 'Pick country first'}
+                        maxLength={15}
+                        disabled={!country}
+                      />
+                    </div>
+                    {country && phone.length > 0 && !phoneCheck.ok && (
+                      <p className="mt-1.5 text-[11.5px] text-rose-300 leading-snug">
+                        {phoneCheck.troll || phoneCheck.reason}
+                      </p>
+                    )}
+                    {country && phoneCheck.ok && (
+                      <p className="mt-1.5 text-[11.5px] text-emerald-300 leading-snug">
+                        ✓ Valid {countryLabel.replace(/^[^\s]+\s/, '')} mobile number.
+                      </p>
+                    )}
+                    <p className="mt-1 text-[10.5px] text-muted-foreground/70">
+                      You can&apos;t change this later. Use a real number — we check it.
+                    </p>
                   </Field>
                   <Field label="Country">
                     <div className="relative">
