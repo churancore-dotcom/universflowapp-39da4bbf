@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, AtSign,
-  Mic, BadgeCheck, Music2, Sparkles, ArrowLeft, User as UserIcon, Phone, Calendar,
+  BadgeCheck, ArrowLeft, User as UserIcon, Phone, Calendar,
+  Check, Shield, Headphones, TrendingUp,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { FadeTransition } from '@/components/PageTransition';
@@ -24,25 +25,12 @@ function detectCountryCode(): string | undefined {
 
 type Mode = 'login' | 'signup';
 
-// Compact common list. Stored as dial code on the phone field.
 const DIAL_CODES: Array<[string, string, string]> = [
-  ['IN', '+91', '🇮🇳'],
-  ['US', '+1', '🇺🇸'],
-  ['GB', '+44', '🇬🇧'],
-  ['CA', '+1', '🇨🇦'],
-  ['AU', '+61', '🇦🇺'],
-  ['DE', '+49', '🇩🇪'],
-  ['FR', '+33', '🇫🇷'],
-  ['BR', '+55', '🇧🇷'],
-  ['JP', '+81', '🇯🇵'],
+  ['IN', '+91', '🇮🇳'], ['US', '+1', '🇺🇸'], ['GB', '+44', '🇬🇧'],
+  ['CA', '+1', '🇨🇦'], ['AU', '+61', '🇦🇺'], ['DE', '+49', '🇩🇪'],
+  ['FR', '+33', '🇫🇷'], ['BR', '+55', '🇧🇷'], ['JP', '+81', '🇯🇵'],
   ['AE', '+971', '🇦🇪'],
 ];
-
-const panelVariants = {
-  initial: (isLogin: boolean) => ({ opacity: 0, y: 16, x: isLogin ? -8 : 8, filter: 'blur(8px)' }),
-  animate: { opacity: 1, y: 0, x: 0, filter: 'blur(0px)' },
-  exit: (isLogin: boolean) => ({ opacity: 0, y: -8, x: isLogin ? 8 : -8, filter: 'blur(8px)' }),
-};
 
 function ageFromDob(dob: string): number | null {
   if (!dob) return null;
@@ -57,6 +45,7 @@ function ageFromDob(dob: string): number | null {
 
 const ArtistAuth = () => {
   const [mode, setMode] = useState<Mode>('signup');
+  const [step, setStep] = useState<1 | 2>(1);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
@@ -83,10 +72,23 @@ const ArtistAuth = () => {
     return d.toISOString().slice(0, 10);
   }, []);
 
-  const signupValid =
+  // Password strength (0–4)
+  const pwStrength = useMemo(() => {
+    let s = 0;
+    if (password.length >= 6) s++;
+    if (password.length >= 10) s++;
+    if (/[A-Z]/.test(password) && /[a-z]/.test(password)) s++;
+    if (/\d/.test(password) && /[^A-Za-z0-9]/.test(password)) s++;
+    return s;
+  }, [password]);
+
+  const step1Valid =
     fullName.trim().length >= 2 &&
     username.trim().length >= 3 &&
-    /\S+@\S+\.\S+/.test(email) &&
+    /\S+@\S+\.\S+/.test(email);
+
+  const signupValid =
+    step1Valid &&
     password.length >= 6 &&
     phone.replace(/\D/g, '').length >= 6 &&
     age !== null && age >= 13 &&
@@ -99,6 +101,14 @@ const ArtistAuth = () => {
       return;
     }
     if (!isLogin) {
+      if (step === 1) {
+        if (!step1Valid) {
+          toast.error('Please complete your identity details.');
+          return;
+        }
+        setStep(2);
+        return;
+      }
       if (age !== null && age < 13) {
         toast.error('You must be at least 13 to create an artist account.');
         return;
@@ -126,9 +136,6 @@ const ArtistAuth = () => {
           toast.error(error.message);
           return;
         }
-        // Strict separation: only accounts that signed up as an artist (have
-        // the artist role or any application on file) can sign in here.
-        // Pure listener accounts get rejected — they must use /auth instead.
         const authedUser = (await supabase.auth.getUser()).data.user;
         const destination = await getArtistDestination(authedUser);
         if (!destination) {
@@ -142,7 +149,6 @@ const ArtistAuth = () => {
         const { error } = await signUp(email, password, username, dial[0]);
         if (error) { toast.error(error.message); return; }
 
-        // Stash artist-specific signup details to prefill the Apply form.
         try {
           localStorage.setItem(
             'uf_artist_signup',
@@ -156,7 +162,6 @@ const ArtistAuth = () => {
           );
         } catch { /* ignore quota */ }
 
-        // Best-effort: store on the auth user for future use.
         try {
           await supabase.auth.updateUser({
             data: {
@@ -185,145 +190,150 @@ const ArtistAuth = () => {
     }
   };
 
+  // Mode switch resets step
+  const switchMode = (m: Mode) => {
+    setMode(m);
+    setStep(1);
+  };
+
   return (
     <FadeTransition>
-      <div className="min-h-[100dvh] bg-background text-foreground flex flex-col px-5 py-6 relative overflow-y-auto">
+      <div className="min-h-[100dvh] bg-[#060608] text-foreground relative overflow-y-auto overflow-x-hidden">
         <SEOHead
-          title="Artists — Sign in to Universflow"
-          description="Get verified on Universflow. Sign in or create your artist account to upload music, grow your audience, and reach new fans."
+          title="Become a Verified Artist on Universflow"
+          description="Join Universflow for Artists. Upload your music, earn the rose verified checkmark, and reach new fans across India and beyond."
           path="/artist/auth"
         />
 
-        {/* Cinematic spotlight background */}
+        {/* === CINEMATIC BACKDROP === */}
         <div
           className="fixed inset-0 pointer-events-none"
           style={{
             background:
-              'radial-gradient(ellipse at 18% -10%, hsl(340 100% 55% / 0.32) 0%, transparent 48%),' +
-              'radial-gradient(ellipse at 90% 110%, hsl(42 100% 60% / 0.18) 0%, transparent 50%),' +
-              'radial-gradient(ellipse at 50% 50%, hsl(0 0% 100% / 0.03) 0%, transparent 70%)',
+              'radial-gradient(120% 80% at 0% 0%, hsl(340 100% 55% / 0.35) 0%, transparent 55%),' +
+              'radial-gradient(90% 70% at 100% 100%, hsl(28 100% 60% / 0.18) 0%, transparent 55%),' +
+              'radial-gradient(60% 40% at 50% 0%, hsl(0 0% 100% / 0.04) 0%, transparent 70%)',
           }}
         />
         <div
-          className="fixed inset-0 pointer-events-none opacity-[0.04] mix-blend-overlay"
+          className="fixed inset-0 pointer-events-none opacity-[0.05] mix-blend-overlay"
           style={{
             backgroundImage:
-              'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'120\'><filter id=\'n\'><feTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\'/></filter><rect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/></svg>")',
+              'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'140\' height=\'140\'><filter id=\'n\'><feTurbulence type=\'fractalNoise\' baseFrequency=\'0.85\'/></filter><rect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/></svg>")',
           }}
         />
 
-        <Link
-          to="/auth"
-          className="relative z-10 inline-flex items-center gap-1.5 text-[12px] text-muted-foreground/80 hover:text-foreground transition-colors w-fit"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Back to listener sign in
-        </Link>
+        {/* Top bar */}
+        <div className="relative z-20 flex items-center justify-between px-5 pt-5">
+          <Link
+            to="/auth"
+            className="inline-flex items-center gap-1.5 text-[11.5px] text-muted-foreground/80 hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back
+          </Link>
+          <span className="text-[9.5px] tracking-[0.32em] uppercase text-muted-foreground/60 font-semibold">
+            Universflow / Artists
+          </span>
+        </div>
 
-        <motion.div
-          className="relative w-full max-w-sm mx-auto z-10 mt-4"
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <div className="flex flex-col items-center mb-5">
-            <motion.div
-              className="relative"
-              initial={{ scale: 0.7, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', stiffness: 220, damping: 22 }}
-            >
-              <div
-                className="absolute -inset-6 rounded-full pointer-events-none"
-                style={{ background: 'radial-gradient(circle, hsl(340 100% 55% / 0.45), transparent 70%)', filter: 'blur(18px)' }}
-              />
-              <div
-                className="relative w-[88px] h-[88px] rounded-[26px] flex items-center justify-center"
-                style={{
-                  background: 'linear-gradient(140deg, #18181b 0%, #0a0a0a 100%)',
-                  boxShadow:
-                    'inset 0 0 0 0.5px rgba(255,255,255,0.08),' +
-                    ' 0 14px 40px hsl(340 100% 45% / 0.45),' +
-                    ' inset 0 1px 0 rgba(255,255,255,0.06)',
-                }}
-              >
-                <Mic className="w-9 h-9 text-white" strokeWidth={1.6} />
-                <BadgeCheck
-                  className="absolute -bottom-1 -right-1 w-7 h-7 text-white"
-                  fill="#FF2D55"
-                  strokeWidth={2}
-                />
-              </div>
-            </motion.div>
-
-            <motion.div
-              className="mt-5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9.5px] uppercase tracking-[0.22em] font-semibold"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.14, duration: 0.4 }}
+        {/* === HERO === */}
+        <section className="relative z-10 px-5 pt-6 pb-5">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            className="relative rounded-[28px] overflow-hidden"
+            style={{
+              background:
+                'linear-gradient(155deg, #FF2D55 0%, #C8133A 38%, #1a0a12 100%)',
+              boxShadow:
+                '0 30px 80px hsl(340 100% 30% / 0.5), inset 0 1px 0 rgba(255,255,255,0.12)',
+            }}
+          >
+            {/* Sheen */}
+            <div
+              className="absolute inset-0 pointer-events-none mix-blend-overlay opacity-60"
               style={{
-                background: 'rgba(255, 45, 85, 0.12)',
-                border: '0.5px solid rgba(255, 45, 85, 0.32)',
-                color: '#FF6B85',
+                background:
+                  'radial-gradient(70% 60% at 80% 0%, rgba(255,255,255,0.35), transparent 60%)',
               }}
-            >
-              <Sparkles className="w-3 h-3" />
-              I'm an Artist
-            </motion.div>
+            />
+            {/* Concentric arcs */}
+            <svg className="absolute -right-12 -top-10 w-[220px] h-[220px] opacity-30" viewBox="0 0 200 200" fill="none">
+              {[40, 60, 80, 100].map((r) => (
+                <circle key={r} cx="100" cy="100" r={r} stroke="white" strokeWidth="0.5" />
+              ))}
+            </svg>
 
-            <motion.h1
-              className="mt-3 text-[26px] leading-[1.1] font-display tracking-tight text-foreground text-center"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.4 }}
-            >
-              {isLogin ? 'Welcome back, artist' : 'Create your artist account'}
-            </motion.h1>
-            <p className="mt-2 text-[12.5px] leading-snug text-muted-foreground/80 text-center px-2">
-              {isLogin
-                ? 'Sign in to continue your artist application.'
-                : 'A few quick details, then upload your ID and you\'re in.'}
-            </p>
-          </div>
+            <div className="relative p-5 pt-6">
+              {/* Verified chip */}
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/30 border border-white/15 backdrop-blur-sm">
+                <BadgeCheck className="w-3 h-3 text-white" fill="#FF2D55" />
+                <span className="text-[9.5px] uppercase tracking-[0.22em] font-semibold text-white/90">
+                  Verified Artist Program
+                </span>
+              </div>
 
-          <AnimatePresence initial={false}>
-            {!isLogin && (
-              <motion.div
-                key="perks"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.25 }}
-                className="overflow-hidden mb-4"
-              >
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { Icon: BadgeCheck, label: 'Rose verified' },
-                    { Icon: Music2, label: 'Upload tracks' },
-                    { Icon: Sparkles, label: 'Reach fans' },
-                  ].map(({ Icon, label }) => (
-                    <div
-                      key={label}
-                      className="flex flex-col items-center justify-center gap-1.5 rounded-2xl py-2.5"
-                      style={{
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '0.5px solid rgba(255,255,255,0.06)',
-                      }}
-                    >
-                      <Icon className="w-4 h-4 text-primary" strokeWidth={1.8} />
-                      <span className="text-[10px] tracking-tight text-muted-foreground">{label}</span>
+              <h1 className="mt-4 font-display text-[34px] leading-[0.95] tracking-tight text-white">
+                Your sound,<br />
+                <span className="italic font-light">center stage.</span>
+              </h1>
+
+              <p className="mt-3 text-[13px] leading-snug text-white/85 max-w-[280px]">
+                Upload your tracks, earn the rose checkmark, and reach listeners who actually care about new music.
+              </p>
+
+              {/* Stat strip */}
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {[
+                  { k: 'Artists', v: '12k+' },
+                  { k: 'Streams/mo', v: '4.2M' },
+                  { k: 'Royalty', v: '100%' },
+                ].map((s) => (
+                  <div
+                    key={s.k}
+                    className="rounded-2xl px-2.5 py-2 bg-black/25 border border-white/10 backdrop-blur-sm"
+                  >
+                    <div className="text-[15px] font-display tabular-nums text-white tracking-tight leading-none">
+                      {s.v}
                     </div>
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                    <div className="mt-1 text-[8.5px] uppercase tracking-[0.18em] text-white/65 font-medium">
+                      {s.k}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
 
+          {/* Marquee strip */}
+          <div className="relative mt-3 overflow-hidden h-7 rounded-full border border-white/[0.06] bg-white/[0.025]">
+            <motion.div
+              className="absolute inset-y-0 flex items-center gap-6 whitespace-nowrap text-[10.5px] uppercase tracking-[0.22em] text-muted-foreground/70 px-4"
+              animate={{ x: ['0%', '-50%'] }}
+              transition={{ duration: 28, repeat: Infinity, ease: 'linear' }}
+            >
+              {Array.from({ length: 2 }).flatMap((_, j) =>
+                ['Independent', 'Punjabi', 'Hip-Hop', 'Indie', 'Lo-Fi', 'Pop', 'R&B', 'Classical', 'Electronic'].map((g, i) => (
+                  <span key={`${j}-${i}`} className="flex items-center gap-6">
+                    <span>{g}</span>
+                    <span className="text-primary">●</span>
+                  </span>
+                )),
+              )}
+            </motion.div>
+          </div>
+        </section>
+
+        {/* === FORM === */}
+        <section className="relative z-10 px-5 pb-6">
+          {/* Mode toggle */}
           <div
-            className="relative grid grid-cols-2 p-1 rounded-full mb-4 mx-auto w-[78%]"
+            className="relative grid grid-cols-2 p-1 rounded-full mb-5 mx-auto w-full max-w-[320px]"
             style={{
               background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.07)',
             }}
           >
             <motion.div
@@ -333,222 +343,242 @@ const ArtistAuth = () => {
               style={{
                 width: 'calc(50% - 4px)',
                 left: isLogin ? 'calc(50% + 0px)' : 4,
-                background: '#FF2D55',
-                boxShadow: '0 6px 18px hsl(340 100% 45% / 0.4)',
+                background: 'linear-gradient(180deg, #FF3B5C 0%, #E11D48 100%)',
+                boxShadow: '0 6px 18px hsl(340 100% 45% / 0.45)',
               }}
             />
             {(['signup', 'login'] as Mode[]).map((m) => (
               <button
                 key={m}
                 type="button"
-                onClick={() => setMode(m)}
+                onClick={() => switchMode(m)}
                 className="relative z-10 h-9 text-[12.5px] font-semibold tracking-tight transition-colors"
                 style={{ color: mode === m ? '#fff' : 'hsl(var(--muted-foreground))' }}
               >
-                {m === 'signup' ? 'New artist' : 'I have an account'}
+                {m === 'signup' ? 'Join as Artist' : 'Sign in'}
               </button>
             ))}
           </div>
 
-          <AnimatePresence mode="wait" initial={false} custom={isLogin}>
+          {/* Step indicator (signup only) */}
+          {!isLogin && (
+            <div className="flex items-center justify-center gap-3 mb-4">
+              {[1, 2].map((n) => (
+                <div key={n} className="flex items-center gap-2">
+                  <div
+                    className="flex items-center justify-center w-6 h-6 rounded-full text-[10.5px] font-bold tabular-nums transition-all"
+                    style={{
+                      background: step >= n ? '#FF2D55' : 'rgba(255,255,255,0.06)',
+                      color: step >= n ? '#fff' : 'hsl(var(--muted-foreground))',
+                      boxShadow: step >= n ? '0 4px 12px hsl(340 100% 45% / 0.45)' : 'none',
+                    }}
+                  >
+                    {step > n ? <Check className="w-3 h-3" strokeWidth={3} /> : n}
+                  </div>
+                  <span className="text-[10.5px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/80">
+                    {n === 1 ? 'Identity' : 'Secure & Verify'}
+                  </span>
+                  {n === 1 && <span className="text-muted-foreground/30 mx-1">·</span>}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <AnimatePresence mode="wait" initial={false}>
             <motion.form
-              key={mode}
-              custom={isLogin}
-              variants={panelVariants}
+              key={`${mode}-${step}`}
               onSubmit={handleSubmit}
+              initial={{ opacity: 0, y: 10, filter: 'blur(6px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -8, filter: 'blur(6px)' }}
+              transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
               className="relative rounded-[26px] p-5 space-y-3.5"
               style={{
-                background: 'rgba(16,16,18,0.78)',
-                border: '0.5px solid rgba(255,255,255,0.07)',
+                background: 'rgba(14,14,16,0.82)',
+                border: '0.5px solid rgba(255,255,255,0.08)',
                 boxShadow: '0 30px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
               }}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              transition={{ duration: 0.36, ease: [0.22, 1, 0.36, 1] }}
             >
-              <AnimatePresence initial={false} mode="popLayout">
-                {!isLogin && (
-                  <>
-                    {/* Full name */}
-                    <motion.div
-                      key="fullname"
-                      initial={{ opacity: 0, height: 0, y: -4 }}
-                      animate={{ opacity: 1, height: 'auto', y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: -4 }}
-                      transition={{ duration: 0.22 }}
-                      className="overflow-hidden"
-                    >
-                      <FieldLabel>Full name</FieldLabel>
-                      <div className="relative">
-                        <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
-                        <Input
-                          value={fullName}
-                          onChange={(e) => setFullName(e.target.value.slice(0, 80))}
-                          placeholder="As shown on your ID"
-                          className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
-                          required={!isLogin}
-                          minLength={2}
-                          autoComplete="name"
-                          autoFocus
-                        />
-                      </div>
-                    </motion.div>
+              {/* SIGNUP STEP 1 */}
+              {!isLogin && step === 1 && (
+                <>
+                  <div>
+                    <FieldLabel>Full legal name</FieldLabel>
+                    <IconInput icon={UserIcon}>
+                      <Input
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value.slice(0, 80))}
+                        placeholder="As shown on your ID"
+                        className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                        required
+                        minLength={2}
+                        autoComplete="name"
+                        autoFocus
+                      />
+                    </IconInput>
+                  </div>
 
-                    {/* Username */}
-                    <motion.div
-                      key="username"
-                      initial={{ opacity: 0, height: 0, y: -4 }}
-                      animate={{ opacity: 1, height: 'auto', y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: -4 }}
-                      transition={{ duration: 0.22 }}
-                      className="overflow-hidden"
-                    >
-                      <FieldLabel>Stage handle</FieldLabel>
-                      <div className="relative">
-                        <AtSign className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
-                        <Input
-                          value={username}
-                          onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, '').slice(0, 20))}
-                          placeholder="yourstagehandle"
-                          className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
-                          required={!isLogin}
-                          minLength={3}
-                          maxLength={20}
-                          autoComplete="username"
-                        />
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-
-              <div>
-                <FieldLabel>Email</FieldLabel>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
-                  <Input
-                    type="email"
-                    placeholder="you@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
-                    required
-                    autoComplete="email"
-                  />
-                </div>
-              </div>
-
-              <AnimatePresence initial={false} mode="popLayout">
-                {!isLogin && (
-                  <>
-                    {/* Phone with country code */}
-                    <motion.div
-                      key="phone"
-                      initial={{ opacity: 0, height: 0, y: -4 }}
-                      animate={{ opacity: 1, height: 'auto', y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: -4 }}
-                      transition={{ duration: 0.22 }}
-                      className="overflow-hidden"
-                    >
-                      <FieldLabel>Phone number</FieldLabel>
-                      <div className="flex gap-2">
-                        <select
-                          value={dialIso}
-                          onChange={(e) => setDialIso(e.target.value)}
-                          className="h-12 rounded-xl bg-white/[0.04] border-0 px-2 text-[13px] tabular-nums"
-                          aria-label="Country code"
-                        >
-                          {DIAL_CODES.map(([iso, code, flag]) => (
-                            <option key={iso} value={iso}>{flag} {code}</option>
-                          ))}
-                        </select>
-                        <div className="relative flex-1">
-                          <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
-                          <Input
-                            type="tel"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value.replace(/[^\d\s-]/g, '').slice(0, 16))}
-                            placeholder="98xxx xxxxx"
-                            className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
-                            required={!isLogin}
-                            autoComplete="tel-national"
-                          />
-                        </div>
-                      </div>
-                      <p className="text-[10.5px] text-muted-foreground/60 mt-1.5 pl-1">
-                        Used for account recovery. Never shown publicly.
+                  <div>
+                    <FieldLabel>Stage handle</FieldLabel>
+                    <IconInput icon={AtSign}>
+                      <Input
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_.]/g, '').slice(0, 20))}
+                        placeholder="yourstagehandle"
+                        className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                        required
+                        minLength={3}
+                        maxLength={20}
+                        autoComplete="username"
+                      />
+                    </IconInput>
+                    {username.length >= 3 && (
+                      <p className="text-[10.5px] text-muted-foreground/70 mt-1.5 pl-1">
+                        Your profile: <span className="text-primary font-semibold">universflow.in/@{username}</span>
                       </p>
-                    </motion.div>
+                    )}
+                  </div>
 
-                    {/* DOB */}
-                    <motion.div
-                      key="dob"
-                      initial={{ opacity: 0, height: 0, y: -4 }}
-                      animate={{ opacity: 1, height: 'auto', y: 0 }}
-                      exit={{ opacity: 0, height: 0, y: -4 }}
-                      transition={{ duration: 0.22 }}
-                      className="overflow-hidden"
-                    >
-                      <FieldLabel>Date of birth</FieldLabel>
-                      <div className="relative">
-                        <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
-                        <Input
-                          type="date"
-                          value={dob}
-                          max={maxDob}
-                          onChange={(e) => setDob(e.target.value)}
-                          className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
-                          required={!isLogin}
-                        />
-                      </div>
-                      {age !== null && age < 13 && (
-                        <p className="text-[10.5px] text-rose-400 mt-1.5 pl-1">
-                          You must be at least 13 years old.
-                        </p>
-                      )}
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+                  <div>
+                    <FieldLabel>Email</FieldLabel>
+                    <IconInput icon={Mail}>
+                      <Input
+                        type="email"
+                        placeholder="you@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                        required
+                        autoComplete="email"
+                      />
+                    </IconInput>
+                  </div>
+                </>
+              )}
 
-              <div>
-                <FieldLabel>Password</FieldLabel>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder={isLogin ? 'Your password' : 'At least 6 characters'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10 pr-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
-                    required
-                    minLength={6}
-                    autoComplete={isLogin ? 'current-password' : 'new-password'}
-                  />
+              {/* SIGNUP STEP 2 */}
+              {!isLogin && step === 2 && (
+                <>
+                  {/* Identity recap chip */}
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground/70 active:scale-90 transition-transform"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    onClick={() => setStep(1)}
+                    className="w-full flex items-center justify-between rounded-2xl px-3.5 py-2.5 bg-white/[0.03] border border-white/[0.06] text-left active:scale-[0.99] transition-transform"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground/70 font-semibold">
+                        Signing up as
+                      </div>
+                      <div className="text-[13px] font-semibold text-foreground truncate">
+                        @{username} <span className="text-muted-foreground/70 font-normal">· {email}</span>
+                      </div>
+                    </div>
+                    <span className="text-[10.5px] text-primary font-semibold shrink-0 ml-3">Edit</span>
                   </button>
-                </div>
-              </div>
 
-              <AnimatePresence initial={false} mode="popLayout">
-                {!isLogin && (
-                  <motion.div
-                    key="consents"
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={{ duration: 0.22 }}
-                    className="overflow-hidden space-y-2 pt-1"
-                  >
+                  <div>
+                    <FieldLabel>Phone number</FieldLabel>
+                    <div className="flex gap-2">
+                      <select
+                        value={dialIso}
+                        onChange={(e) => setDialIso(e.target.value)}
+                        className="h-12 rounded-xl bg-white/[0.04] border-0 px-2 text-[13px] tabular-nums"
+                        aria-label="Country code"
+                      >
+                        {DIAL_CODES.map(([iso, code, flag]) => (
+                          <option key={iso} value={iso}>{flag} {code}</option>
+                        ))}
+                      </select>
+                      <IconInput icon={Phone} className="flex-1">
+                        <Input
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value.replace(/[^\d\s-]/g, '').slice(0, 16))}
+                          placeholder="98xxx xxxxx"
+                          className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                          required
+                          autoComplete="tel-national"
+                        />
+                      </IconInput>
+                    </div>
+                    <p className="text-[10.5px] text-muted-foreground/60 mt-1.5 pl-1">
+                      Used for account recovery. Never shown publicly.
+                    </p>
+                  </div>
+
+                  <div>
+                    <FieldLabel>Date of birth</FieldLabel>
+                    <IconInput icon={Calendar}>
+                      <Input
+                        type="date"
+                        value={dob}
+                        max={maxDob}
+                        onChange={(e) => setDob(e.target.value)}
+                        className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                        required
+                      />
+                    </IconInput>
+                    {age !== null && age < 13 && (
+                      <p className="text-[10.5px] text-rose-400 mt-1.5 pl-1">
+                        You must be at least 13 years old.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <FieldLabel>Create password</FieldLabel>
+                    <IconInput icon={Lock}>
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="At least 6 characters"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10 pr-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                        required
+                        minLength={6}
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground/70 active:scale-90 transition-transform"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </IconInput>
+                    {/* Strength meter */}
+                    {password.length > 0 && (
+                      <div className="mt-2 flex items-center gap-1.5">
+                        {[0, 1, 2, 3].map((i) => (
+                          <div
+                            key={i}
+                            className="h-[3px] flex-1 rounded-full transition-colors"
+                            style={{
+                              background:
+                                i < pwStrength
+                                  ? pwStrength <= 1
+                                    ? '#ef4444'
+                                    : pwStrength === 2
+                                    ? '#f59e0b'
+                                    : pwStrength === 3
+                                    ? '#84cc16'
+                                    : '#22c55e'
+                                  : 'rgba(255,255,255,0.08)',
+                            }}
+                          />
+                        ))}
+                        <span className="text-[10px] text-muted-foreground/70 ml-1 tabular-nums w-12 text-right">
+                          {['', 'Weak', 'Okay', 'Good', 'Strong'][pwStrength]}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Consents */}
+                  <div className="space-y-2 pt-1">
                     <label className="flex items-start gap-2.5 cursor-pointer">
                       <input
                         type="checkbox"
@@ -575,46 +605,170 @@ const ArtistAuth = () => {
                         , including that my ID will be deleted after review.
                       </span>
                     </label>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                  </div>
+                </>
+              )}
 
-              <Button
-                type="submit"
-                className="w-full h-12 text-[14px] font-semibold rounded-xl border-0 text-white active:scale-[0.98] transition-transform mt-1"
-                style={{
-                  background: 'linear-gradient(180deg, #FF3B5C 0%, #E11D48 100%)',
-                  boxShadow: '0 10px 28px hsl(340 100% 45% / 0.4), inset 0 1px 0 rgba(255,255,255,0.18)',
-                }}
-                disabled={loading || (!isLogin && !signupValid)}
-              >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span className="flex items-center gap-2">
-                    {isLogin ? 'Sign in & continue' : 'Create artist account'}
-                    <ArrowRight className="w-4 h-4" />
-                  </span>
+              {/* LOGIN */}
+              {isLogin && (
+                <>
+                  <div>
+                    <FieldLabel>Email</FieldLabel>
+                    <IconInput icon={Mail}>
+                      <Input
+                        type="email"
+                        placeholder="you@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="pl-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                        required
+                        autoComplete="email"
+                        autoFocus
+                      />
+                    </IconInput>
+                  </div>
+                  <div>
+                    <FieldLabel>Password</FieldLabel>
+                    <IconInput icon={Lock}>
+                      <Input
+                        type={showPassword ? 'text' : 'password'}
+                        placeholder="Your password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-10 pr-10 h-12 text-[14px] rounded-xl border-0 bg-white/[0.04]"
+                        required
+                        minLength={6}
+                        autoComplete="current-password"
+                      />
+                      <button
+                        type="button"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-muted-foreground/70 active:scale-90 transition-transform"
+                        onClick={() => setShowPassword(!showPassword)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </IconInput>
+                  </div>
+                </>
+              )}
+
+              {/* Submit / Next */}
+              <div className="pt-1 flex gap-2">
+                {!isLogin && step === 2 && (
+                  <Button
+                    type="button"
+                    onClick={() => setStep(1)}
+                    variant="ghost"
+                    className="h-12 px-4 rounded-xl text-[13px] font-semibold text-muted-foreground hover:text-foreground"
+                  >
+                    Back
+                  </Button>
                 )}
-              </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 h-12 text-[14px] font-semibold rounded-xl border-0 text-white active:scale-[0.98] transition-transform"
+                  style={{
+                    background: 'linear-gradient(180deg, #FF3B5C 0%, #E11D48 100%)',
+                    boxShadow: '0 10px 28px hsl(340 100% 45% / 0.4), inset 0 1px 0 rgba(255,255,255,0.18)',
+                  }}
+                  disabled={
+                    loading ||
+                    (!isLogin && step === 1 && !step1Valid) ||
+                    (!isLogin && step === 2 && !signupValid)
+                  }
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      {isLogin
+                        ? 'Sign in & continue'
+                        : step === 1
+                        ? 'Continue'
+                        : 'Create artist account'}
+                      <ArrowRight className="w-4 h-4" />
+                    </span>
+                  )}
+                </Button>
+              </div>
 
               <p className="text-center text-[10.5px] leading-relaxed text-muted-foreground/70 px-3 pt-1">
                 {isLogin
                   ? "You'll continue to your verification application after sign-in."
-                  : 'Verification takes 1–3 days. We\'ll notify you the moment you\'re approved.'}
+                  : step === 1
+                  ? 'Next: secure your account & accept artist terms.'
+                  : 'Verification takes 1–3 days. We notify you the moment you\'re approved.'}
               </p>
             </motion.form>
           </AnimatePresence>
 
-          <p className="text-center text-[11.5px] text-muted-foreground/70 mt-5">
+          {/* === WHAT YOU GET === */}
+          {!isLogin && (
+            <div className="mt-7">
+              <div className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground/60 font-semibold text-center mb-4">
+                What you unlock
+              </div>
+              <div className="space-y-2.5">
+                {[
+                  {
+                    Icon: BadgeCheck,
+                    title: 'Rose Verified Checkmark',
+                    body: 'Stand out in search, on profiles, and beside every track you release.',
+                  },
+                  {
+                    Icon: TrendingUp,
+                    title: 'Artist Studio & Analytics',
+                    body: 'Real-time listener counts, top cities, retention, and song-by-song stats.',
+                  },
+                  {
+                    Icon: Headphones,
+                    title: 'Direct fan reach',
+                    body: 'Featured in Jump Back In, New Releases, Moods and our Trending engine.',
+                  },
+                  {
+                    Icon: Shield,
+                    title: '100% royalty, KYC-protected',
+                    body: 'Your ID is encrypted and auto-deleted after manual review. No middlemen.',
+                  },
+                ].map(({ Icon, title, body }) => (
+                  <div
+                    key={title}
+                    className="flex gap-3 rounded-2xl p-3.5 bg-white/[0.025] border border-white/[0.05]"
+                  >
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                      style={{
+                        background: 'rgba(255,45,85,0.12)',
+                        border: '0.5px solid rgba(255,45,85,0.28)',
+                      }}
+                    >
+                      <Icon className="w-4 h-4 text-primary" strokeWidth={2} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-foreground tracking-tight leading-tight">
+                        {title}
+                      </div>
+                      <div className="text-[11.5px] text-muted-foreground/80 leading-snug mt-0.5">
+                        {body}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Listener switch */}
+          <p className="text-center text-[11.5px] text-muted-foreground/70 mt-7">
             Just here to listen?{' '}
             <Link to="/auth" className="text-primary font-semibold">Use the listener sign in →</Link>
           </p>
-        </motion.div>
 
-        <p className="relative z-10 text-[10px] tracking-[0.22em] uppercase text-muted-foreground/50 mt-auto pt-6 text-center">
-          Universflow for Artists
-        </p>
+          <p className="text-[10px] tracking-[0.22em] uppercase text-muted-foreground/40 mt-6 mb-2 text-center">
+            Universflow for Artists
+          </p>
+        </section>
       </div>
     </FadeTransition>
   );
@@ -625,6 +779,23 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
     <label className="block text-[10.5px] uppercase tracking-[0.18em] font-semibold text-muted-foreground/70 mb-1.5 pl-1">
       {children}
     </label>
+  );
+}
+
+function IconInput({
+  icon: Icon,
+  children,
+  className = '',
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={`relative ${className}`}>
+      <Icon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/70" />
+      {children}
+    </div>
   );
 }
 
