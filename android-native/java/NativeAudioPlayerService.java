@@ -485,7 +485,7 @@ public class NativeAudioPlayerService extends Service {
         playbackSpeed = Math.max(0.5f, Math.min(2.0f, speed));
         applyPlaybackSpeed();
     }
-    }
+
 
     private void initSession() {
         session = new MediaSessionCompat(this, "UniversFlowNativePlayer");
