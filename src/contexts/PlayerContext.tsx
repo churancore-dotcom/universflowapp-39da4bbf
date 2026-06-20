@@ -1045,7 +1045,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentIndex(index);
     setProgress(0);
     setIsPlaying(true);
-    publishNativeMusicControls(resolvedSong, true, resolvedSong.duration);
+    await publishNativeMusicControls(resolvedSong, true, resolvedSong.duration);
 
     // Resolve audio URL if needed
     let audioUrl = resolvedSong.audio_url;
@@ -1473,7 +1473,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setCurrentSong(song);
     setProgress(0);
     setIsPlaying(true);
-    publishNativeMusicControls(song, true, song.duration);
+    await publishNativeMusicControls(song, true, song.duration);
     
     let playbackSource = offlineUrl || song.audio_url;
 
