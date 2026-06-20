@@ -321,6 +321,8 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
               alt={artistOfWeek.name}
               className="absolute inset-0 w-full h-full object-cover"
               loading="eager"
+              width={230}
+              height={230}
               decoding="async"
               referrerPolicy="no-referrer"
               {...({ fetchpriority: "high" } as any)}
