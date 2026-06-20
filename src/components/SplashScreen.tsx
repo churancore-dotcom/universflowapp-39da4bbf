@@ -53,7 +53,7 @@ const SplashScreen = ({ onComplete }: SplashScreenProps) => {
           height={160}
           loading="eager"
           decoding="async"
-          fetchPriority="high"
+          {...({ fetchpriority: "high" } as any)}
           className={`h-40 w-40 object-contain transition-all duration-[600ms] ease-out ${logoScale}`}
           draggable={false}
         />
