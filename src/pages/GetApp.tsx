@@ -182,8 +182,8 @@ const GetApp = () => {
               style={{ background: "radial-gradient(circle at 50% 0%, rgba(255,45,85,0.4), transparent 60%)" }}
             />
             <div className="relative">
-              <div className="w-[56px] h-[56px] mx-auto rounded-2xl overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center">
-                <img src={appLogo.url} alt="Universflow app logo" className="w-[78%] h-[78%] object-contain" />
+              <div className="w-[56px] h-[56px] mx-auto rounded-full overflow-hidden bg-black/40 border border-white/10 flex items-center justify-center">
+                <img src={appLogo} alt="Universflow app logo" className="w-[78%] h-[78%] object-contain" />
               </div>
               <h2 className="mt-4 text-2xl font-extrabold leading-tight">Get Universflow</h2>
               <a
