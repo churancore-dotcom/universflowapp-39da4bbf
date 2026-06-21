@@ -96,6 +96,41 @@ async function buildForUser(
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
+  // Auth gate: require cron secret OR admin JWT (mirrors chart-aggregator)
+  const cronHeader = req.headers.get("x-cron-secret") ?? "";
+  const cronSecret = Deno.env.get("CRON_SECRET") ?? "";
+  let authorized = !!cronSecret && cronHeader === cronSecret;
+
+  if (!authorized) {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    if (authHeader.startsWith("Bearer ")) {
+      try {
+        const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+          global: { headers: { Authorization: authHeader } },
+        });
+        const token = authHeader.replace("Bearer ", "");
+        const { data } = await userClient.auth.getClaims(token);
+        const uid = data?.claims?.sub;
+        if (uid) {
+          const { data: roleRow } = await userClient
+            .from("user_roles")
+            .select("role")
+            .eq("user_id", uid)
+            .eq("role", "admin")
+            .maybeSingle();
+          if (roleRow) authorized = true;
+        }
+      } catch (_) { /* ignore */ }
+    }
+  }
+
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   const admin = createClient(SUPABASE_URL, SERVICE_KEY);
   const since = new Date(Date.now() - ACTIVE_WINDOW_DAYS * 86400 * 1000).toISOString();
 

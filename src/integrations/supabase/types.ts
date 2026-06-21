@@ -1948,14 +1948,14 @@ export type Database = {
           country_code?: string | null
           created_at?: string | null
           id?: string | null
-          id_doc_back_path?: string | null
-          id_doc_front_path?: string | null
+          id_doc_back_path?: never
+          id_doc_front_path?: never
           id_doc_type?: Database["public"]["Enums"]["id_doc_type"] | null
           phone?: string | null
           real_name?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
-          selfie_path?: string | null
+          selfie_path?: never
           social_links?: Json | null
           stage_name?: string | null
           status?: Database["public"]["Enums"]["artist_app_status"] | null
@@ -1967,14 +1967,14 @@ export type Database = {
           country_code?: string | null
           created_at?: string | null
           id?: string | null
-          id_doc_back_path?: string | null
-          id_doc_front_path?: string | null
+          id_doc_back_path?: never
+          id_doc_front_path?: never
           id_doc_type?: Database["public"]["Enums"]["id_doc_type"] | null
           phone?: string | null
           real_name?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
-          selfie_path?: string | null
+          selfie_path?: never
           social_links?: Json | null
           stage_name?: string | null
           status?: Database["public"]["Enums"]["artist_app_status"] | null
