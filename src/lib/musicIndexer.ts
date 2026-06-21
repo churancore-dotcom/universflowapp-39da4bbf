@@ -327,9 +327,21 @@ export async function resolveIndexedTrack(
   if (existing) return existing;
 
   const pending = (async () => {
-    // FAST PATH: use the deployed JioSaavn API first. It returns direct CDN
-    // audio URLs with CORS, avoiding the stale/proxy YouTube streams that were
-    // causing silent playback / MEDIA_ELEMENT format errors.
+    // FAST PATH: shared DB cache first. This avoids waiting on external search
+    // APIs for popular songs and cuts APK tap-to-audio latency.
+    const dbHit = opts.forceRefresh ? null : await tryDbCachedStream(artist, title);
+    if (dbHit?.streamUrl) {
+      setCachedStream(cacheKey, dbHit.streamUrl, {
+        title: dbHit.title,
+        artist: dbHit.artist,
+        cover_url: dbHit.cover_url,
+        duration: dbHit.duration,
+      });
+      return dbHit;
+    }
+
+    // Next: use the deployed JioSaavn API. It returns direct CDN audio URLs
+    // with CORS, avoiding stale/proxy YouTube streams.
     const saavnHit = await findSongStreamUrl(title, artist, opts).catch(() => null);
     if (saavnHit?.streamUrl) {
       const result: ResolveTrackResponse = {
@@ -344,18 +356,7 @@ export async function resolveIndexedTrack(
       return result;
     }
 
-    // Fallback: try DB cache (shared across all users) before the slower indexer.
-    const dbHit = opts.forceRefresh ? null : await tryDbCachedStream(artist, title);
-    if (dbHit?.streamUrl) {
-      setCachedStream(cacheKey, dbHit.streamUrl, {
-        title: dbHit.title,
-        artist: dbHit.artist,
-        cover_url: dbHit.cover_url,
-        duration: dbHit.duration,
-      });
-      return dbHit;
-    }
-
+    // Fallback: slower edge resolver.
     return await resolveViaEdgeFunction(artist, title, cacheKey, opts.forceRefresh === true);
   })().finally(() => {
     inFlightResolutions.delete(cacheKey);
