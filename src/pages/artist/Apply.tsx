@@ -161,8 +161,15 @@ function FilePicker({
         <input
           type="file"
           accept={accept}
-          className="hidden"
-          onChange={(e) => onPick(e.target.files?.[0] ?? null)}
+          className="sr-only"
+          // NOTE: do NOT use `hidden` / display:none — Android WebView blocks the
+          // native file picker on display:none inputs. sr-only keeps it tappable.
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            onPick(f);
+            // Reset so picking the same file again still fires onChange.
+            e.target.value = '';
+          }}
         />
       </div>
     </label>
