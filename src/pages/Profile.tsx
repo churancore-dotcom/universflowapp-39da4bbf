@@ -71,8 +71,8 @@ const Profile = () => {
       if (data) {
         setProfileData({
           username: data.username,
-          username_changed: (data as any).username_changed || false,
-          avatar_url: (data as any).avatar_url || null,
+          username_changed: data.username_changed || false,
+          avatar_url: data.avatar_url || null,
         });
         setNewUsername(data.username || '');
       }
@@ -96,13 +96,17 @@ const Profile = () => {
         downloads: downloads.length,
       });
 
-      const recentRows = (recentPlays.data as any[]) || [];
+      type RecentRow = { song_id: string; played_at: string };
+      type CatalogSong = { id: string; title: string; artist: string; duration: number | null };
+      type PlayEventRow = { title: string | null; artist: string | null; created_at: string };
+
+      const recentRows = (recentPlays.data as RecentRow[] | null) || [];
       const catalogIds = [...new Set(recentRows.map((r) => r.song_id).filter(Boolean))];
       const { data: catalogSongs } = catalogIds.length
         ? await supabase.from('songs').select('id,title,artist,duration').in('id', catalogIds)
-        : { data: [] as any[] };
-      const songById = new Map((catalogSongs || []).map((song: any) => [song.id, song]));
-      const eventRows = ((playEvents.data as any[]) || []).map((r) => ({
+        : { data: [] as CatalogSong[] };
+      const songById = new Map(((catalogSongs as CatalogSong[] | null) || []).map((song) => [song.id, song]));
+      const eventRows = ((playEvents.data as PlayEventRow[] | null) || []).map((r) => ({
         title: r.title,
         artist: r.artist,
         played_at: r.created_at,
@@ -110,7 +114,7 @@ const Profile = () => {
       }));
       const rows = [
         ...recentRows.map((r) => {
-          const song = songById.get(r.song_id) as any;
+          const song = songById.get(r.song_id);
           return { title: song?.title, artist: song?.artist, played_at: r.played_at, duration: Number(song?.duration) || 180 };
         }),
         ...eventRows,
