@@ -40,7 +40,7 @@ const FollowArtistButton = memo(function FollowArtistButton({
       setIsFollowing(prefs.some((p) => p.artist_name.trim().toLowerCase() === target));
     });
     return () => { cancelled = true; };
-  }, [user?.id, artistName]);
+  }, [user, artistName]);
 
   const handleClick = useCallback(async (e: React.MouseEvent) => {
     e.stopPropagation();

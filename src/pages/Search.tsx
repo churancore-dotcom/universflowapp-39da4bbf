@@ -169,12 +169,12 @@ const Search = () => {
   useEffect(() => {
     const urlQuery = params.get('q')?.trim() || '';
     if (urlQuery && urlQuery !== query.trim()) setQuery(urlQuery);
-  }, [params]);
+  }, [params, query]);
 
   // Refresh history snapshot whenever the currently playing song changes
   useEffect(() => {
     if (currentSong) setSearchHistory(getSongHistory());
-  }, [currentSong?.id]);
+  }, [currentSong]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();

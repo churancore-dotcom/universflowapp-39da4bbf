@@ -86,7 +86,7 @@ const Settings = () => {
     calcSize();
   }, []);
 
-  useEffect(() => { applyTheme(theme); }, []);
+  useEffect(() => { applyTheme(theme); }, [theme]);
 
   const handleGapless = (val: boolean) => { setGaplessPlayback(val); localStorage.setItem('uf_gapless', String(val)); };
   const handleAutoplay = (val: boolean) => { setAutoplay(val); localStorage.setItem('uf_autoplay', String(val)); };

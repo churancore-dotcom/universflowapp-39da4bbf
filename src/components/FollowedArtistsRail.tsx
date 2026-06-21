@@ -41,7 +41,7 @@ const FollowedArtistsRail = memo(function FollowedArtistsRail({
       setFollowedNames(prefs.map((p) => p.artist_name).filter(Boolean));
     });
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user]);
 
   // From provided catalog/indexed songs (filtered by followed artist names)
   const localMatches = useMemo<Song[]>(() => {

@@ -75,7 +75,7 @@ export default function ArtistPublic() {
         supabase.rpc('increment_artist_song_view' as never, { _song_id: song.id } as never);
       });
     })();
-  }, [slug, user?.id]);
+  }, [slug, user]);
 
   // Realtime — keep follower count fresh
   useEffect(() => {
@@ -87,7 +87,7 @@ export default function ArtistPublic() {
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [profile?.user_id]);
+  }, [profile]);
 
   const toggleFollow = async () => {
     if (!user || !profile) { navigate('/auth'); return; }

@@ -49,7 +49,7 @@ const ChartSection = memo(function ChartSection({ chartType, perCountry = false,
       if (!cancelled) setCountry(cc || detectFallbackCountry());
     })();
     return () => { cancelled = true; };
-  }, [perCountry, user?.id]);
+  }, [perCountry, user]);
 
   useEffect(() => {
     let cancelled = false;

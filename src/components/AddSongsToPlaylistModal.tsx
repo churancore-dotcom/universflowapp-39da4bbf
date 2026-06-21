@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Search, Music, Check, Loader2, Plus, Radio } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -30,20 +30,7 @@ const AddSongsToPlaylistModal = ({
   const [selectedSongs, setSelectedSongs] = useState<Set<string>>(new Set());
   const [adding, setAdding] = useState(false);
 
-  useEffect(() => {
-    if (isOpen) {
-      fetchSongs();
-      setSelectedSongs(new Set());
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const id = setTimeout(fetchSongs, 350);
-    return () => clearTimeout(id);
-  }, [isOpen, searchQuery]);
-
-  const fetchSongs = async () => {
+  const fetchSongs = useCallback(async () => {
     setLoading(true);
     const data = await searchIndexedTracks(searchQuery.trim() || 'top songs', 40).catch(() => [] as IndexedTrack[]);
     setSongs(data.map(s => ({
@@ -57,7 +44,20 @@ const AddSongsToPlaylistModal = ({
       source: 'indexed' as const,
     })));
     setLoading(false);
-  };
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchSongs();
+      setSelectedSongs(new Set());
+    }
+  }, [isOpen, fetchSongs]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const id = setTimeout(fetchSongs, 350);
+    return () => clearTimeout(id);
+  }, [isOpen, searchQuery, fetchSongs]);
 
   const toggleSong = (songId: string) => {
     setSelectedSongs(prev => {

@@ -160,7 +160,7 @@ const ListenerRoute = ({ children }: { children: React.ReactNode }) => {
       if (!cancelled) setArtistDestination(destination);
     });
     return () => { cancelled = true; };
-  }, [user?.id, emailVerified]);
+  }, [user, emailVerified]);
 
   if (isLoading) return <LazyFallback />;
   if (!user) return <Navigate to="/auth" replace />;
@@ -193,7 +193,7 @@ const AdminRoute = ({ children }: { children: React.ReactNode }) => {
       }
     })();
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user]);
 
   if (isLoading || verified === null) return <LazyFallback />;
   if (!user) return <Navigate to="/auth" replace />;
@@ -225,7 +225,7 @@ const RootGate = () => {
       if (!cancelled) setArtistDestination(destination);
     });
     return () => { cancelled = true; };
-  }, [user?.id, emailVerified]);
+  }, [user, emailVerified]);
 
   if (isLoading) return <LazyFallback />;
   if (user) {

@@ -90,7 +90,7 @@ const AdminDashboard = () => {
       supabase.removeChannel(recentChannel);
       clearInterval(interval);
     };
-  }, []);
+  }, [fetchAll]);
 
   const fetchStats = async () => {
     try {

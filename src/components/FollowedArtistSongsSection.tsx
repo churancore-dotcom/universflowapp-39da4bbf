@@ -107,7 +107,7 @@ const FollowedArtistSongsSection = memo(function FollowedArtistSongsSection({ so
   const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
   const { getDownloadedUrl } = useDownloads();
   const queryClient = useQueryClient();
-  const queryKey = ['followed-artist-songs', userId] as const;
+  const queryKey = useMemo(() => ['followed-artist-songs', userId] as const, [userId]);
 
   useEffect(() => {
     if (!userId) return;
@@ -121,7 +121,7 @@ const FollowedArtistSongsSection = memo(function FollowedArtistSongsSection({ so
       window.removeEventListener('uf:artist-prefs-changed', refresh);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [userId, queryClient]);
+  }, [userId, queryClient, queryKey]);
 
   const { data: followedSongs = [] } = useQuery({
     queryKey,
