@@ -78,9 +78,8 @@ const ManageArtists = () => {
 
   const fetchArtists = async () => {
     try {
-      // Use raw query since types aren't regenerated yet
       const { data: artistsData, error: artistsError } = await supabase
-        .from('artists' as any)
+        .from('artists')
         .select('*')
         .order('name');
 
@@ -94,13 +93,13 @@ const ManageArtists = () => {
       if (songsError) throw songsError;
 
       const countMap: Record<string, number> = {};
-      (songsData as any[] || []).forEach(song => {
+      (songsData || []).forEach((song) => {
         if (song.artist_id) {
           countMap[song.artist_id] = (countMap[song.artist_id] || 0) + 1;
         }
       });
 
-      const artistsWithCounts = (artistsData || []).map((artist: any) => ({
+      const artistsWithCounts = (artistsData || []).map((artist) => ({
         id: artist.id,
         name: artist.name,
         bio: artist.bio,
@@ -129,7 +128,7 @@ const ManageArtists = () => {
       if (error) throw error;
       
       // Map with artist_id field
-      const songsWithArtistId = (data || []).map((song: any) => ({
+      const songsWithArtistId = (data || []).map((song) => ({
         id: song.id,
         title: song.title,
         artist: song.artist,
@@ -216,7 +215,7 @@ const ManageArtists = () => {
 
       if (editingArtist) {
         const { error } = await supabase
-          .from('artists' as any)
+          .from('artists')
           .update(artistData)
           .eq('id', editingArtist.id);
 
@@ -224,7 +223,7 @@ const ManageArtists = () => {
         toast.success('Artist updated!');
       } else {
         const { error } = await supabase
-          .from('artists' as any)
+          .from('artists')
           .insert(artistData);
 
         if (error) throw error;
@@ -247,7 +246,7 @@ const ManageArtists = () => {
 
     try {
       const { error } = await supabase
-        .from('artists' as any)
+        .from('artists')
         .delete()
         .eq('id', artist.id);
 
