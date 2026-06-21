@@ -1,17 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, ArrowRight, Loader2, AlertTriangle, RotateCcw, ArrowLeft, ArrowUp, Smile } from 'lucide-react';
+import { Camera, ArrowRight, Loader2, AlertTriangle, RotateCcw, Check } from 'lucide-react';
 
 type Pose = 'center' | 'left' | 'right' | 'up';
 
-const POSE_PROMPT: Record<Pose, string> = {
-  center: 'Look straight at the camera',
-  left: 'Slowly turn your head left',
-  right: 'Slowly turn your head right',
-  up: 'Tilt your head up',
+const POSE_PROMPT: Record<Pose, { title: string; sub: string }> = {
+  center: { title: 'Look straight ahead', sub: 'Center your face in the circle' },
+  left:   { title: 'Turn your head left',  sub: 'Slowly, keep your eyes on the screen' },
+  right:  { title: 'Turn your head right', sub: 'Slowly, keep your eyes on the screen' },
+  up:     { title: 'Tilt your head up',    sub: 'Lift your chin a little' },
 };
 
 const ORDER: Pose[] = ['center', 'left', 'right', 'up'];
+
+// Each pose owns a 90° arc of the ring around the face oval.
+// Order around the oval (12 o'clock = top): up, right, center(bottom), left.
+const POSE_ARC: Record<Pose, { startDeg: number; endDeg: number }> = {
+  up:     { startDeg: -135, endDeg:  -45 }, // top quarter
+  right:  { startDeg:  -45, endDeg:   45 }, // right quarter
+  center: { startDeg:   45, endDeg:  135 }, // bottom quarter
+  left:   { startDeg:  135, endDeg:  225 }, // left quarter
+};
 
 
 export interface LivenessShots {
