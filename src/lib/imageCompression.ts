@@ -40,6 +40,9 @@ export const compressImage = async (
     }
 
     img.onload = () => {
+      // Revoke the temporary blob URL as soon as the image is decoded.
+      URL.revokeObjectURL(img.src);
+
       // Calculate new dimensions maintaining aspect ratio
       let { width, height } = img;
 
@@ -84,11 +87,13 @@ export const compressImage = async (
     };
 
     img.onerror = () => {
+      URL.revokeObjectURL(img.src);
       reject(new Error('Failed to load image for compression'));
     };
 
     // Load image from file
-    img.src = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(file);
+    img.src = objectUrl;
   });
 };
 
