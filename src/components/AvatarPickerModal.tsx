@@ -34,7 +34,7 @@ const AvatarPickerModal = ({ isOpen, onClose, userId, currentAvatar, onSaved }: 
       onSaved(selected);
       toast.success('Avatar updated');
       onClose();
-    } catch (e: any) {
+    } catch (e) {
       toast.error(e.message || 'Failed to save avatar');
     } finally {
       setSaving(false);

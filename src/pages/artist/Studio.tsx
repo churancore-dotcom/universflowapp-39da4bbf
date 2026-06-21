@@ -453,7 +453,7 @@ function AddSongDialog({ open, onClose, userId }: { open: boolean; onClose: () =
       if (error) throw error;
       toast.success('Song published ✓');
       onClose();
-    } catch (e: any) {
+    } catch (e) {
       setError(e?.message || 'Could not save song.');
     } finally {
       setSaving(false);
@@ -555,7 +555,7 @@ function EditProfileDialog({ open, onClose, profile, onSaved }: {
       onSaved(data as Profile);
       toast.success('Profile updated');
       onClose();
-    } catch (e: any) {
+    } catch (e) {
       toast.error(e?.message || 'Could not save.');
     } finally {
       setSaving(false);

@@ -177,7 +177,7 @@ const ManageAlbums = () => {
       setIsDialogOpen(false);
       resetForm();
       fetchAlbums();
-    } catch (error: any) {
+    } catch (error) {
       toast.error(getDatabaseError(error));
     } finally {
       setIsSaving(false);
@@ -196,7 +196,7 @@ const ManageAlbums = () => {
       if (error) throw error;
       toast.success('Album deleted');
       fetchAlbums();
-    } catch (error: any) {
+    } catch (error) {
       toast.error(getDatabaseError(error));
     }
   };

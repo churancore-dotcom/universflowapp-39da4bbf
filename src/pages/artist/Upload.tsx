@@ -34,7 +34,7 @@ export default function ArtistUpload() {
       if (error) throw error;
       toast.success('Song published ✓');
       navigate('/artist/studio/songs');
-    } catch (e: any) {
+    } catch (e) {
       toast.error(e?.message || 'Could not publish song.');
     } finally {
       setSaving(false);

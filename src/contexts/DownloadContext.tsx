@@ -425,7 +425,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         });
       }, 2000);
 
-    } catch (error: any) {
+    } catch (error) {
       const wasCancelled = error?.name === 'AbortError' || cancelledIdsRef.current.has(song.id);
       if (wasCancelled) {
         toast.info('Download cancelled');

@@ -76,7 +76,7 @@ const BackupExport = () => {
 
       toast.success(`Exported ${option.name} successfully`);
       setLastExport(new Date());
-    } catch (error: any) {
+    } catch (error) {
       toast.error(`Failed to export ${option.name}: ${getDatabaseError(error)}`);
     } finally {
       setExporting(null);
@@ -125,7 +125,7 @@ const BackupExport = () => {
 
       toast.success(`Full backup created with ${selectedItems.size} data types`);
       setLastExport(new Date());
-    } catch (error: any) {
+    } catch (error) {
       toast.error(`Backup failed: ${getDatabaseError(error)}`);
     } finally {
       setExporting(null);

@@ -81,7 +81,7 @@ const PinToViralButton = memo(({ song, size = 'sm', className = '', variant = 'o
         setPinned(true);
         toast.success('Pinned to Trending Now 🔥');
       }
-    } catch (err: any) {
+    } catch (err) {
       toast.error(err?.message || 'Action failed');
     } finally {
       setBusy(false);

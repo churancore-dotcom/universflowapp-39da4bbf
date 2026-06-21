@@ -47,7 +47,7 @@ export default function EditProfile() {
         .eq('user_id', user.id);
       if (error) throw error;
       toast.success('Profile updated ✓');
-    } catch (e: any) {
+    } catch (e) {
       toast.error(e?.message || 'Could not save profile.');
     } finally {
       setSaving(false);

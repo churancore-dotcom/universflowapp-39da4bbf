@@ -234,7 +234,7 @@ const ManageArtists = () => {
       setIsDialogOpen(false);
       resetForm();
       fetchArtists();
-    } catch (error: any) {
+    } catch (error) {
       toast.error(getDatabaseError(error));
     } finally {
       setIsSaving(false);
@@ -255,7 +255,7 @@ const ManageArtists = () => {
       toast.success('Artist deleted');
       fetchArtists();
       fetchSongs();
-    } catch (error: any) {
+    } catch (error) {
       toast.error(getDatabaseError(error));
     }
   };
@@ -282,7 +282,7 @@ const ManageArtists = () => {
       toast.success(artistId ? 'Song assigned to artist' : 'Song unassigned');
       fetchSongs();
       fetchArtists();
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error assigning song:', error);
       toast.error('Failed to assign song');
     }

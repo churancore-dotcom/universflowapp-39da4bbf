@@ -226,7 +226,7 @@ const ManageSubscriptions = () => {
       if (error) throw error;
       toast.success(`Expiry set: ${expiresAt.toLocaleString()}`);
       fetchSubscriptions();
-    } catch (e: any) {
+    } catch (e) {
       toast.error(e?.message || 'Failed to set expiry');
     }
   };

@@ -172,7 +172,7 @@ const Profile = () => {
       setProfileData(prev => ({ ...prev, username: newUsername.trim(), username_changed: true }));
       setIsEditingUsername(false);
       toast.success('Username set!');
-    } catch (error: any) {
+    } catch (error) {
       toast.error(error.message || 'Failed to update username');
     } finally {
       setIsSaving(false);

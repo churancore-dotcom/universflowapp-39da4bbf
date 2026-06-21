@@ -67,7 +67,7 @@ export default function FaceLivenessCapture({
       // Arm the first capture automatically so the user sees the countdown
       // and knows the system is alive — fixes the "screen just sits dead" bug.
       setTimeout(() => setArmed(true), 600);
-    } catch (e: any) {
+    } catch (e) {
       const msg = e?.message || '';
       const name = e?.name || '';
       let friendly = msg;
