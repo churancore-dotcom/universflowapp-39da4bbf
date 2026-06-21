@@ -2039,6 +2039,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Push live position/duration to the Dynamic Island progress bar.
   useEffect(() => {
+    if (!currentSong) return;
     let cancelled = false;
     const id = window.setInterval(() => {
       import('@/lib/dynamicIsland').then(({ updateIsland }) => {
@@ -2051,7 +2052,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }).catch(() => {});
     }, 1000);
     return () => { cancelled = true; window.clearInterval(id); };
-  }, [isPlaying, liveDuration]);
+  }, [currentSong?.id, isPlaying, liveDuration]);
 
   // Track each played song into local song-history (Spotify-style search history)
   useEffect(() => {
