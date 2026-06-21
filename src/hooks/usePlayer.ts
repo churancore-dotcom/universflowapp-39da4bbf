@@ -11,7 +11,7 @@ export function usePlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(
     typeof window !== 'undefined' ? new Audio() : null
   );
-  const [current, setCurrent] = useState<QueueSong | null>(null);
+  const [current, setCurrent] = useState<unknown>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [queue, setQueue] = useState<QueueSong[]>([]);

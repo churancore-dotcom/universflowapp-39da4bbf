@@ -132,7 +132,7 @@ export function useUserEQSettingsSync(userId?: string | null) {
         .maybeSingle();
       if (cancelled) return;
       if (data?.settings) {
-        const remote = normalizeEQSettings(data.settings);
+        const remote = normalizeEQSettings(data.settings as Partial<EQSettings>);
         lastRemoteJSON = JSON.stringify(remote);
         setEQSettings(remote);
       } else {

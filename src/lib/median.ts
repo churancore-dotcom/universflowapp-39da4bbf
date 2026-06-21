@@ -2,7 +2,6 @@ import { Capacitor } from '@capacitor/core';
 
 declare global {
   interface Window {
-    Capacitor?: { isNativePlatform?: () => boolean };
     isMedianApp?: boolean;
     isMedianIOS?: boolean;
     isMedianAndroid?: boolean;
@@ -22,7 +21,7 @@ const isCapacitorNative = (() => {
   }
 
   try {
-    if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) return true;
+    if (typeof window !== 'undefined' && (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.()) return true;
   } catch {
     /* noop */
   }
