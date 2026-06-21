@@ -179,7 +179,7 @@ function FilePicker({
 }
 
 export default function ArtistApply() {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isReapplyMode = searchParams.get('mode') === 'reapply';
@@ -284,6 +284,18 @@ export default function ArtistApply() {
     if (step === 4) return !!livenessShots;
     if (step === 5) return !!photo;
     return agreeTerms && agreePrivacy;
+  };
+
+  const handleBack = async () => {
+    if (step > 1) {
+      setStep((s) => (s - 1) as Step);
+      return;
+    }
+
+    // /artist/apply is protected and /auth redirects signed-in users away.
+    // Sign out first so the About You back button actually lands on Auth.
+    await signOut();
+    navigate('/auth', { replace: true });
   };
 
   const submit = async () => {
@@ -409,11 +421,7 @@ export default function ArtistApply() {
         >
           <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
             <button
-              onClick={() => {
-                if (step > 1) { setStep((s) => (s - 1) as Step); return; }
-                // Step 1 back: leave the apply flow and return to main auth.
-                navigate('/auth', { replace: true });
-              }}
+              onClick={handleBack}
               className="w-10 h-10 rounded-full flex items-center justify-center bg-white/[0.06] active:scale-95 transition"
               aria-label="Back"
             >
