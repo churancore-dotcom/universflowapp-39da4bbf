@@ -23,6 +23,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { toast } from 'sonner';
 import { compressImage } from '@/lib/imageCompression';
 import { getDatabaseError } from '@/lib/errorMessages';
+import { useFilePreview } from '@/lib/useFilePreview';
 
 interface Album {
   id: string;
