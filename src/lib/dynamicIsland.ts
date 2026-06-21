@@ -6,6 +6,7 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 interface DynamicIslandPluginShape {
   canDraw(): Promise<{ granted: boolean }>;
   requestPermission(): Promise<{ granted: boolean }>;
+  openOverlaySettings?(): Promise<{ granted: boolean }>;
   show(opts: { title: string; artist: string; cover?: string; isPlaying: boolean }): Promise<void>;
   update(opts: { isPlaying?: boolean; position?: number; duration?: number }): Promise<void>;
   hide(): Promise<void>;
@@ -17,7 +18,7 @@ interface DynamicIslandPluginShape {
 
 const Island = registerPlugin<DynamicIslandPluginShape>('DynamicIsland');
 
-const PERM_PROMPT_KEY = 'uf:island-perm-prompted';
+const PERM_PROMPT_KEY = 'uf:island-perm-prompted:v2';
 
 function isAndroid(): boolean {
   try {
@@ -71,10 +72,17 @@ export async function canShowIsland(): Promise<boolean> {
 export async function requestIslandPermission(): Promise<boolean> {
   if (!isAndroid()) return false;
   try {
-    sessionStorage.setItem(PERM_PROMPT_KEY, '1');
-  } catch { /* noop */ }
-  try {
     const { granted } = await Island.requestPermission();
+    try { sessionStorage.setItem(PERM_PROMPT_KEY, '1'); } catch { /* noop */ }
+    return !!granted;
+  } catch { return false; }
+}
+
+export async function openIslandPermissionSettings(): Promise<boolean> {
+  if (!isAndroid()) return false;
+  try {
+    const fn = Island.openOverlaySettings || Island.requestPermission;
+    const { granted } = await fn.call(Island);
     return !!granted;
   } catch { return false; }
 }
