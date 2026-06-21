@@ -1,6 +1,7 @@
 import { motion, Transition } from 'framer-motion';
-import { ReactNode, forwardRef, createContext, useContext, useRef, useMemo } from 'react';
+import { ReactNode, forwardRef, useRef, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
+import { NavDirectionContext, useNavDirection } from '@/contexts/NavDirectionContext';
 
 interface PageTransitionProps {
   children: ReactNode;
@@ -21,11 +22,6 @@ const pageTiming: Transition = {
 
 // Tab order for directional transitions
 const TAB_ORDER = ['/home', '/search', '/library', '/profile'];
-
-// Context to share navigation direction
-const NavDirectionContext = createContext<number>(0);
-
-export const useNavDirection = () => useContext(NavDirectionContext);
 
 export const NavDirectionProvider = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
@@ -91,10 +87,8 @@ export const FadeTransition = forwardRef<HTMLDivElement, PageTransitionProps>(({
 });
 FadeTransition.displayName = 'FadeTransition';
 
-// Premium iOS-native tab transition — instant, no wait
 export const TabTransition = ({ children, className = '' }: PageTransitionProps) => {
-  const direction = useNavDirection();
-
+  useNavDirection();
   return (
     <motion.div
       className={className}

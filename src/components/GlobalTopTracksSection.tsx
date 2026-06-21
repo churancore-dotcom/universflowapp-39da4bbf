@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2, Music2, Disc3 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -70,7 +70,7 @@ const GlobalTopTracksSection = () => {
     },
   });
 
-  const tracks = data?.tracks ?? [];
+  const tracks = useMemo(() => data?.tracks ?? [], [data?.tracks]);
   const followedCount = data?.followedCount ?? 0;
 
   useEffect(() => {
