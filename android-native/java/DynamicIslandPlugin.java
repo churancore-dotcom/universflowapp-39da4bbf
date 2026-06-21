@@ -1,4 +1,4 @@
-package com.universeflow.app.island;
+package PACKAGE_PLACEHOLDER.island;
 
 import android.content.Intent;
 import android.net.Uri;
