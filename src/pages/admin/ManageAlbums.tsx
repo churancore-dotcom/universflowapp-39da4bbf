@@ -251,7 +251,7 @@ const ManageAlbums = () => {
                       type="file"
                       accept="image/*"
                       className="sr-only"
-                      onChange={handleCoverSelect}
+                      onChange={(e) => { handleCoverSelect(e); e.target.value = ''; }}
                     />
                     <Button type="button" variant="outline" size="sm" asChild>
                       <span className="gap-2">

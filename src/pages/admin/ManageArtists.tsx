@@ -344,7 +344,7 @@ const ManageArtists = () => {
                       type="file"
                       accept="image/*"
                       className="sr-only"
-                      onChange={handlePhotoSelect}
+                      onChange={(e) => { handlePhotoSelect(e); e.target.value = ''; }}
                     />
                     <Button type="button" variant="outline" size="sm" asChild>
                       <span className="gap-2">
