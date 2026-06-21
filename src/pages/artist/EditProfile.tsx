@@ -128,7 +128,7 @@ function PhotoField({
         <span className="text-[12px] text-muted-foreground flex-1 truncate">
           {file ? file.name : preview ? 'Tap to replace' : 'Tap to upload'}
         </span>
-        <input type="file" accept="image/*" className="hidden" onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
+        <input type="file" accept="image/*" className="sr-only" onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
       </div>
     </label>
   );

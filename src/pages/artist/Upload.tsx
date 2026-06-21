@@ -73,7 +73,7 @@ export default function ArtistUpload() {
             <span className="text-[12.5px] text-muted-foreground flex-1 truncate">
               {cover ? cover.name : 'Tap to pick cover (square recommended)'}
             </span>
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
+            <input type="file" accept="image/*" className="sr-only" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
           </label>
         </Field>
 

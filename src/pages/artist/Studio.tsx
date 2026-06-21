@@ -490,7 +490,7 @@ function AddSongDialog({ open, onClose, userId }: { open: boolean; onClose: () =
                 {cover ? <img src={URL.createObjectURL(cover)} className="w-full h-full object-cover" alt="" /> : <ImageIcon className="w-5 h-5 text-muted-foreground" />}
               </div>
               <span className="text-[12.5px] text-muted-foreground">{cover ? cover.name : 'Tap to pick cover'}</span>
-              <input type="file" accept="image/*" className="hidden" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
+              <input type="file" accept="image/*" className="sr-only" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
             </label>
           </div>
 
@@ -612,7 +612,7 @@ function PhotoField({ label, file, existing, onPick }: { label: string; file: Fi
         <div className="flex-1 text-[12.5px] text-muted-foreground truncate">{file ? file.name : existing ? 'Current photo' : 'No image'}</div>
         <label className="text-[12px] text-primary px-2 py-1 cursor-pointer">
           {file || existing ? 'Change' : 'Pick'}
-          <input type="file" accept="image/*" className="hidden" onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
+          <input type="file" accept="image/*" className="sr-only" onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
         </label>
         {file && (
           <button type="button" onClick={() => onPick(null)} className="text-muted-foreground p-1">
