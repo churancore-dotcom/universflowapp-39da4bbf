@@ -77,6 +77,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const loadEmailVerified = useCallback(async (userId: string) => {
     try {
+      // Admins bypass the verification gate entirely — they manage the platform
+      // and must always reach /admin (and the app) even if their profile row
+      // hasn't been flipped (seeded accounts, magic-link logins, etc.).
+      try {
+        const { data: adminFlag } = await supabase.rpc('has_role', { _user_id: userId, _role: 'admin' });
+        if (adminFlag) { setEmailVerified(true); return; }
+      } catch { /* fall through to normal check */ }
+
       const { data } = await supabase
         .from('profiles')
         .select('email_verified')
