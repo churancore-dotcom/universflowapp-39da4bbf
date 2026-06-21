@@ -92,7 +92,7 @@ const VideoAvatar = memo(({ variant, size = 96, paused = false }: Props) => {
         loop
         muted
         playsInline
-        // @ts-ignore — non-standard but improves background playback on iOS Safari
+        // @ts-expect-error — non-standard but improves background playback on iOS Safari
         disableRemotePlayback
         preload="auto"
         onCanPlay={() => setReady(true)}

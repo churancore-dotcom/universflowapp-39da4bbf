@@ -26,7 +26,8 @@ const readSet = (key: string): Set<string> => {
     const raw = localStorage.getItem(key);
     if (!raw) return new Set();
     return new Set(JSON.parse(raw) as string[]);
-  } catch {
+  } catch (e) {
+    console.warn('AnnouncementBanner readSet error:', e);
     return new Set();
   }
 };
@@ -36,7 +37,7 @@ const writeSet = (key: string, set: Set<string>) => {
     // Keep only last 200 entries to avoid unbounded growth
     const arr = Array.from(set).slice(-200);
     localStorage.setItem(key, JSON.stringify(arr));
-  } catch {}
+  } catch (e) { console.warn('AnnouncementBanner writeSet error:', e); }
 };
 
 const styleFor = (type: Announcement['type']) => {
@@ -103,7 +104,7 @@ const AnnouncementBanner = () => {
             event_type: 'delivered',
           });
           delivered.add(a.id);
-        } catch {}
+        } catch (e) { console.warn('AnnouncementBanner deliver insert error:', e); }
       }
       writeSet(DELIVERED_KEY, delivered);
     })();
@@ -132,7 +133,7 @@ const AnnouncementBanner = () => {
           user_id: user.id,
           event_type: 'clicked',
         });
-      } catch {}
+      } catch (e) { console.warn('AnnouncementBanner click insert error:', e); }
     }
     const dl = top.deep_link?.trim();
     if (dl) {

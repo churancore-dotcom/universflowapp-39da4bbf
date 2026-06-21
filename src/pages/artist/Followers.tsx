@@ -29,7 +29,7 @@ export default function ArtistFollowers() {
         .limit(200);
       if (!alive) return;
       const ids = (follows ?? []).map((f) => f.follower_user_id);
-      let profilesMap: Record<string, { username: string | null; avatar_url: string | null }> = {};
+      const profilesMap: Record<string, { username: string | null; avatar_url: string | null }> = {};
       if (ids.length) {
         const { data: profs } = await supabase
           .from('profiles')

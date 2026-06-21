@@ -28,7 +28,7 @@ export async function retry<T>(
   } = opts;
 
   let attempt = 0;
-  // eslint-disable-next-line no-constant-condition
+  // eslint-disable-next-line no-constant-condition -- intentional infinite retry loop
   while (true) {
     try {
       return await fn();

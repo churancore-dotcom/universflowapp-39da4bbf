@@ -84,7 +84,7 @@ const AddSongsToPlaylistModal = ({
       .order('position', { ascending: false })
       .limit(1);
 
-    let nextPosition = existingSongs && existingSongs.length > 0 ? existingSongs[0].position + 1 : 0;
+    const nextPosition = existingSongs && existingSongs.length > 0 ? existingSongs[0].position + 1 : 0;
 
     const selected = songs.filter((song) => selectedSongs.has(song.id));
     await Promise.all(selected.map((song) => persistStreamSong(song)));

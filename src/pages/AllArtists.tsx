@@ -367,7 +367,7 @@ const AllArtists = () => {
         borderBottom: '0.5px solid rgba(255,255,255,0.06)',
       }}>
         <div className="flex items-center gap-3">
-          <motion.button onClick={() => { triggerHaptic('impactLight'); selectedArtist ? setSelectedArtist(null) : navigate(-1); }}
+          <motion.button onClick={() => { triggerHaptic('impactLight'); if (selectedArtist) { setSelectedArtist(null); } else { navigate(-1); } }}
             aria-label="Go back"
             className="w-9 h-9 rounded-xl flex items-center justify-center"
             style={{ background: 'rgba(255,255,255,0.06)', border: '0.5px solid rgba(255,255,255,0.10)' }}
