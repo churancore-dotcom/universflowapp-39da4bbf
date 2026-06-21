@@ -486,13 +486,7 @@ function AddSongDialog({ open, onClose, userId }: { open: boolean; onClose: () =
           </div>
           <div>
             <label className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-1.5">Cover art (optional)</label>
-            <label className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-3 flex items-center gap-3 cursor-pointer">
-              <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center overflow-hidden">
-                {cover ? <img src={URL.createObjectURL(cover)} className="w-full h-full object-cover" alt="" /> : <ImageIcon className="w-5 h-5 text-muted-foreground" />}
-              </div>
-              <span className="text-[12.5px] text-muted-foreground">{cover ? cover.name : 'Tap to pick cover'}</span>
-              <input type="file" accept="image/*" className="sr-only" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
-            </label>
+            <CoverPicker cover={cover} onPick={setCover} />
           </div>
 
           {error && <p className="text-[12px] text-rose-400">{error}</p>}
