@@ -1992,8 +1992,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let cancelled = false;
     const acquire = async () => {
       try {
-        const nav = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> } | null> } };
-        sentinel = await nav.wakeLock?.request('screen') ?? null;
+        sentinel = await navigator.wakeLock.request('screen');
         if (cancelled) {
           sentinel?.release().catch(() => {});
           sentinel = null;
