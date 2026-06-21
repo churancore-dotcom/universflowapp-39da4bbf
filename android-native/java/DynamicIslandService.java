@@ -1,4 +1,4 @@
-package com.universeflow.app.island;
+package PACKAGE_PLACEHOLDER.island;
 
 import android.animation.ValueAnimator;
 import android.app.Service;
