@@ -72,9 +72,9 @@ const Offline = memo(function Offline() {
         cover_url: s.cover_url,
         audio_url: s.audio_url, // This is the blobUrl from downloads
       }));
-      setQueue(offlineQueue as any);
+      setQueue(offlineQueue as Song[]);
       // Pass the blob URL explicitly for offline playback
-      playSong(firstSong as any, firstSong.audio_url, offlineQueue as any);
+      playSong(firstSong as Song, firstSong.audio_url, offlineQueue as Song[]);
     }
   };
 
@@ -89,8 +89,8 @@ const Offline = memo(function Offline() {
         cover_url: s.cover_url,
         audio_url: s.audio_url, // Local blob URL
       }));
-      setQueue(offlineQueue as any);
-      playSong(shuffled[0] as any, shuffled[0].audio_url, offlineQueue as any);
+      setQueue(offlineQueue as Song[]);
+      playSong(shuffled[0] as Song, shuffled[0].audio_url, offlineQueue as Song[]);
     }
   };
 
@@ -105,7 +105,7 @@ const Offline = memo(function Offline() {
       audio_url: s.audio_url, // Local blob URL
     }));
     // Pass the blob URL and offline queue
-    playSong(song as any, song.audio_url, offlineQueue as any);
+    playSong(song as Song, song.audio_url, offlineQueue as Song[]);
   };
 
   return (
