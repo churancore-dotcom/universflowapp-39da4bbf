@@ -17,13 +17,17 @@ interface Entry<T> {
   expiresAt: number;
 }
 
+// Bump when filter logic changes so old polluted entries get evicted automatically.
+const CACHE_VERSION = 'v2-strict-spam';
+
 const stores = new Map<string, Map<string, Entry<unknown>>>();
 
 const getStore = <T>(namespace: string): Map<string, Entry<T>> => {
-  let s = stores.get(namespace);
+  const ns = `${CACHE_VERSION}:${namespace}`;
+  let s = stores.get(ns);
   if (!s) {
     s = new Map();
-    stores.set(namespace, s);
+    stores.set(ns, s);
   }
   return s as Map<string, Entry<T>>;
 };
