@@ -51,7 +51,9 @@ const ManageArtists = () => {
     photo_url: '',
   });
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoUrlPreview, setPhotoUrlPreview] = useState<string | null>(null);
+  const photoFilePreview = useFilePreview(photoFile);
+  const photoPreview = photoFilePreview || photoUrlPreview;
 
   useEffect(() => {
     fetchArtists();
