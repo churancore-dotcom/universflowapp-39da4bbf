@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { compressImage, getCompressionStats, formatBytes } from '@/lib/imageCompression';
 import { getUploadError } from '@/lib/errorMessages';
+import { useFilePreview } from '@/lib/useFilePreview';
 
 const genres = ['Pop', 'Rock', 'Hip Hop', 'R&B', 'Electronic', 'Jazz', 'Classical', 'Country', 'Indie', 'Metal', 'Phonk', 'Lo-Fi', 'Bollywood', 'Punjabi', 'Haryanvi'];
 const moods = ['Happy', 'Sad', 'Energetic', 'Calm', 'Romantic', 'Dark', 'Uplifting', 'Chill', 'Slow Reverb', 'Bass Boosted'];
