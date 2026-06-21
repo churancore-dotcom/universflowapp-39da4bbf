@@ -31,7 +31,8 @@ const LiveInsights = () => {
   const [platforms, setPlatforms] = useState<{ name: string; value: number }[]>([]);
   const [topSongs, setTopSongs] = useState<{ title: string; artist: string; plays: number }[]>([]);
   const [topArtists, setTopArtists] = useState<{ name: string; plays: number }[]>([]);
-  const [recentUsers, setRecentUsers] = useState<any[]>([]);
+  type RecentUser = { user_id: string; email: string | null; username: string | null; avatar_url: string | null; country_code: string | null; created_at: string };
+  const [recentUsers, setRecentUsers] = useState<RecentUser[]>([]);
   const [totals, setTotals] = useState({
     users: 0, newUsers: 0, premium: 0, dauNow: 0, playsRange: 0, devices: 0,
   });
@@ -75,11 +76,16 @@ const LiveInsights = () => {
       sMap[k] = 0;
       dMap[k] = { users: new Set(), plays: 0 };
     }
-    (newProfiles || []).forEach((p: any) => {
+    type ProfileRow = { created_at: string };
+    type EventRow = { user_id: string | null; title: string | null; artist: string | null; action: string | null; created_at: string };
+    type CountryRow = { country_code: string | null };
+    type DeviceRow = { platform: string | null };
+
+    (newProfiles as ProfileRow[] | null || []).forEach((p) => {
       const k = fmtDay(new Date(p.created_at));
       if (k in sMap) sMap[k]++;
     });
-    (events || []).forEach((e: any) => {
+    (events as EventRow[] | null || []).forEach((e) => {
       const k = fmtDay(new Date(e.created_at));
       if (!dMap[k]) return;
       if (e.user_id) dMap[k].users.add(e.user_id);
@@ -92,9 +98,9 @@ const LiveInsights = () => {
     // top songs/artists
     const songMap: Record<string, { title: string; artist: string; plays: number }> = {};
     const artistMap: Record<string, number> = {};
-    (events || []).filter((e: any) => e.action === 'stream' && e.title).forEach((e: any) => {
+    (events as EventRow[] | null || []).filter((e) => e.action === 'stream' && e.title).forEach((e) => {
       const key = `${e.title}::${e.artist}`;
-      if (!songMap[key]) songMap[key] = { title: e.title, artist: e.artist || 'Unknown', plays: 0 };
+      if (!songMap[key]) songMap[key] = { title: e.title!, artist: e.artist || 'Unknown', plays: 0 };
       songMap[key].plays++;
       if (e.artist) artistMap[e.artist] = (artistMap[e.artist] || 0) + 1;
     });
@@ -104,7 +110,7 @@ const LiveInsights = () => {
 
     // countries
     const cMap: Record<string, number> = {};
-    (countryRows || []).forEach((r: any) => {
+    (countryRows as CountryRow[] | null || []).forEach((r) => {
       const cc = (r.country_code || 'XX').toUpperCase();
       cMap[cc] = (cMap[cc] || 0) + 1;
     });
@@ -113,7 +119,7 @@ const LiveInsights = () => {
 
     // platforms
     const pMap: Record<string, number> = {};
-    (deviceRows || []).forEach((r: any) => {
+    (deviceRows as DeviceRow[] | null || []).forEach((r) => {
       const p = (r.platform || 'unknown').toLowerCase();
       pMap[p] = (pMap[p] || 0) + 1;
     });
@@ -125,13 +131,13 @@ const LiveInsights = () => {
     setPlatforms(platformsArr);
     setTopSongs(topSongsArr);
     setTopArtists(topArtistsArr);
-    setRecentUsers(recent || []);
+    setRecentUsers((recent as RecentUser[] | null) || []);
     setTotals({
       users: usersCount || 0,
       newUsers: (newProfiles || []).length,
       premium: premiumCount || 0,
       dauNow: dauArr[dauArr.length - 1]?.users || 0,
-      playsRange: (events || []).filter((e: any) => e.action === 'stream').length,
+      playsRange: (events as EventRow[] | null || []).filter((e) => e.action === 'stream').length,
       devices: devicesCount || 0,
     });
 
