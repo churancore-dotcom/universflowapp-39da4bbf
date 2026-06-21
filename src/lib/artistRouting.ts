@@ -26,6 +26,14 @@ export async function getArtistDestination(user?: User | null): Promise<ArtistDe
     // Keep routing resilient if the role check is temporarily unavailable.
   }
 
+  // Only force-redirect into the artist flow when the user explicitly arrived
+  // via the artist signup intent (just submitted, came from /artist/auth, etc).
+  // A pending/rejected/approved application on its own must NEVER trap the
+  // user on /artist/status every time they open the app — they're listeners
+  // too, and admins must always reach the rest of the app. Users can still
+  // visit /artist/status manually from the menu.
+  if (!hasArtistSignupIntent(user)) return null;
+
   try {
     const { data: application } = await supabase
       .from('artist_applications_safe' as never)
@@ -34,11 +42,12 @@ export async function getArtistDestination(user?: User | null): Promise<ArtistDe
       .maybeSingle();
 
     const status = (application as { status?: string } | null)?.status;
-    if (status === 'pending' || status === 'rejected') return '/artist/status';
-    if (status === 'approved') return '/artist/status';
+    if (status === 'pending' || status === 'rejected' || status === 'approved') {
+      return '/artist/status';
+    }
   } catch {
-    // Fall back to signup intent below.
+    // Fall through to /artist/apply
   }
 
-  return hasArtistSignupIntent(user) ? '/artist/apply' : null;
+  return '/artist/apply';
 }
