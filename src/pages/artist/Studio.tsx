@@ -595,19 +595,49 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
+function CoverPicker({ cover, onPick }: { cover: File | null; onPick: (f: File | null) => void }) {
+  const preview = useFilePreview(cover);
+  return (
+    <label className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-3 flex items-center gap-3 cursor-pointer">
+      <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center overflow-hidden">
+        {cover ? <img src={preview || undefined} className="w-full h-full object-cover" alt="" /> : <ImageIcon className="w-5 h-5 text-muted-foreground" />}
+      </div>
+      <span className="text-[12.5px] text-muted-foreground">{cover ? cover.name : 'Tap to pick cover'}</span>
+      <input
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(e) => {
+          onPick(e.target.files?.[0] ?? null);
+          e.target.value = '';
+        }}
+      />
+    </label>
+  );
+}
+
 function PhotoField({ label, file, existing, onPick }: { label: string; file: File | null; existing: string | null; onPick: (f: File | null) => void }) {
-  const preview = file ? URL.createObjectURL(file) : existing;
+  const preview = useFilePreview(file);
+  const src = preview || existing;
   return (
     <label className="block">
       <span className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-1.5">{label}</span>
       <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-3 flex items-center gap-3">
         <div className="w-14 h-14 rounded-xl bg-white/[0.04] flex items-center justify-center overflow-hidden">
-          {preview ? <img src={preview} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="w-5 h-5 text-muted-foreground" />}
+          {src ? <img src={src} alt="" className="w-full h-full object-cover" /> : <ImageIcon className="w-5 h-5 text-muted-foreground" />}
         </div>
         <div className="flex-1 text-[12.5px] text-muted-foreground truncate">{file ? file.name : existing ? 'Current photo' : 'No image'}</div>
         <label className="text-[12px] text-primary px-2 py-1 cursor-pointer">
           {file || existing ? 'Change' : 'Pick'}
-          <input type="file" accept="image/*" className="sr-only" onChange={(e) => onPick(e.target.files?.[0] ?? null)} />
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(e) => {
+              onPick(e.target.files?.[0] ?? null);
+              e.target.value = '';
+            }}
+          />
         </label>
         {file && (
           <button type="button" onClick={() => onPick(null)} className="text-muted-foreground p-1">
