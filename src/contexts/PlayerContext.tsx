@@ -1980,6 +1980,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // play we proactively request the "Display over other apps" permission.
   useEffect(() => {
     let cancelled = false;
+    let removeAppListener: (() => void) | null = null;
 
     (async () => {
       const island = await import('@/lib/dynamicIsland');
@@ -1998,26 +1999,42 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         return;
       }
 
-      let ok = await island.canShowIsland();
-      if (!ok) {
-        if (!island.hasPromptedIslandPermission()) {
-          // Opens the system "Display over other apps" screen. User must grant
-          // once; subsequent songs show the pill automatically.
-          await island.requestIslandPermission();
-          ok = await island.canShowIsland();
-        }
-        if (!ok) return;
+      const showNow = async () => {
+        if (cancelled || !currentSong) return;
+        if (!(await island.canShowIsland())) return;
+        await island.showIsland({
+          title: currentSong.title,
+          artist: currentSong.artist,
+          cover: currentSong.cover_url,
+          isPlaying,
+        });
+      };
+
+      if (await island.canShowIsland()) {
+        await showNow();
+        return;
       }
 
-      await island.showIsland({
-        title: currentSong.title,
-        artist: currentSong.artist,
-        cover: currentSong.cover_url,
-        isPlaying,
-      });
+      if (isPlaying && !island.hasPromptedIslandPermission()) {
+        // Opens Android's "Display over other apps" page. The user grants it
+        // there, then returning to Universflow triggers showNow() below.
+        await island.requestIslandPermission();
+      }
+
+      try {
+        const modName = '@capacitor/app';
+        const mod = await import(/* @vite-ignore */ modName).catch(() => null) as CapacitorAppModule | null;
+        const handle = await mod?.App?.addListener('appStateChange', (state: { isActive: boolean }) => {
+          if (state?.isActive) void showNow();
+        });
+        removeAppListener = () => { try { handle?.remove?.(); } catch { /* noop */ } };
+      } catch { /* noop */ }
+
+      window.setTimeout(() => { void showNow(); }, 1200);
+      window.setTimeout(() => { void showNow(); }, 5000);
     })();
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; removeAppListener?.(); };
   }, [currentSong?.id, isPlaying, mediaSessionCallbacks]);
 
   // Push live position/duration to the Dynamic Island progress bar.
