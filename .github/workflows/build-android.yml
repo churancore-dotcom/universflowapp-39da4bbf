@@ -139,9 +139,12 @@ jobs:
           PKG="app.lovable.id5acaae55bbc847a7bd32f3924d8ef986"
           PKG_PATH="app/lovable/id5acaae55bbc847a7bd32f3924d8ef986"
 
-          # Copy plugin sources, rewriting the placeholder package to the real one
+          # Copy only the media notification bridge sources. android-native/java also
+          # contains DynamicIslandPlugin.java, whose package is already
+          # com.universeflow.app.island; copying it here creates a duplicate class.
           mkdir -p "android/app/src/main/java/${PKG_PATH}/media"
-          for f in android-native/java/*.java; do
+          rm -f "android/app/src/main/java/${PKG_PATH}/media/DynamicIslandPlugin.java"
+          for f in android-native/java/MediaNotification*.java; do
             base=$(basename "$f")
             sed "s|PACKAGE_PLACEHOLDER|${PKG}|g" "$f" \
               > "android/app/src/main/java/${PKG_PATH}/media/${base}"
