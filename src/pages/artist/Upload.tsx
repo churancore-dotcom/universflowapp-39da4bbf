@@ -69,13 +69,21 @@ export default function ArtistUpload() {
           <label className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-3.5 flex items-center gap-3 cursor-pointer">
             <div className="w-14 h-14 rounded-xl bg-white/[0.04] flex items-center justify-center overflow-hidden">
               {cover
-                ? <img src={URL.createObjectURL(cover)} className="w-full h-full object-cover" alt="" />
+                ? <img src={coverPreview || undefined} className="w-full h-full object-cover" alt="" />
                 : <ImageIcon className="w-5 h-5 text-muted-foreground" />}
             </div>
             <span className="text-[12.5px] text-muted-foreground flex-1 truncate">
               {cover ? cover.name : 'Tap to pick cover (square recommended)'}
             </span>
-            <input type="file" accept="image/*" className="sr-only" onChange={(e) => setCover(e.target.files?.[0] ?? null)} />
+            <input
+              type="file"
+              accept="image/*"
+              className="sr-only"
+              onChange={(e) => {
+                setCover(e.target.files?.[0] ?? null);
+                e.target.value = '';
+              }}
+            />
           </label>
         </Field>
 
