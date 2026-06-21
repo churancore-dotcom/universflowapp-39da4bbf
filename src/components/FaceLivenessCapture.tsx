@@ -1,17 +1,26 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, ArrowRight, Loader2, AlertTriangle, RotateCcw, ArrowLeft, ArrowUp, Smile } from 'lucide-react';
+import { Camera, ArrowRight, Loader2, AlertTriangle, RotateCcw, Check } from 'lucide-react';
 
 type Pose = 'center' | 'left' | 'right' | 'up';
 
-const POSE_PROMPT: Record<Pose, string> = {
-  center: 'Look straight at the camera',
-  left: 'Slowly turn your head left',
-  right: 'Slowly turn your head right',
-  up: 'Tilt your head up',
+const POSE_PROMPT: Record<Pose, { title: string; sub: string }> = {
+  center: { title: 'Look straight ahead', sub: 'Center your face in the circle' },
+  left:   { title: 'Turn your head left',  sub: 'Slowly, keep your eyes on the screen' },
+  right:  { title: 'Turn your head right', sub: 'Slowly, keep your eyes on the screen' },
+  up:     { title: 'Tilt your head up',    sub: 'Lift your chin a little' },
 };
 
 const ORDER: Pose[] = ['center', 'left', 'right', 'up'];
+
+// Each pose owns a 90° arc of the ring around the face oval.
+// Order around the oval (12 o'clock = top): up, right, center(bottom), left.
+const POSE_ARC: Record<Pose, { startDeg: number; endDeg: number }> = {
+  up:     { startDeg: -135, endDeg:  -45 }, // top quarter
+  right:  { startDeg:  -45, endDeg:   45 }, // right quarter
+  center: { startDeg:   45, endDeg:  135 }, // bottom quarter
+  left:   { startDeg:  135, endDeg:  225 }, // left quarter
+};
 
 
 export interface LivenessShots {
@@ -193,115 +202,207 @@ export default function FaceLivenessCapture({
   }
 
 
-  // Progress 0 → 1 for the ring that fills while the user holds the pose.
-  const progress = armed ? (3 - countdown + 1) / 3 : 0;
-  const RING_R = 130;
-  const RING_C = 2 * Math.PI * RING_R;
+  // Progress 0 → 1 for the current pose's arc segment.
+  const segProgress = armed ? (3 - countdown + 1) / 3 : 0;
+
+  // Geometry — square viewBox; oval matches the face guide.
+  const VB = 300;
+  const CX = 150;
+  const CY = 150;
+  const RX = 108;
+  const RY = 132;
+  // Ring radius sits just outside the oval.
+  const RING_RX = RX + 14;
+  const RING_RY = RY + 14;
+
+  // Build an SVG arc path between two angles around the face oval.
+  const arcPath = (startDeg: number, endDeg: number) => {
+    const toRad = (d: number) => (d * Math.PI) / 180;
+    const sx = CX + RING_RX * Math.cos(toRad(startDeg));
+    const sy = CY + RING_RY * Math.sin(toRad(startDeg));
+    const ex = CX + RING_RX * Math.cos(toRad(endDeg));
+    const ey = CY + RING_RY * Math.sin(toRad(endDeg));
+    const large = Math.abs(endDeg - startDeg) > 180 ? 1 : 0;
+    return `M ${sx} ${sy} A ${RING_RX} ${RING_RY} 0 ${large} 1 ${ex} ${ey}`;
+  };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between text-[11.5px] text-muted-foreground">
-        <span>Face check — step {stepIdx + 1} of {ORDER.length}</span>
-        <span className="tabular-nums">{Object.keys(shots).length}/{ORDER.length} captured</span>
+        <span>Identity check — step {stepIdx + 1} of {ORDER.length}</span>
+        <span className="tabular-nums">{Object.keys(shots).length}/{ORDER.length}</span>
       </div>
 
-      <div className="relative aspect-square rounded-3xl overflow-hidden bg-black border border-white/10">
+      <div
+        className="relative aspect-square rounded-3xl overflow-hidden border border-white/10"
+        style={{ background: 'radial-gradient(ellipse at center, #0a0a0a 0%, #000 100%)' }}
+      >
         <video
           ref={videoRef}
           playsInline
           muted
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
           style={{ transform: 'scaleX(-1)' }}
         />
 
-        {/* dimmed background outside the face oval — Instagram-style */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid slice">
+        {/* Dimmed mask outside the face oval — clean Meta-style focus */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${VB} ${VB}`} preserveAspectRatio="xMidYMid slice">
           <defs>
             <mask id="face-mask">
-              <rect width="300" height="300" fill="white" />
-              <ellipse cx="150" cy="150" rx="108" ry="132" fill="black" />
+              <rect width={VB} height={VB} fill="white" />
+              <ellipse cx={CX} cy={CY} rx={RX} ry={RY} fill="black" />
             </mask>
+            <linearGradient id="active-grad" x1="0" x2="1" y1="0" y2="1">
+              <stop offset="0%" stopColor="#FF2D55" />
+              <stop offset="100%" stopColor="#FF6B9A" />
+            </linearGradient>
           </defs>
-          <rect width="300" height="300" fill="rgba(0,0,0,0.55)" mask="url(#face-mask)" />
 
-          {/* outer guide ring */}
+          {/* dim outside oval */}
+          <rect width={VB} height={VB} fill="rgba(0,0,0,0.62)" mask="url(#face-mask)" />
+
+          {/* faint full ring track */}
           <ellipse
-            cx="150" cy="150" rx="108" ry="132"
+            cx={CX} cy={CY} rx={RING_RX} ry={RING_RY}
             fill="none"
-            stroke="rgba(255,255,255,0.22)"
-            strokeWidth="2"
+            stroke="rgba(255,255,255,0.08)"
+            strokeWidth="6"
           />
-          {/* progress ring — fills as the user holds the pose, like IG's appeal flow */}
-          <circle
-            cx="150" cy="150" r={RING_R}
+
+          {/* 4 arc segments — completed = green, active = filling, idle = faint */}
+          {ORDER.map((p) => {
+            const { startDeg, endDeg } = POSE_ARC[p];
+            const done = !!shots[p];
+            const isActive = p === pose && !done;
+            // Idle background segment
+            const base = (
+              <path
+                key={`${p}-base`}
+                d={arcPath(startDeg, endDeg)}
+                fill="none"
+                stroke="rgba(255,255,255,0.14)"
+                strokeWidth="6"
+                strokeLinecap="round"
+              />
+            );
+            if (done) {
+              return (
+                <g key={p}>
+                  {base}
+                  <path
+                    d={arcPath(startDeg, endDeg)}
+                    fill="none"
+                    stroke="#34D399"
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    style={{ filter: 'drop-shadow(0 0 6px rgba(52,211,153,0.55))' }}
+                  />
+                </g>
+              );
+            }
+            if (isActive) {
+              // Partial fill via dasharray trick: length of arc ≈ proportional to angle.
+              return (
+                <g key={p}>
+                  {base}
+                  <path
+                    d={arcPath(startDeg, startDeg + (endDeg - startDeg) * segProgress)}
+                    fill="none"
+                    stroke="url(#active-grad)"
+                    strokeWidth="7"
+                    strokeLinecap="round"
+                    style={{
+                      filter: 'drop-shadow(0 0 10px rgba(255,45,85,0.7))',
+                      transition: 'd 0.7s linear',
+                    }}
+                  />
+                </g>
+              );
+            }
+            return base;
+          })}
+
+          {/* Sharp oval outline */}
+          <ellipse
+            cx={CX} cy={CY} rx={RX} ry={RY}
             fill="none"
-            stroke="#FF2D55"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeDasharray={RING_C}
-            strokeDashoffset={RING_C * (1 - progress)}
-            transform="rotate(-90 150 150)"
-            style={{ transition: 'stroke-dashoffset 0.7s linear', filter: 'drop-shadow(0 0 8px rgba(255,45,85,0.6))' }}
+            stroke="rgba(255,255,255,0.5)"
+            strokeWidth="1.5"
           />
         </svg>
 
-        {/* arrow guides — only when not the center pose */}
-        <AnimatePresence mode="wait">
-          {streaming && pose !== 'center' && (
+        {/* Scanning sweep across the face — Meta-style "looking at you" feel */}
+        {streaming && armed && (
+          <motion.div
+            className="absolute pointer-events-none"
+            style={{
+              left: '12%', right: '12%',
+              top: '8%', bottom: '8%',
+              borderRadius: '9999px',
+              overflow: 'hidden',
+              maskImage: 'radial-gradient(ellipse 100% 100% at 50% 50%, #000 60%, transparent 100%)',
+              WebkitMaskImage: 'radial-gradient(ellipse 100% 100% at 50% 50%, #000 60%, transparent 100%)',
+            }}
+          >
             <motion.div
-              key={pose}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 pointer-events-none"
-            >
-              <ArrowGuide pose={pose} />
-            </motion.div>
-          )}
-          {streaming && pose === 'center' && (
+              initial={{ y: '-100%' }}
+              animate={{ y: '100%' }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute inset-x-0 h-12"
+              style={{
+                background:
+                  'linear-gradient(to bottom, transparent, rgba(255,45,85,0.55) 50%, transparent)',
+                filter: 'blur(4px)',
+              }}
+            />
+          </motion.div>
+        )}
+
+        {/* Big visual cue badge — confirmation tick when pose completes */}
+        <AnimatePresence>
+          {shots[pose] && (
             <motion.div
-              key="center-smile"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0 }}
+              key={`done-${pose}`}
+              initial={{ scale: 0.4, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.6, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 320, damping: 18 }}
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
             >
-              <motion.div
-                animate={{ scale: [1, 1.08, 1] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-                className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-md border border-white/30 flex items-center justify-center"
-              >
-                <Smile className="w-7 h-7 text-white" strokeWidth={1.8} />
-              </motion.div>
+              <div className="w-20 h-20 rounded-full bg-emerald-500/90 backdrop-blur-md flex items-center justify-center shadow-2xl">
+                <Check className="w-10 h-10 text-white" strokeWidth={3} />
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* top prompt pill */}
+        {/* Top prompt — Meta-style two-line card */}
         <div className="absolute top-3 inset-x-3 pointer-events-none">
           <motion.div
             key={pose}
-            initial={{ opacity: 0, y: -8 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mx-auto inline-flex items-center justify-center w-full"
+            transition={{ duration: 0.35 }}
+            className="mx-auto rounded-2xl bg-black/70 backdrop-blur-xl px-4 py-2.5 border border-white/10 text-center"
           >
-            <div className="rounded-full bg-black/65 backdrop-blur-md px-4 py-2 text-center border border-white/10">
-              <p className="text-[13px] font-semibold text-white">{POSE_PROMPT[pose]}</p>
-            </div>
+            <p className="text-[14px] font-semibold text-white leading-tight">{POSE_PROMPT[pose].title}</p>
+            <p className="text-[11px] text-white/65 leading-tight mt-0.5">{POSE_PROMPT[pose].sub}</p>
           </motion.div>
         </div>
 
-        {/* progress dots */}
-        <div className="absolute bottom-3 inset-x-0 flex items-center justify-center gap-1.5">
-          {ORDER.map((p, i) => (
-            <div
-              key={p}
-              className={`h-1.5 rounded-full transition-all ${
-                shots[p] ? 'w-6 bg-emerald-400' : i === stepIdx ? 'w-6 bg-white' : 'w-1.5 bg-white/30'
-              }`}
-            />
-          ))}
-        </div>
+        {/* Bottom countdown indicator */}
+        {streaming && armed && (
+          <div className="absolute bottom-4 inset-x-0 flex items-center justify-center pointer-events-none">
+            <motion.div
+              key={countdown}
+              initial={{ scale: 0.6, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-12 h-12 rounded-full bg-black/65 backdrop-blur-md border border-white/15 flex items-center justify-center"
+            >
+              <span className="text-white font-bold text-xl tabular-nums">{countdown}</span>
+            </motion.div>
+          </div>
+        )}
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
@@ -316,65 +417,15 @@ export default function FaceLivenessCapture({
         {!streaming ? (
           <><Loader2 className="w-4 h-4 animate-spin" /> Starting camera…</>
         ) : armed ? (
-          <>Hold still… {countdown}</>
+          <>Hold still…</>
         ) : (
-          <><Camera className="w-4 h-4" /> Capture {pose === 'center' ? 'front' : pose} <ArrowRight className="w-4 h-4" /></>
+          <><Camera className="w-4 h-4" /> Capture <ArrowRight className="w-4 h-4" /></>
         )}
       </button>
 
       <p className="text-[11.5px] text-muted-foreground leading-relaxed text-center">
-        Follow the arrow. We take 4 quick photos to confirm you're a real person — stored privately, deleted after review.
+        We take 4 quick photos to confirm you're a real person. Stored privately, deleted after review.
       </p>
-    </div>
-  );
-}
-
-// Animated direction-cue arrow that slides toward the requested direction, like
-// the guided face-capture flow Meta uses for Instagram identity / appeal checks.
-function ArrowGuide({ pose }: { pose: Exclude<Pose, 'center'> }) {
-  // Axis the arrow travels along, and its rest position relative to centre.
-  const cfg = {
-    left:  { x: [-8, -52, -8], y: [0, 0, 0], rot:  180, side: 'left' as const },
-    right: { x: [8,  52,  8],  y: [0, 0, 0], rot:    0, side: 'right' as const },
-    up:    { x: [0, 0, 0],     y: [-8, -52, -8], rot: -90, side: 'top'  as const },
-  }[pose];
-
-  const Icon = pose === 'up' ? ArrowUp : pose === 'left' ? ArrowLeft : ArrowRight;
-
-  // Position so the arrow sits just inside the face oval on the relevant side.
-  const positionStyle =
-    cfg.side === 'left' ? { left: '8%',  top: '50%', transform: 'translateY(-50%)' } :
-    cfg.side === 'right' ? { right: '8%', top: '50%', transform: 'translateY(-50%)' } :
-                           { top: '10%', left: '50%', transform: 'translateX(-50%)' };
-
-  return (
-    <div className="absolute" style={positionStyle}>
-      {/* trailing ghost ring that pulses out in the same direction */}
-      <motion.div
-        className="absolute inset-0 rounded-full"
-        initial={{ opacity: 0 }}
-        animate={{
-          opacity: [0.55, 0, 0.55],
-          x: cfg.x,
-          y: cfg.y,
-        }}
-        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-        style={{
-          width: 64, height: 64,
-          background: 'radial-gradient(circle, rgba(255,45,85,0.55) 0%, rgba(255,45,85,0) 70%)',
-        }}
-      />
-      <motion.div
-        animate={{ x: cfg.x, y: cfg.y }}
-        transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
-        className="relative w-16 h-16 rounded-full flex items-center justify-center"
-        style={{
-          background: 'rgba(255,45,85,0.95)',
-          boxShadow: '0 8px 24px rgba(255,45,85,0.45), 0 0 0 4px rgba(255,255,255,0.18)',
-        }}
-      >
-        <Icon className="w-7 h-7 text-white" strokeWidth={2.5} />
-      </motion.div>
     </div>
   );
 }
