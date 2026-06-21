@@ -518,17 +518,17 @@ function EditProfileDialog({ open, onClose, profile, onSaved }: {
   const [bio, setBio] = useState(profile.bio ?? '');
   const [avatar, setAvatar] = useState<File | null>(null);
   const [banner, setBanner] = useState<File | null>(null);
-  const [instagram, setInstagram] = useState((profile.social_links as any)?.instagram ?? '');
-  const [youtube, setYoutube] = useState((profile.social_links as any)?.youtube ?? '');
-  const [spotify, setSpotify] = useState((profile.social_links as any)?.spotify ?? '');
+  const [instagram, setInstagram] = useState(profile.social_links?.instagram ?? '');
+  const [youtube, setYoutube] = useState(profile.social_links?.youtube ?? '');
+  const [spotify, setSpotify] = useState(profile.social_links?.spotify ?? '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setStageName(profile.stage_name);
     setBio(profile.bio ?? '');
-    setInstagram((profile.social_links as any)?.instagram ?? '');
-    setYoutube((profile.social_links as any)?.youtube ?? '');
-    setSpotify((profile.social_links as any)?.spotify ?? '');
+    setInstagram(profile.social_links?.instagram ?? '');
+    setYoutube(profile.social_links?.youtube ?? '');
+    setSpotify(profile.social_links?.spotify ?? '');
     setAvatar(null);
     setBanner(null);
   }, [profile, open]);

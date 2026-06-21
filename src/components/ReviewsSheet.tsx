@@ -48,7 +48,7 @@ const ReviewsSheet = ({ isOpen, onClose, onWriteReview }: Props) => {
 
   const fetchAll = async () => {
     const { data: revs } = await supabase
-      .from('app_reviews_public' as any)
+      .from('app_reviews_public' as never)
       .select('id, rating, comment, display_name, created_at')
       .order('created_at', { ascending: false })
       .limit(100);
@@ -60,7 +60,7 @@ const ReviewsSheet = ({ isOpen, onClose, onWriteReview }: Props) => {
         .from('app_reviews')
         .select('id')
         .eq('user_id', user.id);
-      setOwnReviewIds(new Set((mine || []).map((r: any) => r.id)));
+      setOwnReviewIds(new Set((mine || []).map((r) => r.id)));
     } else {
       setOwnReviewIds(new Set());
     }
@@ -68,18 +68,18 @@ const ReviewsSheet = ({ isOpen, onClose, onWriteReview }: Props) => {
     if (list.length) {
       const ids = list.map(r => r.id);
       const { data: reacts } = await supabase
-        .from('review_reactions' as any)
+        .from('review_reactions')
         .select('review_id, user_id, reaction')
         .in('review_id', ids);
 
       const map: Record<string, ReactionState> = {};
       list.forEach(r => { map[r.id] = { likes: 0, dislikes: 0, myReaction: null }; });
-      (reacts || []).forEach((rr: any) => {
+      (reacts || []).forEach((rr) => {
         const m = map[rr.review_id];
         if (!m) return;
         if (rr.reaction === 'like') m.likes++;
         else if (rr.reaction === 'dislike') m.dislikes++;
-        if (user && rr.user_id === user.id) m.myReaction = rr.reaction;
+        if (user && rr.user_id === user.id) m.myReaction = rr.reaction as 'like' | 'dislike';
       });
       setReactions(map);
     } else {
@@ -117,14 +117,14 @@ const ReviewsSheet = ({ isOpen, onClose, onWriteReview }: Props) => {
     try {
       if (isSame) {
         // Toggle off
-        await supabase.from('review_reactions' as any)
+        await supabase.from('review_reactions')
           .delete().eq('review_id', reviewId).eq('user_id', user.id);
         if (type === 'like') next.likes = Math.max(0, next.likes - 1);
         else next.dislikes = Math.max(0, next.dislikes - 1);
         next.myReaction = null;
       } else {
         // Switching or new
-        await supabase.from('review_reactions' as any)
+        await supabase.from('review_reactions')
           .upsert({ review_id: reviewId, user_id: user.id, reaction: type }, { onConflict: 'review_id,user_id' });
         if (current?.myReaction === 'like') next.likes = Math.max(0, next.likes - 1);
         if (current?.myReaction === 'dislike') next.dislikes = Math.max(0, next.dislikes - 1);
