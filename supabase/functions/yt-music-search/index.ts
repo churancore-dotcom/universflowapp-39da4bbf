@@ -43,13 +43,28 @@ const GENERIC_QUERY_WORDS = new Set([
   'sad', 'love', 'romantic', 'happy', 'party', 'dance', 'lofi', 'lo-fi', 'chill', 'workout', 'gym', 'rap', 'pop', 'rock'
 ]);
 
+// STRICT spam filter — kills covers, karaoke, sped-up/slowed, AI voice, ringtones, fan edits.
 const SPAM_PATTERNS = [
   /\b(top|best)\s*\d+\b/i,
   /\b\d+\s*(top|best|hit|hits|songs)\b/i,
   /\b(non\s*stop|jukebox|mashup|medley|playlist|compilation|collection|mixtape|album full|full album|all songs)\b/i,
   /\b(90'?s|80'?s|70'?s|evergreen|old is gold|purane|old songs?)\b/i,
-  /\b(sped up|slowed|reverb|nightcore|8d|karaoke|cover|remix|instrumental|ringtone|shorts)\b/i,
+  /\b(sped\s*up|slowed(\s*\+?\s*reverb)?|nightcore|8\s*d|bass\s*boost(ed)?|reverb)\b/i,
+  /\b(karaoke|instrumental|backing\s*track|minus\s*one)\b/i,
+  /\b(cover(\s*by)?|cover\s*version|fan\s*made|unofficial|tribute)\b/i,
+  /\b(ai\s*cover|ai\s*voice|ai\s*song|deepfake)\b/i,
+  /\b(lyric\s*video|with\s*lyrics?|lyrical\s*video|tutorial|reaction|breakdown|analysis)\b/i,
+  /\b(whatsapp\s*status|status\s*video|ringtone|alarm\s*tone|caller\s*tune|loop(ed)?)\b/i,
+  /\b(tiktok\s*version|reels?\s*version|shorts?|edit\s*audio)\b/i,
   /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
+  /\b(extended\s*(version|mix)|radio\s*edit|club\s*mix|dance\s*mix)\b/i,
+];
+
+// Channels we always drop (low-quality reuploaders / spam farms).
+const BANNED_CHANNEL_PATTERNS = [
+  /\b(speed\s*songs?|slowed\s*songs?|reverb\s*nation|nightcore\s*mania|karaoke\s*world)\b/i,
+  /\boriginals?\b/i,
+  /\bringtone\s*(king|world|hub)\b/i,
 ];
 
 const normalize = (value = '') => value.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
@@ -60,9 +75,6 @@ function meaningfulTokens(query: string) {
     .filter((token) => token.length > 1 && !GENERIC_QUERY_WORDS.has(token));
 }
 
-// A query is "lyric-like" when the user typed a phrase (multiple words / long).
-// In that case we trust YouTube/Invidious ranking — they index captions &
-// descriptions, so the right video may not have the lyric in its title.
 function isLyricQuery(query: string) {
   const raw = query.trim();
   const wordCount = raw.split(/\s+/).filter(Boolean).length;
@@ -70,24 +82,29 @@ function isLyricQuery(query: string) {
 }
 
 function queryMatchesResult(item: any, query: string) {
-  // For lyric-style queries, don't gate on title overlap.
   if (isLyricQuery(query)) return true;
   const tokens = meaningfulTokens(query);
   if (tokens.length === 0) return true;
   const haystack = normalize(`${String(item?.title || '')} ${String(item?.author || item?.channelTitle || '')}`);
+
+  // STRICT title-first: at least one meaningful token MUST be in the title itself.
+  const titleHay = normalize(String(item?.title || ''));
+  const titleHits = tokens.filter((t) => titleHay.includes(t)).length;
+  if (titleHits === 0) return false;
+
   const hits = tokens.filter((token) => haystack.includes(token)).length;
   return hits > 0 && (tokens.length < 2 || hits / tokens.length >= 0.5);
 }
 
 function looksSpammy(item: any, query: string) {
   const rawTitle = String(item?.title || '');
-  const rawAuthor = String(item?.author || '');
+  const rawAuthor = String(item?.author || item?.channelTitle || '');
   const haystack = `${rawTitle} ${rawAuthor}`;
   const q = normalize(query);
   const duration = Number(item?.lengthSeconds || item?.duration || 0);
 
   if (duration && (duration < 75 || duration > 540)) return true;
-  if (/\boriginals?\b/i.test(rawAuthor) && !q.includes('original')) return true;
+  if (BANNED_CHANNEL_PATTERNS.some((p) => p.test(rawAuthor))) return true;
   if (SPAM_PATTERNS.some((pattern) => pattern.test(haystack))) return true;
   if (!q.includes('lofi') && /\b(lofi|lo-fi)\b/i.test(haystack)) return true;
   return false;

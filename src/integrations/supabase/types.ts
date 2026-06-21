@@ -574,6 +574,51 @@ export type Database = {
         }
         Relationships: []
       }
+      auto_playlists: {
+        Row: {
+          cover_urls: Json
+          created_at: string
+          expires_at: string
+          generated_at: string
+          id: string
+          kind: string
+          seed_song_id: string | null
+          subtitle: string | null
+          title: string
+          tracks: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_urls?: Json
+          created_at?: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          kind: string
+          seed_song_id?: string | null
+          subtitle?: string | null
+          title: string
+          tracks?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_urls?: Json
+          created_at?: string
+          expires_at?: string
+          generated_at?: string
+          id?: string
+          kind?: string
+          seed_song_id?: string | null
+          subtitle?: string | null
+          title?: string
+          tracks?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       chart_tracks: {
         Row: {
           artist: string

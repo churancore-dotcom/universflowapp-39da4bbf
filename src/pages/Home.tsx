@@ -17,6 +17,7 @@ import TrendingNowSection from '@/components/TrendingNowSection';
 import FreshReleasesSection from '@/components/FreshReleasesSection';
 import AlbumsShelf from '@/components/AlbumsShelf';
 import FollowedArtistSongsSection from '@/components/FollowedArtistSongsSection';
+import { AutoMixesSection } from '@/components/AutoMixesSection';
 
 
 import CountryViralSection from '@/components/CountryViralSection';
@@ -361,6 +362,10 @@ const Home = () => {
             <div className="space-y-3">
               {/* New Bento Hero — Continue Listening + quick tiles */}
               {!isOffline && <HomeBento songs={allSongs} />}
+
+              {/* Made For You — personal Daily Mixes from auto_playlists */}
+              {!isOffline && <AutoMixesSection />}
+
 
               {/* Discovery — Featured Artists */}
               {!isOffline && <FeaturedArtistsSection />}

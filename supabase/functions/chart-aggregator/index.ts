@@ -31,6 +31,22 @@ type Row = {
   external_id?: string | null;
 };
 
+// STRICT spam filter — mirrors yt-music-search so Trending Now stays clean.
+const SPAM_PATTERNS = [
+  /\b(sped\s*up|slowed(\s*\+?\s*reverb)?|nightcore|8\s*d|bass\s*boost(ed)?)\b/i,
+  /\b(karaoke|instrumental|backing\s*track)\b/i,
+  /\b(cover(\s*by)?|cover\s*version|fan\s*made|unofficial|tribute|ai\s*cover|ai\s*voice)\b/i,
+  /\b(lyric\s*video|with\s*lyrics?|tutorial|reaction)\b/i,
+  /\b(whatsapp\s*status|ringtone|loop(ed)?|tiktok\s*version|reels?\s*version|shorts?)\b/i,
+  /\b\d+\s*(hour|hours|hr|hrs|minute|minutes|min)\b/i,
+  /\b(non\s*stop|jukebox|mashup|medley|compilation|full\s*album)\b/i,
+];
+
+const isSpamRow = (r: Row) => {
+  const hay = `${r.title} ${r.artist}`;
+  return SPAM_PATTERNS.some((p) => p.test(hay));
+};
+
 const fetchJson = async (url: string, timeoutMs = 8000): Promise<any | null> => {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -236,7 +252,8 @@ Deno.serve(async (req) => {
       fetchDeezerChart(cc),
     ]);
 
-    const rows: Row[] = [...apple, ...itunes, ...lastfm, ...yt, ...deezer];
+    const rawRows: Row[] = [...apple, ...itunes, ...lastfm, ...yt, ...deezer];
+    const rows = rawRows.filter((r) => !isSpamRow(r));
     if (rows.length === 0) {
       summary[cc] = 0;
       continue;
