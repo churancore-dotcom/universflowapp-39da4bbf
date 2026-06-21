@@ -452,18 +452,19 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     const handlePlaying = () => {
       if (waitingTimer != null) { clearTimeout(waitingTimer); waitingTimer = null; }
-      const startedAt = (audio as any).__ufStartedAt as number | undefined;
+      const audioWithTs = audio as HTMLAudioElement & { __ufStartedAt?: number };
+      const startedAt = audioWithTs.__ufStartedAt;
       if (startedAt) {
         recordPerfEvent({
           event_type: 'playback_start',
           severity: 'info',
           latency_ms: Math.max(0, Math.round(performance.now() - startedAt)),
         });
-        (audio as any).__ufStartedAt = undefined;
+        audioWithTs.__ufStartedAt = undefined;
       }
     };
     const handleLoadStartPerf = () => {
-      (audio as any).__ufStartedAt = performance.now();
+      (audio as HTMLAudioElement & { __ufStartedAt?: number }).__ufStartedAt = performance.now();
     };
 
 
@@ -621,8 +622,24 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   //   3) trending fallback (most-played)
   // The result is appended to the queue so playback never stops.
   // ---------------------------------------------------------------------------
-  const mapSongRow = (s: any): Song => {
-    const artistData = s.artists as { id: string; name: string; photo_url: string | null } | null;
+  type SongRowWithArtist = {
+    id: string;
+    title: string;
+    artist: string;
+    album?: string | null;
+    cover_url?: string | null;
+    audio_url: string;
+    duration?: number | null;
+    artist_id?: string | null;
+    genre?: string | null;
+    mood?: string | null;
+    created_at?: string | null;
+    play_count?: number | null;
+    artists?: { id: string; name: string; photo_url: string | null } | null;
+  };
+
+  const mapSongRow = (s: SongRowWithArtist): Song => {
+    const artistData = s.artists;
     return {
       id: s.id,
       title: s.title,
@@ -651,7 +668,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       existing.add(seed.id);
 
       const pool: Song[] = [];
-      const pushUnique = (rows: any[] | null) => {
+      const pushUnique = (rows: SongRowWithArtist[] | null) => {
         for (const r of rows || []) {
           if (!r?.id || existing.has(r.id)) continue;
           if (!r.audio_url) continue;
@@ -671,7 +688,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             .eq('is_visible', true)
             .ilike('artist', artistName)
             .limit(30);
-          pushUnique(data as any[]);
+          pushUnique(data as SongRowWithArtist[] | null);
         }
       }
 
@@ -686,7 +703,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         else if (seed.mood) q = q.eq('mood', seed.mood);
         const { data } = await q;
         // shuffle a bit for variety
-        const shuffled = [...((data as any[]) || [])].sort(() => Math.random() - 0.5);
+        const shuffled = [...((data as SongRowWithArtist[] | null) || [])].sort(() => Math.random() - 0.5);
         pushUnique(shuffled);
       }
 
@@ -698,7 +715,7 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           .eq('is_visible', true)
           .order('play_count', { ascending: false, nullsFirst: false })
           .limit(40);
-        const shuffled = [...((data as any[]) || [])].sort(() => Math.random() - 0.5);
+        const shuffled = [...((data as SongRowWithArtist[] | null) || [])].sort(() => Math.random() - 0.5);
         pushUnique(shuffled);
       }
 
@@ -1975,8 +1992,8 @@ export const PlayerProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     let cancelled = false;
     const acquire = async () => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        sentinel = await (navigator as any).wakeLock.request('screen');
+        const nav = navigator as Navigator & { wakeLock?: { request: (type: 'screen') => Promise<{ release: () => Promise<void> } | null> } };
+        sentinel = await nav.wakeLock?.request('screen') ?? null;
         if (cancelled) {
           sentinel?.release().catch(() => {});
           sentinel = null;
