@@ -21,6 +21,7 @@ import {
   uploadArtistCover,
   uploadArtistPhoto,
 } from '@/lib/artist';
+import { useFilePreview } from '@/lib/useFilePreview';
 
 type Profile = {
   id: string;
