@@ -294,6 +294,10 @@ export default function ArtistApply() {
 
     // /artist/apply is protected and /auth redirects signed-in users away.
     // Sign out first so the About You back button actually lands on Auth.
+    try {
+      localStorage.removeItem('uf_artist_signup');
+      localStorage.removeItem('uf_post_verify_next');
+    } catch { /* ignore */ }
     await signOut();
     navigate('/auth', { replace: true });
   };
