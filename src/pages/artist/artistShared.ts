@@ -1,3 +1,11 @@
+export type ArtistSocialLinks = {
+  instagram?: string | null;
+  youtube?: string | null;
+  spotify?: string | null;
+  apple_music?: string | null;
+  [key: string]: string | null | undefined;
+};
+
 export type ArtistProfile = {
   id: string;
   user_id: string;
@@ -6,7 +14,7 @@ export type ArtistProfile = {
   bio: string | null;
   avatar_url: string | null;
   banner_url: string | null;
-  social_links: Record<string, unknown> | null;
+  social_links: ArtistSocialLinks | null;
 };
 
 export type ArtistSong = {
