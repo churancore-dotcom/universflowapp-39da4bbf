@@ -50,7 +50,9 @@ const ManageAlbums = () => {
     cover_url: '',
   });
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [coverUrlPreview, setCoverUrlPreview] = useState<string | null>(null);
+  const coverFilePreview = useFilePreview(coverFile);
+  const coverPreview = coverFilePreview || coverUrlPreview;
 
   useEffect(() => {
     fetchAlbums();
