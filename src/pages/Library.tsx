@@ -72,7 +72,10 @@ const readLibraryCache = (userId: string) => {
   }
 };
 
-const writeLibraryCache = (userId: string, data: any) => {
+type LibraryData = Awaited<ReturnType<typeof fetchLibraryData>>;
+type LibraryPlaylist = LibraryData['playlists'][number];
+
+const writeLibraryCache = (userId: string, data: LibraryData) => {
   try {
     localStorage.setItem(`${LIBRARY_CACHE_KEY}:${userId}`, JSON.stringify({ data, ts: Date.now() }));
   } catch { /* ignore quota */ }
@@ -144,7 +147,8 @@ const Library = () => {
     if (!user) return;
     const ok = await unfollowArtist(user.id, name);
     if (ok) {
-      queryClient.setQueryData(libraryQueryKey, (prev: any) =>
+      queryClient.setQueryData<LibraryData>(libraryQueryKey, (prev) =>
+
         prev ? { ...prev, artists: prev.artists.filter((a: LibraryArtist) => a.name !== name) } : prev,
       );
       toast.success(`Unfollowed ${name}`);
@@ -209,7 +213,7 @@ const Library = () => {
     );
   };
 
-  const EmptyState = ({ icon: Icon, text }: { icon: any; text: string }) => (
+  const EmptyState = ({ icon: Icon, text }: { icon: React.ComponentType<{ className?: string }>; text: string }) => (
     <div className="text-center py-10">
       <div
         className="w-16 h-16 rounded-2xl mx-auto mb-3 flex items-center justify-center"
@@ -500,7 +504,7 @@ const Library = () => {
                         >
                           <PlaylistCover
                             coverUrl={playlist.cover_url}
-                            coverUrls={(playlist as any).cover_urls}
+                            coverUrls={(playlist as LibraryPlaylist & { cover_urls?: string[] }).cover_urls}
                             className="w-11 h-11 flex-shrink-0"
                             rounded="rounded-xl"
                             iconClassName="w-4 h-4 text-muted-foreground"
@@ -510,7 +514,7 @@ const Library = () => {
                             <p className="text-xs text-muted-foreground">Playlist</p>
                           </div>
                         </button>
-                        {user && (playlist as any).user_id === user.id && (
+                        {user && (playlist as LibraryPlaylist & { user_id?: string }).user_id === user.id && (
                           <button
                             aria-label={`Delete ${playlist.title}`}
                             onClick={async (e) => {
@@ -518,8 +522,8 @@ const Library = () => {
                               if (!window.confirm(`Delete "${playlist.title}"? This cannot be undone.`)) return;
                               const { error } = await supabase.from('playlists').delete().eq('id', playlist.id).eq('user_id', user.id);
                               if (error) { toast.error('Could not delete playlist'); return; }
-                              queryClient.setQueryData(libraryQueryKey, (prev: any) =>
-                                prev ? { ...prev, playlists: prev.playlists.filter((p: any) => p.id !== playlist.id) } : prev,
+                              queryClient.setQueryData<LibraryData>(libraryQueryKey, (prev) =>
+                                prev ? { ...prev, playlists: prev.playlists.filter((p) => p.id !== playlist.id) } : prev,
                               );
                               toast.success('Playlist deleted');
                             }}
