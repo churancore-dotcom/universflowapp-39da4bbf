@@ -250,7 +250,7 @@ const ManageAlbums = () => {
                     <input
                       type="file"
                       accept="image/*"
-                      className="hidden"
+                      className="sr-only"
                       onChange={handleCoverSelect}
                     />
                     <Button type="button" variant="outline" size="sm" asChild>

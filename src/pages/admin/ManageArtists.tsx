@@ -343,7 +343,7 @@ const ManageArtists = () => {
                     <input
                       type="file"
                       accept="image/*"
-                      className="hidden"
+                      className="sr-only"
                       onChange={handlePhotoSelect}
                     />
                     <Button type="button" variant="outline" size="sm" asChild>
