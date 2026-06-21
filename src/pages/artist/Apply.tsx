@@ -402,10 +402,8 @@ export default function ArtistApply() {
             <button
               onClick={() => {
                 if (step > 1) { setStep((s) => (s - 1) as Step); return; }
-                // Step 1 back: leave the apply flow entirely.
-                // History may be empty (deep-link after signup) — fall back to home.
-                if (window.history.length > 1) navigate(-1);
-                else navigate('/', { replace: true });
+                // Step 1 back: leave the apply flow and return to artist auth.
+                navigate('/artist/auth', { replace: true });
               }}
               className="w-10 h-10 rounded-full flex items-center justify-center bg-white/[0.06] active:scale-95 transition"
               aria-label="Back"
