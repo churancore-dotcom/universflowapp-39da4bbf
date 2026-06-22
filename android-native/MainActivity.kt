@@ -5,11 +5,11 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.webkit.PermissionRequest
-import android.webkit.WebChromeClient
 import android.webkit.WebView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import com.getcapacitor.BridgeActivity
+import com.getcapacitor.BridgeWebChromeClient
 import com.universeflow.app.media.MediaNotificationPlugin
 
 class MainActivity : BridgeActivity() {
@@ -38,7 +38,7 @@ class MainActivity : BridgeActivity() {
             web.settings.mediaPlaybackRequiresUserGesture = false
             web.settings.allowFileAccess = true
             web.settings.allowContentAccess = true
-            web.webChromeClient = object : WebChromeClient() {
+            web.webChromeClient = object : BridgeWebChromeClient(bridge) {
                 override fun onPermissionRequest(request: PermissionRequest) {
                     runOnUiThread {
                         try {

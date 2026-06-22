@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Loader2, Upload, Check, ShieldCheck, Globe2, User, Link2, FileCheck2, Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
@@ -126,12 +126,24 @@ function FilePicker({
   accept?: string;
 }) {
   const preview = useFilePreview(file);
+  const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <label className="block">
+    <div className="block">
       <span className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-2">
         {label}
       </span>
-      <div className="rounded-2xl border border-dashed border-white/12 bg-white/[0.03] p-4 flex items-center gap-3 active:bg-white/[0.06] transition cursor-pointer">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        className="relative rounded-2xl border border-dashed border-white/12 bg-white/[0.03] p-4 flex items-center gap-3 active:bg-white/[0.06] transition cursor-pointer"
+      >
         {file ? (
           <>
             <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 flex items-center justify-center shrink-0">
@@ -141,13 +153,7 @@ function FilePicker({
               <p className="text-[13px] font-medium truncate">{file.name}</p>
               <p className="text-[11px] text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
             </div>
-            <button
-              type="button"
-              className="text-[12px] text-primary px-2 py-1 font-medium"
-              onClick={(e) => { e.preventDefault(); onPick(null); }}
-            >
-              Change
-            </button>
+            <span className="text-[12px] text-primary px-2 py-1 font-medium">Change</span>
           </>
         ) : (
           <>
@@ -161,11 +167,14 @@ function FilePicker({
           </>
         )}
         <input
+          ref={inputRef}
           type="file"
           accept={accept}
-          className="sr-only"
+          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          aria-label={label}
           // NOTE: do NOT use `hidden` / display:none — Android WebView blocks the
-          // native file picker on display:none inputs. sr-only keeps it tappable.
+          // native file picker on display:none inputs. An opacity-0 overlay keeps
+          // the real input directly tappable in APK WebView.
           onChange={(e) => {
             const f = e.target.files?.[0] ?? null;
             onPick(f);
@@ -174,7 +183,7 @@ function FilePicker({
           }}
         />
       </div>
-    </label>
+    </div>
   );
 }
 
