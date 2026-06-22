@@ -94,6 +94,19 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    // Rate limit: KYC verification spends Gemini Vision credits. Cap per-user calls.
+    const { data: rlAllowed } = await admin.rpc("check_and_increment_rate_limit", {
+      _user_id: userId,
+      _endpoint: "artist-verify-checks",
+      _max_per_minute: 3,
+    });
+    if (rlAllowed === false) {
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Try again shortly." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     const { data: app, error: appErr } = await admin
       .from("artist_applications")
       .select("id, user_id, real_name, id_doc_front_path, selfie_path, social_links")
