@@ -175,6 +175,7 @@ function FilePicker({
           // NOTE: do NOT use `hidden` / display:none — Android WebView blocks the
           // native file picker on display:none inputs. An opacity-0 overlay keeps
           // the real input directly tappable in APK WebView.
+          onClick={(e) => e.stopPropagation()}
           onChange={(e) => {
             const f = e.target.files?.[0] ?? null;
             onPick(f);
