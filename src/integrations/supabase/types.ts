@@ -2115,6 +2115,23 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      submit_artist_application: {
+        Args: {
+          p_artist_photo_path: string
+          p_country_code: string
+          p_id_doc_back_path: string
+          p_id_doc_front_path: string
+          p_id_doc_type: Database["public"]["Enums"]["id_doc_type"]
+          p_id_image_hash: string
+          p_phone: string
+          p_phone_hash: string
+          p_real_name: string
+          p_selfie_path: string
+          p_social_links: Json
+          p_stage_name: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user" | "artist"

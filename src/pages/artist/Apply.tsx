@@ -367,6 +367,11 @@ export default function ArtistApply() {
         face_shots: faceUploads,
       };
 
+      if (!docType) {
+        toast.error('Please choose a valid ID document type.');
+        return;
+      }
+
       const { data: inserted, error } = isLockedReapply
         ? await supabase.rpc('reapply_artist_application', {
             p_application_id: existingApp.id,
@@ -378,21 +383,20 @@ export default function ArtistApply() {
             p_artist_photo_path: photoUrl,
             p_id_image_hash: idImageHash ?? '',
           })
-        : await supabase.from('artist_applications').insert({
-            user_id: user.id,
-            stage_name: stageName.trim(),
-            real_name: realName.trim(),
-            phone: phoneE164,
-            country_code: country,
-            social_links: socialLinks,
-            id_doc_type: docType,
-            id_doc_front_path: frontPath,
-            id_doc_back_path: backPath,
-            selfie_path: selfiePath,
-            artist_photo_path: photoUrl,
-            phone_hash: phoneHash,
-            id_image_hash: idImageHash,
-          }).select('id').maybeSingle();
+        : await supabase.rpc('submit_artist_application', {
+            p_stage_name: stageName.trim(),
+            p_real_name: realName.trim(),
+            p_phone: phoneE164,
+            p_country_code: country,
+            p_social_links: socialLinks,
+            p_id_doc_type: docType,
+            p_id_doc_front_path: frontPath ?? '',
+            p_id_doc_back_path: backPath ?? '',
+            p_selfie_path: selfiePath ?? '',
+            p_artist_photo_path: photoUrl ?? '',
+            p_phone_hash: phoneHash,
+            p_id_image_hash: idImageHash ?? '',
+          });
 
       if (error) {
         // Surface friendly errors for the new anti-abuse rules.

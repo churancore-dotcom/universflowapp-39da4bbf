@@ -1,0 +1,4 @@
+REVOKE ALL ON FUNCTION public.submit_artist_application(text, text, text, text, jsonb, public.id_doc_type, text, text, text, text, text, text) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.submit_artist_application(text, text, text, text, jsonb, public.id_doc_type, text, text, text, text, text, text) FROM anon;
+GRANT EXECUTE ON FUNCTION public.submit_artist_application(text, text, text, text, jsonb, public.id_doc_type, text, text, text, text, text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.submit_artist_application(text, text, text, text, jsonb, public.id_doc_type, text, text, text, text, text, text) TO service_role;
