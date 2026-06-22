@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Loader2, Upload, Check, ShieldCheck, Globe2, User, Link2, FileCheck2, Camera, Image as ImageIcon, Sparkles } from 'lucide-react';
@@ -118,7 +118,7 @@ function FilePicker({
   label,
   file,
   onPick,
-  accept = 'image/jpeg,image/png,image/webp',
+  accept = 'image/*',
 }: {
   label: string;
   file: File | null;
@@ -126,20 +126,20 @@ function FilePicker({
   accept?: string;
 }) {
   const preview = useFilePreview(file);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
   return (
     <div className="block">
       <span className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-2">
         {label}
       </span>
-      <div
+      <label
+        htmlFor={inputId}
         role="button"
         tabIndex={0}
-        onClick={() => inputRef.current?.click()}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
-            inputRef.current?.click();
+            document.getElementById(inputId)?.click();
           }
         }}
         className="relative rounded-2xl border border-dashed border-white/12 bg-white/[0.03] p-4 flex items-center gap-3 active:bg-white/[0.06] transition cursor-pointer"
@@ -167,15 +167,14 @@ function FilePicker({
           </>
         )}
         <input
-          ref={inputRef}
+          id={inputId}
           type="file"
           accept={accept}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
           aria-label={label}
-          // NOTE: do NOT use `hidden` / display:none — Android WebView blocks the
-          // native file picker on display:none inputs. An opacity-0 overlay keeps
-          // the real input directly tappable in APK WebView.
-          onClick={(e) => e.stopPropagation()}
+          // NOTE: the real input must receive the user's tap directly. Android
+          // WebView can ignore programmatic `.click()` on file inputs, so this
+          // opacity-0 overlay is intentionally above the whole upload tile.
           onChange={(e) => {
             const f = e.target.files?.[0] ?? null;
             onPick(f);
@@ -183,7 +182,7 @@ function FilePicker({
             e.target.value = '';
           }}
         />
-      </div>
+      </label>
     </div>
   );
 }

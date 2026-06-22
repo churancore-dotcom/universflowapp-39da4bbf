@@ -123,11 +123,11 @@ jobs:
           import android.os.Build;
           import android.os.Bundle;
           import android.webkit.PermissionRequest;
-          import android.webkit.WebChromeClient;
           import android.webkit.WebView;
           import androidx.core.app.ActivityCompat;
           import androidx.core.content.ContextCompat;
           import com.getcapacitor.BridgeActivity;
+          import com.getcapacitor.BridgeWebChromeClient;
           import ${PKG}.media.MediaNotificationPlugin;
           import ${PKG}.island.DynamicIslandPlugin;
 
@@ -151,7 +151,11 @@ jobs:
                       web.getSettings().setMediaPlaybackRequiresUserGesture(false);
                       web.getSettings().setAllowFileAccess(true);
                       web.getSettings().setAllowContentAccess(true);
-                      web.setWebChromeClient(new WebChromeClient() {
+                      // Keep Capacitor's WebChromeClient so <input type="file">
+                      // opens Android's native picker in the APK. A plain
+                      // WebChromeClient breaks upload buttons because it does
+                      // not implement onShowFileChooser.
+                      web.setWebChromeClient(new BridgeWebChromeClient(bridge) {
                           @Override
                           public void onPermissionRequest(final PermissionRequest request) {
                               runOnUiThread(() -> {
