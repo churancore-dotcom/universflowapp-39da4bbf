@@ -255,8 +255,20 @@ export default function ArtistApply() {
         if (raw) {
           const s = JSON.parse(raw) as { full_name?: string; phone?: string; country_code?: string };
           if (s.full_name) setRealName(s.full_name);
-          if (s.phone) setPhone(s.phone);
           if (s.country_code) { setCountry(s.country_code); prefilledCountry = s.country_code; }
+          if (s.phone) {
+            // The signup stores the phone as "+91 9876543210" (dial code + space + digits).
+            // The Apply phone <Input> is digits-only and renders the dial code separately,
+            // so we must strip the dial code prefix here. Otherwise the field shows
+            // "+91 9876…" and the user can't edit it without corrupting the number.
+            const dial = prefilledCountry ? getDialCode(prefilledCountry) : '';
+            const raw = String(s.phone);
+            const digitsOnly = raw.replace(/\D/g, '');
+            const dialDigits = dial.replace(/\D/g, '');
+            setPhone(dialDigits && digitsOnly.startsWith(dialDigits)
+              ? digitsOnly.slice(dialDigits.length)
+              : digitsOnly);
+          }
         }
       } catch { /* ignore */ }
 
