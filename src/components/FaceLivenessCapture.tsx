@@ -283,6 +283,9 @@ export default function FaceLivenessCapture({
     if (!ctx) { capturingRef.current = false; return; }
     // Save un-mirrored frame so OCR/face-match downstream sees the real face.
     ctx.drawImage(video, 0, 0, w, h);
+    // Cinematic shutter flash
+    setFlash(true);
+    setTimeout(() => setFlash(false), 180);
     await new Promise<void>((resolve) => {
       canvas.toBlob(
         (blob) => {
