@@ -69,30 +69,23 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const UploadMusic = lazy(() => import("./pages/admin/UploadMusic"));
 const ManageSongs = lazy(() => import("./pages/admin/ManageSongs"));
 const ManageArtists = lazy(() => import("./pages/admin/ManageArtists"));
-const ManageAlbums = lazy(() => import("./pages/admin/ManageAlbums"));
 const ManagePlaylists = lazy(() => import("./pages/admin/ManagePlaylists"));
 const ManageUsers = lazy(() => import("./pages/admin/ManageUsers"));
 const ManageSubscriptions = lazy(() => import("./pages/admin/ManageSubscriptions"));
-const AppSettings = lazy(() => import("./pages/admin/AppSettings"));
-const FeatureFlags = lazy(() => import("./pages/admin/FeatureFlags"));
 const Announcements = lazy(() => import("./pages/admin/Announcements"));
 const ContentModeration = lazy(() => import("./pages/admin/ContentModeration"));
-const AdminSettings = lazy(() => import("./pages/admin/Settings"));
 const Analytics = lazy(() => import("./pages/admin/Analytics"));
 const LiveInsights = lazy(() => import("./pages/admin/LiveInsights"));
 const ActivityLogs = lazy(() => import("./pages/admin/ActivityLogs"));
-const BulkActions = lazy(() => import("./pages/admin/BulkActions"));
 const SystemHealth = lazy(() => import("./pages/admin/SystemHealth"));
-const ContentScheduler = lazy(() => import("./pages/admin/ContentScheduler"));
-const BackupExport = lazy(() => import("./pages/admin/BackupExport"));
 const PromoCodes = lazy(() => import("./pages/admin/PromoCodes"));
 const PaymentRequests = lazy(() => import("./pages/admin/PaymentRequests"));
-const APIManagement = lazy(() => import("./pages/admin/APIManagement"));
 const PushNotifications = lazy(() => import("./pages/admin/PushNotifications"));
 const RegisteredDevices = lazy(() => import("./pages/admin/RegisteredDevices"));
 const UserEngagement = lazy(() => import("./pages/admin/UserEngagement"));
-const ABTesting = lazy(() => import("./pages/admin/ABTesting"));
 const SecurityCenter = lazy(() => import("./pages/admin/SecurityCenter"));
+const RevenueInsights = lazy(() => import("./pages/admin/RevenueInsights"));
+const ListenerInsights = lazy(() => import("./pages/admin/ListenerInsights"));
 
 const SupportInbox = lazy(() => import("./pages/admin/SupportInbox"));
 const PerformancePanel = lazy(() => import("./pages/admin/PerformancePanel"));
@@ -311,29 +304,22 @@ const AnimatedRoutes = () => {
             <Route path="upload" element={<UploadMusic />} />
             <Route path="songs" element={<ManageSongs />} />
             <Route path="artists" element={<ManageArtists />} />
-            <Route path="albums" element={<ManageAlbums />} />
             <Route path="playlists" element={<ManagePlaylists />} />
             <Route path="users" element={<ManageUsers />} />
             <Route path="subscriptions" element={<ManageSubscriptions />} />
-            <Route path="app-settings" element={<AppSettings />} />
-            <Route path="features" element={<FeatureFlags />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="moderation" element={<ContentModeration />} />
             <Route path="analytics" element={<Analytics />} />
             <Route path="insights" element={<LiveInsights />} />
             <Route path="logs" element={<ActivityLogs />} />
-            <Route path="bulk" element={<BulkActions />} />
             <Route path="health" element={<SystemHealth />} />
-            <Route path="scheduler" element={<ContentScheduler />} />
-            <Route path="backup" element={<BackupExport />} />
+            <Route path="revenue" element={<RevenueInsights />} />
+            <Route path="listener-insights" element={<ListenerInsights />} />
             <Route path="promo-codes" element={<PromoCodes />} />
             <Route path="payments" element={<PaymentRequests />} />
-            <Route path="settings" element={<AdminSettings />} />
-            <Route path="api" element={<APIManagement />} />
             <Route path="notifications" element={<PushNotifications />} />
             <Route path="devices" element={<RegisteredDevices />} />
             <Route path="engagement" element={<UserEngagement />} />
-            <Route path="ab-testing" element={<ABTesting />} />
             <Route path="security" element={<SecurityCenter />} />
             <Route path="support" element={<SupportInbox />} />
             <Route path="app-updates" element={<AppUpdates />} />

@@ -222,7 +222,7 @@ const AdminDashboard = () => {
     { label: 'Manage Songs', icon: Music, path: '/admin/songs', gradient: 'bg-muted/50 hover:bg-muted/70' },
     { label: 'View Analytics', icon: TrendingUp, path: '/admin/analytics', gradient: 'bg-muted/50 hover:bg-muted/70' },
     { label: 'System Health', icon: Activity, path: '/admin/health', gradient: 'bg-muted/50 hover:bg-muted/70' },
-    { label: 'Bulk Actions', icon: BarChart3, path: '/admin/bulk', gradient: 'bg-muted/50 hover:bg-muted/70' },
+    { label: 'Revenue Insights', icon: BarChart3, path: '/admin/revenue', gradient: 'bg-muted/50 hover:bg-muted/70' },
     { label: 'Activity Logs', icon: Clock, path: '/admin/logs', gradient: 'bg-muted/50 hover:bg-muted/70' },
   ];
 
