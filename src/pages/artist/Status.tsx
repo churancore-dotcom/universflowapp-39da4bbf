@@ -47,18 +47,23 @@ export default function ArtistStatus() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoading]);
 
-  // Make the device/browser back button land on /home instead of replaying the
-  // /artist/apply → /artist/auth chain (which 404s once the signed-in guard kicks in).
+  // Keep device/browser back inside the artist flow: approved artists go to the
+  // Studio, pending/rejected stay on Status (no general /home jump).
   useEffect(() => {
     window.history.pushState({ uf: 'artist-status' }, '', window.location.pathname);
     const onPop = (e: PopStateEvent) => {
       e.preventDefault?.();
-      navigate('/home', { replace: true });
+      if (app?.status === 'approved') {
+        navigate('/artist/studio', { replace: true });
+      } else {
+        // Re-push so back stays on Status for pending/rejected.
+        window.history.pushState({ uf: 'artist-status' }, '', window.location.pathname);
+      }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [app?.status, navigate]);
+
 
 
   if (isLoading || loading) return <div className="min-h-[100dvh] bg-background" />;
@@ -92,7 +97,8 @@ export default function ArtistStatus() {
   return (
     <FadeTransition>
       <SEOHead title="Artist Status — Universflow" description="Your Universflow artist application status." path="/artist/status" />
-      <Shell>
+      <Shell backTo={app.status === 'approved' ? '/artist/studio' : '/artist/status'}>
+
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -186,15 +192,18 @@ export default function ArtistStatus() {
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, backTo = '/artist/status' }: { children: React.ReactNode; backTo?: string }) {
   const navigate = useNavigate();
+  const isSelf = backTo === '/artist/status';
   return (
     <div className="min-h-[100dvh] bg-background text-foreground">
       <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
-          <button onClick={() => navigate('/home')} className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.04] active:scale-95">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+          {!isSelf && (
+            <button onClick={() => navigate(backTo, { replace: true })} className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.04] active:scale-95">
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
           <h1 className="text-[15px] font-semibold tracking-tight">Artist Application</h1>
         </div>
       </header>
@@ -202,3 +211,4 @@ function Shell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
