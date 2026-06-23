@@ -29,9 +29,9 @@ export default function ArtistUpload() {
   const linkState = useMemo(() => streamUrl.trim() ? validateUploadLink(streamUrl) : null, [streamUrl]);
   const isValid = !!linkState?.ok;
   const linkMessage = linkState
-    ? linkState.ok
-      ? `${linkState.source === 'drive' ? 'Google Drive' : 'Dropbox'} link looks good — we’ll stream it directly.`
-      : linkState.reason
+    ? linkState.ok === false
+      ? linkState.reason
+      : `${linkState.source === 'drive' ? 'Google Drive' : 'Dropbox'} link looks good — we’ll stream it directly.`
     : null;
 
   const save = async () => {
@@ -154,14 +154,7 @@ export default function ArtistUpload() {
                 {isValid
                   ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                   : <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
-                <span>
-                  {(() => {
-                    if (linkState.ok) {
-                      return `${linkState.source === 'drive' ? 'Google Drive' : 'Dropbox'} link looks good — we’ll stream it directly.`;
-                    }
-                    return linkState.reason;
-                  })()}
-                </span>
+                <span>{linkMessage}</span>
               </motion.div>
             )}
           </AnimatePresence>
