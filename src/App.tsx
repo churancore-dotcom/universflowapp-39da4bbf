@@ -103,6 +103,8 @@ const ArtistSongsPage = lazy(() => import("./pages/artist/Songs"));
 const ArtistAnalyticsPage = lazy(() => import("./pages/artist/Analytics"));
 const ArtistFollowersPage = lazy(() => import("./pages/artist/Followers"));
 const ArtistEditProfile = lazy(() => import("./pages/artist/EditProfile"));
+const ArtistActivity = lazy(() => import("./pages/artist/Activity"));
+const ArtistNotifications = lazy(() => import("./pages/artist/Notifications"));
 const ArtistPublic = lazy(() => import("./pages/artist/ArtistPublic"));
 
 // Legal
@@ -301,6 +303,8 @@ const AnimatedRoutes = () => {
             <Route path="analytics" element={<ArtistAnalyticsPage />} />
             <Route path="followers" element={<ArtistFollowersPage />} />
             <Route path="profile" element={<ArtistEditProfile />} />
+            <Route path="activity" element={<ArtistActivity />} />
+            <Route path="notifications" element={<ArtistNotifications />} />
           </Route>
           <Route path="/artist/:artistId" element={<ProtectedRoute><ArtistDetail /></ProtectedRoute>} />
           <Route path="/a/:slug" element={<ArtistPublic />} />

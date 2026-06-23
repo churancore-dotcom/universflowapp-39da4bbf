@@ -1,88 +1,81 @@
 
-# Full sweep — 4 fixes for 400 real users
+# Artist Dashboard — Premium Rebuild
 
-Goal: make Universflow feel like a real product. Clean catalog, instant playback, smart mixes, music that never dies in your pocket.
+A complete reimagining of `/artist/studio/*`. Spotify-for-Artists aesthetic: dark, dense, premium, with live realtime pulses. Sidebar shell stays, every page gets rebuilt, plus two new pages (Notifications, Activity) and one redesigned upload flow restricted to Dropbox / Google Drive links.
 
-Build order is by risk — playback safety first, then catalog, then intelligence.
+## Pages & sections
 
----
+```
+/artist/studio                 Overview        Hero, live KPIs, sparkline, top song, recent activity
+/artist/studio/upload          Upload          Dropbox/Drive only, with visual how-to
+/artist/studio/songs           My Music        Status pills, inline stats, edit, delete
+/artist/studio/songs/:id/edit  Edit Song       Title, genre, cover URL
+/artist/studio/analytics       Analytics       Time-series chart, top songs, country map
+/artist/studio/followers       Fans            Recent followers + growth sparkline
+/artist/studio/activity        Activity Feed   New followers, milestones, status updates
+/artist/studio/notifications   Notifications   Inbox-style, mark-read
+/artist/studio/profile         Branding        Bio, photo, banner, socials, slug
+```
 
-## 1. Spam / fake-song killer (STRICT mode) — `yt-music-search` + `chart-aggregator`
+## Upload flow (the core change)
 
-Today the YT extractor leaks "sped up", "slowed + reverb", karaoke, instrumental, lyric videos, AI covers, and random reupload channels. We will:
+- Field accepts ONLY:
+  - `dropbox.com/s/...`, `dropbox.com/scl/...`, `dl.dropboxusercontent.com/...`
+  - `drive.google.com/file/d/.../view`, `drive.google.com/open?id=...`, `drive.google.com/uc?id=...`
+- Reject any other host (YouTube, Spotify, raw `.mp3` URLs, JioSaavn, etc.) inline with a clear red message.
+- Auto-normalize on save:
+  - Dropbox: rewrite `?dl=0` → `?dl=1`, swap host to `dl.dropboxusercontent.com` for direct streaming.
+  - Drive: extract file ID and store as `https://drive.google.com/uc?export=download&id=<ID>`.
+- Visual how-to card with two tabs (Drive | Dropbox), step icons, copy-link mock.
+- New fields on upload: title, genre (select), cover art URL (also validated as https image link), source platform auto-detected badge.
 
-- **Expand SPAM_PATTERN** to a single regex covering: `sped up`, `slowed`, `reverb`, `8d`, `bass boost`, `karaoke`, `instrumental`, `cover by`, `cover version`, `lyric video`, `with lyrics`, `lofi remix`, `nightcore`, `mashup`, `tutorial`, `reaction`, `whatsapp status`, `ringtone`, `loop`, `1 hour`, `extended`, `tiktok version`, `audio only`, `unofficial`, `fan made`, `ai cover`, `ai voice`.
-- **Channel allow-list signal**: prefer results from channels with `Official Artist Channel` badge, `VEVO`, or subscriber count ≥ 100k. Below 10k subs + suspicious title → drop.
-- **Duration sanity**: drop tracks <60s (clips) or >9min unless title contains `mix`/`set` opt-in.
-- **Title-first matching**: when user searches "Blinding Lights", the result title must contain `blinding lights` as a contiguous substring after normalization — no fuzzy junk.
-- **Apply same filter to `chart-aggregator`** so Trending Now never shows karaoke covers.
-- **Bust `searchCache`** version once (bump cache key prefix) so old polluted results vanish.
+## Analytics
 
-This is the highest-impact change for perceived quality. Memory `[Search Strategy]` already documents the philosophy; we just enforce it harder.
+- Aggregate KPIs (streams, listeners, followers, growth %) — live via realtime subscription on `artist_songs` and `artist_followers`.
+- Time-series line chart (Recharts already in stack) with Day / Week / Month tabs, built from `song_play_events` for the artist's songs.
+- Top songs ranking by selectable metric (existing pattern, restyled).
+- Top countries derived from `song_play_events.country` — horizontal bar list with flag emoji. Falls back to "Locations available once you have plays" when empty.
 
-## 2. Auto-playlists — layered (Radio + Personal Mix + Discover Mix)
+## Music management
 
-We already have `src/lib/playlistEngine.ts` (tag + collab + trending, cold-start aware). We will wire it to the UI and add layers:
+- Status pills: live, pending review, taken_down (rejected) — color-coded.
+- Inline per-song stats row.
+- Edit modal: title, genre, cover URL. Delete with confirm.
+- Source-platform badge on each row (Drive / Dropbox).
 
-- **Instant Radio** (works from play #1): tap any song → "Start Radio" generates a 20-song queue via the engine using only seed tags + trending. No history needed.
-- **Made For You — Daily Mix** (unlocks at 20+ plays): one auto-mix per top-genre cluster, refreshed every 24h by a new edge function `daily-mix-builder` on pg_cron at 04:00 user-local-ish (UTC for now).
-- **Discover Mix** (unlocks at 100+ active users globally): collaborative filtering layer kicks in automatically — engine already supports it via `user_song_scores`.
-- **DB**: new `auto_playlists` table (user_id, kind, seed_song_id, tracks jsonb, generated_at, expires_at) with RLS owner-only.
-- **UI**: new `AutoMixesSection` on Home, between "Jump Back In" and "Moods". Empty state shows "Play 5 songs to unlock your mix".
-- **Long-press menu** on any song card → "Start Radio".
+## Profile & branding
 
-## 3. Song-start delay fix
+- Bio (textarea, 280 char), profile photo upload, banner upload, social links (instagram, youtube, spotify, apple_music, twitter, website), slug display + "Copy public link" button.
+- All edits via existing `artist_profiles` table; live preview card at top.
 
-Root causes from the codebase: stream-proxy is wrapped even when not needed, `getSongStreamUrl` waits on a cold YT extract, and we don't preload track #2 until after #1 starts.
+## Fan engagement
 
-- **Eager URL resolution**: as soon as user taps a card, resolve URL in parallel with the play-intent animation — don't wait for AudioContext unlock.
-- **Two-track lookahead**: when track N starts playing, immediately resolve URL for N+1 and N+2 (today we only do N+1, per memory). Already partially done — verify and harden.
-- **Skip stream-proxy when EQ flat**: `streamProxy.ts` already documents this; audit `PlayerContext` to confirm we actually skip it on cold start.
-- **Edge cache**: `yt-music-search` results cached in `stream_songs` table for 24h — check, then on repeat plays we skip extraction entirely.
-- **Add `perf_event`** for `time_to_first_byte` so we can see the win on `/admin/performance`.
+- Activity feed assembled client-side from:
+  - `artist_followers` inserts (last 30d)
+  - Milestone events (computed from `artist_songs` totals crossing 100 / 1k / 10k / 100k / 1M)
+  - `artist_applications.status` changes
+- Notifications page = same source, but persistent and dismissible (stored in `localStorage` keyed by `lastReadAt`).
 
-## 4. Background playback hardening (Android + web)
+## Design language
 
-- **Audit `MediaSessionManager` + native `MusicService.kt`**: confirm `MediaSession` stays active during track transitions (lose-then-regain is what kills lock-screen controls).
-- **Wake lock**: ensure `PARTIAL_WAKE_LOCK` held only while playing, released on pause to save battery.
-- **Foreground service notification**: verify it's started BEFORE `play()` not after (Android 14 hard requirement).
-- **Web**: `navigator.mediaSession` action handlers re-registered on every track change (today they leak).
+- Dark surface `bg-background` with `rgba(255,255,255,0.03)` cards and `0.5px` borders, rose accent `#FF2D55`.
+- KPI numbers in tabular-nums, animated counter on realtime updates (extend existing `StatCard`).
+- Sidebar gains: Activity, Notifications items; unread dot for notifications.
+- Live indicator pulse in header — reuse existing.
+- Framer-motion entry animations on every section.
 
----
+## Technical notes
 
-## Technical section
+- No DB schema changes required. All needed columns already exist (`artist_songs.genre` exists? — verified below; if missing, add via migration in a small follow-up).
+- All analytics built from existing tables: `song_play_events`, `artist_songs`, `artist_followers`, `artist_applications`.
+- Realtime: extend `useArtistLive` to also subscribe to `artist_applications` for status updates.
+- New helper `src/lib/artistUploadLinks.ts` for Drive/Dropbox detection + normalization with unit-testable pure functions.
+- New `src/pages/artist/Activity.tsx`, `Notifications.tsx`, `EditSong.tsx`.
+- Routes added in `src/App.tsx` under the existing `ArtistProtectedRoute`.
+- Recharts is already a dependency (used elsewhere); no new packages.
 
-**Files touched (new):**
-- `supabase/functions/daily-mix-builder/index.ts` — runs nightly, picks top 3 genre clusters per active user, calls `runPlaylistEngine`, writes `auto_playlists`.
-- `src/components/AutoMixesSection.tsx` — Home rail with 3 mix cards.
-- `src/components/RadioButton.tsx` — "Start Radio" CTA.
-- `src/hooks/useAutoMix.ts` — fetches/subscribes to user's auto-playlists.
+## Out of scope (call out so it isn't expected)
 
-**Files touched (edited):**
-- `supabase/functions/yt-music-search/index.ts` — expanded SPAM_PATTERN, channel/duration gates, title-first match.
-- `supabase/functions/chart-aggregator/index.ts` — same spam filter applied before insert.
-- `src/lib/searchCache.ts` — version bump invalidates polluted entries.
-- `src/contexts/PlayerContext.tsx` — eager resolve, two-track preload audit, MediaSession re-register.
-- `src/lib/streamProxy.ts` — verify EQ-flat bypass actually triggers.
-- `src/components/HomeBento.tsx` — insert `AutoMixesSection`.
-- `src/components/SongCard.tsx` — long-press → "Start Radio".
-- `src/services/MediaSessionManager.ts` — re-register handlers per track.
-- `android/app/.../MusicService.kt` — foreground-before-play order, wake lock lifecycle.
-
-**Migration (one):**
-- `auto_playlists` table + RLS + GRANTs + pg_cron job hitting `daily-mix-builder` at 04:00 UTC daily.
-
-**Memory updates after build:**
-- Append "Auto-playlists: layered Radio→Personal→Discover" to `mem://features/`.
-- Update `mem://features/search-quality-filtering` with the new SPAM_PATTERN list.
-
----
-
-## Risk + rollout
-
-- All 4 changes are independent — if #3 misbehaves, #1/#2 still ship.
-- Spam filter is the highest user-visible win and lowest risk (server-side only, cache bust handles old results).
-- Daily-mix cron starts producing mixes immediately for any user with ≥20 plays; others see "play more" empty state — no broken UI.
-- Background playback changes are Android-side; web users unaffected.
-
-Approve and I'll build all four in order, verify each, then update memory.
+- Server-side validation/transcoding of Drive/Dropbox links — links are stored as-is after client normalization; playback already streams external URLs.
+- Comments system (the brief said "if applicable" — no comments table exists; skipped).
+- Email/push notifications for milestones (in-app only this pass).

@@ -1,8 +1,8 @@
-import { useEffect, useState, memo } from 'react';
+import { useEffect, useMemo, useState, memo } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Upload, Music2, BarChart3, Users, UserCog, LogOut,
-  Menu, X, ExternalLink, CheckCircle2,
+  Menu, X, ExternalLink, CheckCircle2, Bell, Activity as ActivityIcon,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,14 +11,18 @@ import { useArtistLive } from './_shared';
 const nav = [
   { to: '/artist/studio', label: 'Overview', icon: LayoutDashboard, end: true },
   { to: '/artist/studio/upload', label: 'Upload song', icon: Upload },
-  { to: '/artist/studio/songs', label: 'My songs', icon: Music2 },
+  { to: '/artist/studio/songs', label: 'My music', icon: Music2 },
   { to: '/artist/studio/analytics', label: 'Analytics', icon: BarChart3 },
   { to: '/artist/studio/followers', label: 'Followers', icon: Users },
+  { to: '/artist/studio/activity', label: 'Activity', icon: ActivityIcon },
+  { to: '/artist/studio/notifications', label: 'Notifications', icon: Bell, badge: true as const },
   { to: '/artist/studio/profile', label: 'Edit profile', icon: UserCog },
 ];
 
+const READ_KEY = 'uf_artist_notifs_read_at';
+
 const SidebarBody = memo(function SidebarBody({
-  pathname, onClose, onLogout, stageName, avatarUrl, slug, followers,
+  pathname, onClose, onLogout, stageName, avatarUrl, slug, followers, hasUnread,
 }: {
   pathname: string;
   onClose: () => void;
@@ -27,6 +31,7 @@ const SidebarBody = memo(function SidebarBody({
   avatarUrl: string | null;
   slug: string;
   followers: number;
+  hasUnread: boolean;
 }) {
   const navigate = useNavigate();
   return (
@@ -54,22 +59,24 @@ const SidebarBody = memo(function SidebarBody({
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
-        {nav.map(({ to, label, icon: Icon, end }) => {
+        {nav.map(({ to, label, icon: Icon, end, badge }) => {
           const active = end ? pathname === to : pathname.startsWith(to);
+          const showDot = badge && hasUnread;
           return (
             <NavLink
               key={to}
               to={to}
               end={end}
               onClick={onClose}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
+              className={`relative w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
                 active
                   ? 'bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:bg-white/5 hover:text-foreground active:scale-[0.98]'
               }`}
             >
               <Icon className="w-4 h-4" />
-              {label}
+              <span className="flex-1">{label}</span>
+              {showDot && <span className="w-2 h-2 rounded-full bg-primary" />}
             </NavLink>
           );
         })}
@@ -103,7 +110,7 @@ export default function ArtistLayout() {
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user) { navigate('/auth', { replace: true }); return; }
+    if (!user) { navigate('/artist/auth', { replace: true }); return; }
     (async () => {
       const { data: hasArtist } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'artist' });
       if (!hasArtist) { navigate('/artist/status', { replace: true }); return; }
@@ -112,6 +119,15 @@ export default function ArtistLayout() {
   }, [user, isLoading, navigate]);
 
   useEffect(() => { setOpen(false); }, [location.pathname]);
+
+  // Compute unread badge for sidebar
+  const hasUnread = useMemo(() => {
+    const readAt = +(typeof window !== 'undefined' ? localStorage.getItem(READ_KEY) ?? '0' : '0');
+    const latestFollower = 0;
+    // Lightweight signal — followers count increase since read is hard without a feed;
+    // fall back to "unread if any follower exists and never marked read".
+    return followers > 0 && readAt === 0 ? true : latestFollower > readAt;
+  }, [followers, location.pathname]);
 
   if (!authorized || loading || !profile) {
     return <div className="min-h-[100dvh] bg-background" />;
@@ -130,6 +146,7 @@ export default function ArtistLayout() {
             aria-label="Open menu"
           >
             <Menu className="w-5 h-5" />
+            {hasUnread && <span className="absolute -mt-5 ml-5 w-2 h-2 rounded-full bg-primary" />}
           </button>
           <h1 className="text-[15px] font-semibold tracking-tight">Artist Studio</h1>
           <span className="ml-1 inline-flex items-center gap-1 text-[10px] font-semibold tracking-wider uppercase text-emerald-300/90">
@@ -152,6 +169,7 @@ export default function ArtistLayout() {
           avatarUrl={profile.avatar_url}
           slug={profile.slug}
           followers={followers}
+          hasUnread={hasUnread}
         />
       </aside>
 
@@ -168,6 +186,7 @@ export default function ArtistLayout() {
               avatarUrl={profile.avatar_url}
               slug={profile.slug}
               followers={followers}
+              hasUnread={hasUnread}
             />
           </div>
         </div>
