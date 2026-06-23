@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { getArtistDestination } from '@/lib/artistRouting';
+import { getMyApplication } from '@/lib/artist';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -144,13 +144,39 @@ const ArtistAuth = () => {
           return;
         }
         const authedUser = (await supabase.auth.getUser()).data.user;
-        const destination = await getArtistDestination(authedUser);
-        if (!destination) {
-          await supabase.auth.signOut();
-          toast.error('No artist account found for this email. Please sign up as an artist first.');
+        if (!authedUser) {
+          toast.error('Could not load your account. Please try again.');
           return;
         }
-        navigate(destination, { replace: true });
+
+        // Admins are never trapped in the artist flow.
+        try {
+          const { data: isAdmin } = await supabase.rpc('has_role', {
+            _user_id: authedUser.id, _role: 'admin',
+          });
+          if (isAdmin) { navigate('/home', { replace: true }); return; }
+        } catch { /* fall through */ }
+
+        // Approved artists land in Studio.
+        try {
+          const { data: isArtist } = await supabase.rpc('has_role', {
+            _user_id: authedUser.id, _role: 'artist',
+          });
+          if (isArtist) { navigate('/artist/studio', { replace: true }); return; }
+        } catch { /* fall through */ }
+
+        // Pending / rejected applicants land on Status (this was previously
+        // broken — returning artists with an in-review application would get
+        // signed out with "no artist account found").
+        try {
+          const app = await getMyApplication(authedUser.id);
+          if (app) { navigate('/artist/status', { replace: true }); return; }
+        } catch { /* fall through */ }
+
+        // Truly no artist record on this account.
+        await supabase.auth.signOut();
+        toast.error('No artist account found for this email. Please sign up as an artist first.');
+        return;
       } else {
         const fullPhone = `${dial[1]} ${phone.trim()}`;
         const { error } = await signUp(email, password, username, dial[0]);

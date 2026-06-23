@@ -49,7 +49,7 @@ export default function EditProfile() {
       if (error) throw error;
       toast.success('Profile updated ✓');
     } catch (e) {
-      toast.error(e?.message || 'Could not save profile.');
+      toast.error(e instanceof Error ? e.message : 'Could not save profile.');
     } finally {
       setSaving(false);
     }
