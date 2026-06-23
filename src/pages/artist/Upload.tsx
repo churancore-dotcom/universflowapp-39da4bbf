@@ -28,6 +28,11 @@ export default function ArtistUpload() {
 
   const linkState = useMemo(() => streamUrl.trim() ? validateUploadLink(streamUrl) : null, [streamUrl]);
   const isValid = !!linkState?.ok;
+  const linkMessage = linkState
+    ? linkState.ok
+      ? `${linkState.source === 'drive' ? 'Google Drive' : 'Dropbox'} link looks good — we’ll stream it directly.`
+      : linkState.reason
+    : null;
 
   const save = async () => {
     if (!title.trim() || !linkState?.ok) return;
