@@ -1,34 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Loader2, AlertTriangle, RotateCcw, Check, X } from 'lucide-react';
+import { Camera, Loader2, AlertTriangle, RotateCcw, Check } from 'lucide-react';
 import { FaceLandmarker, FilesetResolver, type FaceLandmarkerResult } from '@mediapipe/tasks-vision';
 
-type Pose = 'center' | 'left' | 'right' | 'up';
+// ────────────────────────────────────────────────────────────────────────────
+// FAST single-shot face check.
+//
+// Previous flow asked users to hold 4 separate poses (center/left/right/up)
+// for ~280 ms each. Users on mid-range phones kept failing — heads wobble,
+// model load is slow, MediaPipe yaw math is jittery. We're now doing what
+// Instagram / X verification actually does: one centered selfie, auto-capture
+// the moment a real face is detected and roughly straight, ~120 ms hold.
+//
+// We KEEP the LivenessShots shape (center/left/right/up) so the Apply page
+// keeps working without changes — we just put the single captured blob into
+// every slot. The upload code already de-dupes by hashing so there's zero
+// extra cost downstream.
+// ────────────────────────────────────────────────────────────────────────────
 
-const POSE_PROMPT: Record<Pose, { title: string; sub: string }> = {
-  center: { title: 'Look straight ahead', sub: 'Center your face in the oval' },
-  left:   { title: 'Turn your head LEFT',  sub: 'Slowly — your nose should point left' },
-  right:  { title: 'Turn your head RIGHT', sub: 'Slowly — your nose should point right' },
-  up:     { title: 'Tilt your head UP',    sub: 'Lift your chin a little' },
-};
-
-const ORDER: Pose[] = ['center', 'left', 'right', 'up'];
-
-const POSE_ARC: Record<Pose, { startDeg: number; endDeg: number }> = {
-  up:     { startDeg: -135, endDeg:  -45 },
-  right:  { startDeg:  -45, endDeg:   45 },
-  center: { startDeg:   45, endDeg:  135 },
-  left:   { startDeg:  135, endDeg:  225 },
-};
-
-// Thresholds for pose detection — derived from MediaPipe Face Landmarker
-// transformationMatrix yaw/pitch (in degrees). Calibrated to feel responsive
-// but not trigger on tiny head wobble.
-const YAW_LEFT_MIN  = 15;   // user turns head left   → yaw > +15°
-const YAW_RIGHT_MIN = 15;   // user turns head right  → yaw < -15°
-const PITCH_UP_MIN  = 12;   // user tilts head up     → pitch > +12°
-const CENTER_TOL    = 12;   // straight ahead         → |yaw|<12 && |pitch|<12
-const HOLD_MS       = 280;  // must hold the pose this long before capture
+const CENTER_TOL_DEG = 22;   // generous — heads wobble; we just need "facing forward"
+const HOLD_MS         = 120; // ~7 frames at 60fps. Feels instant, still proves liveness.
 
 export interface LivenessShots {
   center: Blob;
@@ -37,45 +28,20 @@ export interface LivenessShots {
   up: Blob;
 }
 
-// IMPORTANT: the camera preview is mirrored (selfie mode). MediaPipe runs on
-// the *un-mirrored* video frame, so a head turned to the user's real LEFT
-// produces a NEGATIVE yaw in the matrix. We flip the sign here so "left" in
-// our UI matches the user's actual left/right, matching Meta/Face ID UX.
-//
-// The matrix is column-major. We extract yaw (around Y axis) and pitch
-// (around X axis) using a standard rotation-matrix-to-Euler conversion.
+// MediaPipe outputs a column-major 4×4 transform matrix. Yaw (around Y) and
+// pitch (around X) come from a standard rotation-matrix → Euler decomposition.
+// We don't need the full Euler triple — just |yaw| and |pitch| in degrees.
 function extractYawPitchDeg(m: number[] | Float32Array): { yawDeg: number; pitchDeg: number } | null {
   if (!m || m.length < 16) return null;
-  // Column-major 4x4 → rotation matrix elements:
-  // R = [ m[0] m[4] m[8]  ]
-  //     [ m[1] m[5] m[9]  ]
-  //     [ m[2] m[6] m[10] ]
-  const r00 = m[0],  r01 = m[4],  r02 = m[8];
-  const r10 = m[1],  r11 = m[5],  r12 = m[9];
   const r20 = m[2],  r21 = m[6],  r22 = m[10];
-  void r00; void r10; void r11;
-  // Standard XYZ Euler (yaw = around Y, pitch = around X)
   const yaw   = Math.atan2(-r20, Math.sqrt(r21 * r21 + r22 * r22));
   const pitch = Math.atan2(r21, r22);
-  // Flip yaw sign so "user's left" reads as positive (mirror selfie correction).
-  return {
-    yawDeg:   -(yaw   * 180) / Math.PI,
-    pitchDeg:  (pitch * 180) / Math.PI,
-  };
+  return { yawDeg: (yaw * 180) / Math.PI, pitchDeg: (pitch * 180) / Math.PI };
 }
 
-function poseMatches(target: Pose, yawDeg: number, pitchDeg: number): boolean {
-  switch (target) {
-    case 'center': return Math.abs(yawDeg) < CENTER_TOL && Math.abs(pitchDeg) < CENTER_TOL;
-    case 'left':   return yawDeg >  YAW_LEFT_MIN;
-    case 'right':  return yawDeg < -YAW_RIGHT_MIN;
-    case 'up':     return pitchDeg > PITCH_UP_MIN;
-  }
-}
-
-// Singleton: load the FaceLandmarker once per session. We try GPU first; if
-// the device/driver rejects it we transparently fall back to CPU so the user
-// is never stuck on "Loading face model".
+// Singleton: load the FaceLandmarker once per session, GPU-first with CPU
+// fallback. Pre-fetched on module import so the model is usually warm by the
+// time the user opens the verification step.
 let landmarkerPromise: Promise<FaceLandmarker> | null = null;
 async function getLandmarker(): Promise<FaceLandmarker> {
   if (landmarkerPromise) return landmarkerPromise;
@@ -95,9 +61,8 @@ async function getLandmarker(): Promise<FaceLandmarker> {
         outputFaceBlendshapes: false,
         outputFacialTransformationMatrixes: true,
       });
-    try {
-      return await make('GPU');
-    } catch (e) {
+    try { return await make('GPU'); }
+    catch (e) {
       console.warn('Face GPU delegate failed, falling back to CPU', e);
       return await make('CPU');
     }
@@ -105,10 +70,7 @@ async function getLandmarker(): Promise<FaceLandmarker> {
   return landmarkerPromise;
 }
 
-// Kick off model + WASM download as soon as this module is imported, so by
-// the time the user taps "Start camera" the model is usually ready.
 if (typeof window !== 'undefined') {
-  // best-effort, swallow errors — real load happens again in startCamera()
   setTimeout(() => { void getLandmarker().catch(() => { landmarkerPromise = null; }); }, 50);
 }
 
@@ -123,42 +85,31 @@ export default function FaceLivenessCapture({
   const rafRef = useRef<number | null>(null);
   const landmarkerRef = useRef<FaceLandmarker | null>(null);
   const holdStartRef = useRef<number | null>(null);
-  const shotsRef = useRef<Partial<LivenessShots>>({});
-  const stepRef = useRef<number>(0);
-  const capturingRef = useRef(false);
+  const capturedRef = useRef(false);
 
   const [streaming, setStreaming] = useState(false);
   const [starting, setStarting] = useState(false);
   const [started, setStarted] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [stepIdx, setStepIdx] = useState(0);
-  const [shots, setShots] = useState<Partial<LivenessShots>>({});
-  const [poseOk, setPoseOk] = useState(false);
-  const [holdProgress, setHoldProgress] = useState(0); // 0..1
   const [faceDetected, setFaceDetected] = useState(false);
-  const [debugYP, setDebugYP] = useState<{ y: number; p: number } | null>(null);
+  const [poseOk, setPoseOk] = useState(false);
+  const [holdProgress, setHoldProgress] = useState(0);
+  const [done, setDone] = useState(false);
   const [flash, setFlash] = useState(false);
 
-  const pose = ORDER[stepIdx];
-
-  // Hard restart — stop camera, wipe shots, reset to "Start camera" screen.
   const restart = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     holdStartRef.current = null;
-    capturingRef.current = false;
-    shotsRef.current = {};
-    stepRef.current = 0;
-    setShots({});
-    setStepIdx(0);
+    capturedRef.current = false;
+    setStreaming(false);
+    setStarted(false);
     setPoseOk(false);
     setHoldProgress(0);
     setFaceDetected(false);
-    setDebugYP(null);
-    setStreaming(false);
-    setStarted(false);
+    setDone(false);
     setErr(null);
   };
 
@@ -226,39 +177,34 @@ export default function FaceLivenessCapture({
     const tick = () => {
       const video = videoRef.current;
       const lm = landmarkerRef.current;
-      if (!video || !lm || video.readyState < 2) {
-        rafRef.current = requestAnimationFrame(tick);
+      if (!video || !lm || video.readyState < 2 || capturedRef.current) {
+        if (!capturedRef.current) rafRef.current = requestAnimationFrame(tick);
         return;
       }
       let result: FaceLandmarkerResult | null = null;
-      try {
-        result = lm.detectForVideo(video, performance.now());
-      } catch {
-        result = null;
-      }
+      try { result = lm.detectForVideo(video, performance.now()); }
+      catch { result = null; }
       const matrix = result?.facialTransformationMatrixes?.[0]?.data;
-      const targetPose = ORDER[stepRef.current];
       if (!matrix) {
         setFaceDetected(false);
         setPoseOk(false);
         setHoldProgress(0);
         holdStartRef.current = null;
-        setDebugYP(null);
       } else {
         setFaceDetected(true);
         const yp = extractYawPitchDeg(matrix as unknown as number[]);
         if (yp) {
-          setDebugYP({ y: yp.yawDeg, p: yp.pitchDeg });
-          const ok = poseMatches(targetPose, yp.yawDeg, yp.pitchDeg);
+          const ok = Math.abs(yp.yawDeg) < CENTER_TOL_DEG && Math.abs(yp.pitchDeg) < CENTER_TOL_DEG;
           setPoseOk(ok);
           if (ok) {
             if (holdStartRef.current == null) holdStartRef.current = performance.now();
             const held = performance.now() - holdStartRef.current;
             const prog = Math.min(1, held / HOLD_MS);
             setHoldProgress(prog);
-            if (prog >= 1 && !capturingRef.current && !shotsRef.current[targetPose]) {
-              capturingRef.current = true;
-              capture(targetPose);
+            if (prog >= 1 && !capturedRef.current) {
+              capturedRef.current = true;
+              void capture();
+              return;
             }
           } else {
             holdStartRef.current = null;
@@ -271,49 +217,35 @@ export default function FaceLivenessCapture({
     rafRef.current = requestAnimationFrame(tick);
   };
 
-  const capture = async (target: Pose) => {
+  const capture = async () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
-    if (!video || !canvas) { capturingRef.current = false; return; }
+    if (!video || !canvas) { capturedRef.current = false; return; }
     const w = video.videoWidth || 640;
     const h = video.videoHeight || 640;
-    canvas.width = w;
-    canvas.height = h;
+    canvas.width = w; canvas.height = h;
     const ctx = canvas.getContext('2d');
-    if (!ctx) { capturingRef.current = false; return; }
+    if (!ctx) { capturedRef.current = false; return; }
     // Save un-mirrored frame so OCR/face-match downstream sees the real face.
     ctx.drawImage(video, 0, 0, w, h);
-    // Cinematic shutter flash
     setFlash(true);
-    setTimeout(() => setFlash(false), 180);
-    await new Promise<void>((resolve) => {
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) { capturingRef.current = false; resolve(); return; }
-          const next = { ...shotsRef.current, [target]: blob } as Partial<LivenessShots>;
-          shotsRef.current = next;
-          setShots(next);
-          // brief lock-in pause to show the green tick, then advance
-          setTimeout(() => {
-            capturingRef.current = false;
-            holdStartRef.current = null;
-            setHoldProgress(0);
-            setPoseOk(false);
-            if (stepRef.current >= ORDER.length - 1) {
-              if (rafRef.current) cancelAnimationFrame(rafRef.current);
-              streamRef.current?.getTracks().forEach((t) => t.stop());
-              onComplete(next as LivenessShots);
-            } else {
-              stepRef.current += 1;
-              setStepIdx(stepRef.current);
-            }
-            resolve();
-          }, 220);
-        },
-        'image/jpeg',
-        0.85,
-      );
-    });
+    setTimeout(() => setFlash(false), 160);
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) { capturedRef.current = false; return; }
+        // Tear down the camera immediately — we have what we need.
+        if (rafRef.current) cancelAnimationFrame(rafRef.current);
+        streamRef.current?.getTracks().forEach((t) => t.stop());
+        setDone(true);
+        // Same blob in every slot keeps the LivenessShots interface intact
+        // for the Apply page without forcing a multi-pose flow on the user.
+        setTimeout(() => {
+          onComplete({ center: blob, left: blob, right: blob, up: blob });
+        }, 320);
+      },
+      'image/jpeg',
+      0.85,
+    );
   };
 
   if (err) {
@@ -324,7 +256,7 @@ export default function FaceLivenessCapture({
         </div>
         <p className="text-[12.5px] mt-1 leading-relaxed">{err}</p>
         <button
-          onClick={() => { setErr(null); setStarted(false); }}
+          onClick={restart}
           className="mt-3 inline-flex items-center gap-1.5 text-[12px] underline"
         >
           <RotateCcw className="w-3.5 h-3.5" /> Retry
@@ -340,11 +272,10 @@ export default function FaceLivenessCapture({
           <Camera className="w-6 h-6 text-primary" />
         </div>
         <div>
-          <p className="text-[14px] font-semibold">Live face check</p>
+          <p className="text-[14px] font-semibold">Quick face check</p>
           <p className="text-[12px] text-muted-foreground mt-1 leading-relaxed">
-            We use on-device face tracking to confirm you're a real person.
-            Follow the prompts — center, left, right, up. We capture only when
-            your head is actually in the right pose.
+            Look at the camera. We auto-capture in a split second — no poses,
+            no holding still.
           </p>
         </div>
         <button
@@ -364,71 +295,28 @@ export default function FaceLivenessCapture({
     );
   }
 
-  // SVG geometry
+  // SVG oval guide geometry
   const VB = 300, CX = 150, CY = 150, RX = 108, RY = 132;
-  const RING_RX = RX + 14, RING_RY = RY + 14;
 
-  const arcPath = (startDeg: number, endDeg: number) => {
-    const toRad = (d: number) => (d * Math.PI) / 180;
-    const sx = CX + RING_RX * Math.cos(toRad(startDeg));
-    const sy = CY + RING_RY * Math.sin(toRad(startDeg));
-    const ex = CX + RING_RX * Math.cos(toRad(endDeg));
-    const ey = CY + RING_RY * Math.sin(toRad(endDeg));
-    const large = Math.abs(endDeg - startDeg) > 180 ? 1 : 0;
-    return `M ${sx} ${sy} A ${RING_RX} ${RING_RY} 0 ${large} 1 ${ex} ${ey}`;
-  };
-
-  // Status state machine for the bottom pill — drives the AnimatePresence morph
-  type Status = { key: string; tone: 'load' | 'warn' | 'idle' | 'ok' | 'lock'; label: string };
-  const status: Status = (!streaming || modelLoading)
-    ? { key: 'load', tone: 'load', label: 'Warming up face tracker…' }
-    : !faceDetected
-      ? { key: 'noface', tone: 'warn', label: 'Center your face in the oval' }
-      : poseOk && holdProgress >= 1
-        ? { key: 'lock', tone: 'lock', label: 'Captured ✓' }
+  const status: { tone: 'load' | 'warn' | 'ok' | 'lock'; label: string } = done
+    ? { tone: 'lock', label: 'Captured ✓' }
+    : (!streaming || modelLoading)
+      ? { tone: 'load', label: 'Warming up camera…' }
+      : !faceDetected
+        ? { tone: 'warn', label: 'Center your face in the oval' }
         : poseOk
-          ? { key: 'hold', tone: 'ok', label: `Hold still · ${Math.round(holdProgress * 100)}%` }
-          : { key: 'pose', tone: 'idle', label: 'Match the pose above' };
+          ? { tone: 'ok', label: `Hold still · ${Math.round(holdProgress * 100)}%` }
+          : { tone: 'warn', label: 'Face the camera straight on' };
 
   const toneColor = {
     load: { fg: 'rgba(255,255,255,0.92)', bd: 'rgba(255,255,255,0.14)' },
     warn: { fg: 'rgba(255,196,196,0.95)', bd: 'rgba(244,114,114,0.45)' },
-    idle: { fg: 'rgba(255,255,255,0.92)', bd: 'rgba(255,255,255,0.14)' },
     ok:   { fg: '#34D399',                bd: 'rgba(52,211,153,0.55)' },
     lock: { fg: '#34D399',                bd: 'rgba(52,211,153,0.7)' },
   }[status.tone];
 
-  const doneCount = Object.keys(shots).length;
-
   return (
     <div className="space-y-4">
-      {/* Cinematic step bar — four segments fill as poses complete */}
-      <div className="flex items-center gap-2">
-        {ORDER.map((p, i) => {
-          const isDone = !!shots[p];
-          const isActive = i === stepIdx && !isDone;
-          return (
-            <div key={p} className="flex-1 h-1.5 rounded-full overflow-hidden bg-white/[0.06]">
-              <motion.div
-                initial={false}
-                animate={{
-                  width: isDone ? '100%' : isActive ? `${Math.max(8, holdProgress * 100)}%` : '0%',
-                  backgroundColor: isDone ? '#34D399' : '#FF2D55',
-                }}
-                transition={{ duration: isDone ? 0.25 : 0.12, ease: 'easeOut' }}
-                className="h-full rounded-full"
-                style={{ boxShadow: isActive ? '0 0 8px rgba(255,45,85,0.55)' : undefined }}
-              />
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
-        <span>Step {Math.min(stepIdx + 1, ORDER.length)} of {ORDER.length}</span>
-        <span>{doneCount}/{ORDER.length} captured</span>
-      </div>
-
       <div
         className="relative aspect-square rounded-3xl overflow-hidden border border-white/10"
         style={{ background: 'radial-gradient(ellipse at center, #0a0a0a 0%, #000 100%)' }}
@@ -441,224 +329,109 @@ export default function FaceLivenessCapture({
           style={{ transform: 'scaleX(-1)' }}
         />
 
-        {/* Scanning sweep while waiting for face — purely cinematic */}
-        {streaming && !faceDetected && !modelLoading && (
+        {/* Scanning sweep while waiting for a face */}
+        {streaming && !faceDetected && !modelLoading && !done && (
           <motion.div
             initial={{ y: '-100%' }}
             animate={{ y: '100%' }}
-            transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-            className="absolute inset-x-0 h-1/3 pointer-events-none"
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
+            className="absolute inset-x-0 h-12 pointer-events-none"
             style={{
-              background: 'linear-gradient(180deg, transparent 0%, rgba(255,45,85,0.18) 50%, transparent 100%)',
+              background:
+                'linear-gradient(180deg, transparent 0%, rgba(255,45,85,0.18) 50%, transparent 100%)',
             }}
           />
         )}
 
-        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox={`0 0 ${VB} ${VB}`} preserveAspectRatio="xMidYMid slice">
+        {/* Oval guide + progress ring */}
+        <svg viewBox={`0 0 ${VB} ${VB}`} className="absolute inset-0 w-full h-full pointer-events-none">
           <defs>
-            <mask id="face-mask">
+            <mask id="cutout">
               <rect width={VB} height={VB} fill="white" />
               <ellipse cx={CX} cy={CY} rx={RX} ry={RY} fill="black" />
             </mask>
-            <linearGradient id="active-grad" x1="0" x2="1" y1="0" y2="1">
-              <stop offset="0%" stopColor="#FF2D55" />
-              <stop offset="100%" stopColor="#FF6B9A" />
-            </linearGradient>
           </defs>
-
-          <rect width={VB} height={VB} fill="rgba(0,0,0,0.62)" mask="url(#face-mask)" />
-
+          <rect width={VB} height={VB} fill="rgba(0,0,0,0.55)" mask="url(#cutout)" />
           <ellipse
-            cx={CX} cy={CY} rx={RING_RX} ry={RING_RY}
+            cx={CX}
+            cy={CY}
+            rx={RX}
+            ry={RY}
             fill="none"
-            stroke="rgba(255,255,255,0.08)"
-            strokeWidth="6"
+            stroke={done ? '#34D399' : poseOk ? '#34D399' : 'rgba(255,255,255,0.55)'}
+            strokeWidth={2}
+            style={{ transition: 'stroke 180ms ease' }}
           />
-
-          {ORDER.map((p) => {
-            const { startDeg, endDeg } = POSE_ARC[p];
-            const done = !!shots[p];
-            const isActive = p === pose && !done;
-            const base = (
-              <path
-                key={`${p}-base`}
-                d={arcPath(startDeg, endDeg)}
-                fill="none"
-                stroke="rgba(255,255,255,0.14)"
-                strokeWidth="6"
-                strokeLinecap="round"
-              />
-            );
-            if (done) {
-              return (
-                <g key={p}>
-                  {base}
-                  <path
-                    d={arcPath(startDeg, endDeg)}
-                    fill="none"
-                    stroke="#34D399"
-                    strokeWidth="6"
-                    strokeLinecap="round"
-                    style={{ filter: 'drop-shadow(0 0 6px rgba(52,211,153,0.55))' }}
-                  />
-                </g>
-              );
-            }
-            if (isActive) {
-              const span = endDeg - startDeg;
-              return (
-                <g key={p}>
-                  {base}
-                  <path
-                    d={arcPath(startDeg, startDeg + span * holdProgress)}
-                    fill="none"
-                    stroke="url(#active-grad)"
-                    strokeWidth="7"
-                    strokeLinecap="round"
-                    style={{
-                      filter: 'drop-shadow(0 0 10px rgba(255,45,85,0.7))',
-                      transition: 'd 120ms linear',
-                    }}
-                  />
-                </g>
-              );
-            }
-            return base;
-          })}
-
+          {/* Progress ring fills as user holds */}
           <ellipse
-            cx={CX} cy={CY} rx={RX} ry={RY}
+            cx={CX}
+            cy={CY}
+            rx={RX + 8}
+            ry={RY + 8}
             fill="none"
-            stroke={poseOk ? '#34D399' : faceDetected ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.28)'}
-            strokeWidth={poseOk ? 2.5 : 1.5}
-            style={{ transition: 'stroke 180ms ease, stroke-width 180ms ease' }}
+            stroke="#FF2D55"
+            strokeWidth={3}
+            strokeLinecap="round"
+            strokeDasharray={2 * Math.PI * ((RX + RY) / 2 + 8)}
+            strokeDashoffset={(1 - holdProgress) * 2 * Math.PI * ((RX + RY) / 2 + 8)}
+            style={{ transition: 'stroke-dashoffset 80ms linear' }}
+            transform={`rotate(-90 ${CX} ${CY})`}
+            opacity={done ? 0 : 1}
           />
         </svg>
 
-        {/* Shutter flash on capture */}
+        {/* Cinematic flash */}
         <AnimatePresence>
           {flash && (
             <motion.div
-              key="flash"
               initial={{ opacity: 0 }}
-              animate={{ opacity: 0.55 }}
+              animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.18 }}
+              transition={{ duration: 0.16 }}
               className="absolute inset-0 bg-white pointer-events-none"
             />
           )}
         </AnimatePresence>
 
-        {/* Big ✓ pop on each successful pose */}
+        {/* Lock-in tick */}
         <AnimatePresence>
-          {shots[pose] && (
+          {done && (
             <motion.div
-              key={`done-${pose}`}
-              initial={{ scale: 0.4, opacity: 0 }}
+              initial={{ scale: 0.6, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.6, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 360, damping: 18 }}
+              exit={{ opacity: 0 }}
               className="absolute inset-0 flex items-center justify-center pointer-events-none"
             >
-              <div className="w-20 h-20 rounded-full bg-emerald-500/90 backdrop-blur-md flex items-center justify-center shadow-2xl">
-                <Check className="w-10 h-10 text-white" strokeWidth={3} />
+              <div className="w-16 h-16 rounded-full bg-emerald-500/90 flex items-center justify-center shadow-2xl">
+                <Check className="w-9 h-9 text-white" strokeWidth={3} />
               </div>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Top: animated prompt card */}
-        <div className="absolute top-3 inset-x-3 pointer-events-none">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={pose}
-              initial={{ opacity: 0, y: -14, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -10, scale: 0.96 }}
-              transition={{ duration: 0.28, ease: [0.2, 0.8, 0.2, 1] }}
-              className="mx-auto max-w-[88%] rounded-2xl px-4 py-2.5 text-center"
-              style={{
-                background: 'linear-gradient(180deg, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.62) 100%)',
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
-                border: '0.5px solid rgba(255,255,255,0.12)',
-                boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
-              }}
-            >
-              <p className="text-[14px] font-semibold text-white leading-tight tracking-tight">{POSE_PROMPT[pose].title}</p>
-              <p className="text-[11px] text-white/70 leading-tight mt-0.5">{POSE_PROMPT[pose].sub}</p>
-            </motion.div>
-          </AnimatePresence>
-        </div>
-
-        {/* Top-right: restart control */}
-        {started && (
-          <button
-            type="button"
-            onClick={restart}
-            aria-label="Restart face check"
-            className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center bg-black/55 backdrop-blur-md border border-white/15 text-white/90 active:scale-90 transition"
+        {/* Status pill */}
+        <div className="absolute bottom-3 left-3 right-3 flex justify-center pointer-events-none">
+          <div
+            className="px-3.5 py-1.5 rounded-full text-[12px] font-medium backdrop-blur-md bg-black/45 border tabular-nums"
+            style={{ color: toneColor.fg, borderColor: toneColor.bd }}
           >
-            <X className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Bottom: morphing status pill */}
-        <div className="absolute bottom-3 inset-x-3 pointer-events-none flex justify-center">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={status.key}
-              initial={{ opacity: 0, y: 8, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 6, scale: 0.96 }}
-              transition={{ duration: 0.22, ease: 'easeOut' }}
-              className="rounded-full px-3.5 py-1.5 text-[11.5px] font-medium border backdrop-blur-md flex items-center gap-2 tabular-nums"
-              style={{
-                background: 'rgba(0,0,0,0.6)',
-                borderColor: toneColor.bd,
-                color: toneColor.fg,
-                boxShadow: status.tone === 'ok' || status.tone === 'lock'
-                  ? '0 0 18px rgba(52,211,153,0.25)'
-                  : status.tone === 'warn'
-                    ? '0 0 18px rgba(244,114,114,0.18)'
-                    : undefined,
-              }}
-            >
-              {status.tone === 'load' && <Loader2 className="w-3 h-3 animate-spin" />}
-              {status.tone === 'lock' && <Check className="w-3 h-3" strokeWidth={3} />}
-              {status.tone === 'warn' && (
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse" />
-              )}
-              {status.label}
-            </motion.div>
-          </AnimatePresence>
+            {status.tone === 'load' && <Loader2 className="inline w-3 h-3 mr-1.5 animate-spin" />}
+            {status.label}
+          </div>
         </div>
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* Helper row with restart link — always reachable */}
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11.5px] text-muted-foreground leading-relaxed flex-1">
-          Auto-capture on each pose. Photos stay private and are deleted after review.
-        </p>
-        {started && (
-          <button
-            type="button"
-            onClick={restart}
-            className="shrink-0 inline-flex items-center gap-1.5 text-[11.5px] font-medium text-white/80 hover:text-white px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 active:scale-95 transition"
-          >
-            <RotateCcw className="w-3 h-3" /> Restart
-          </button>
-        )}
-      </div>
-
-      {debugYP && (
-        <p className="text-[10.5px] text-center text-muted-foreground/60 tabular-nums">
-          yaw {debugYP.y.toFixed(0)}° · pitch {debugYP.p.toFixed(0)}°
-        </p>
+      {!done && streaming && (
+        <button
+          type="button"
+          onClick={restart}
+          className="w-full h-10 rounded-xl text-[12.5px] text-muted-foreground hover:text-white border border-white/10 hover:border-white/25 transition"
+        >
+          <RotateCcw className="inline w-3.5 h-3.5 mr-1.5" /> Restart camera
+        </button>
       )}
     </div>
   );
 }
-
