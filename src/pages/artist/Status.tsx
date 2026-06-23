@@ -19,7 +19,12 @@ export default function ArtistStatus() {
 
   const load = async () => {
     if (!user) return;
-    const data = await getMyApplication(user.id);
+    let data = await getMyApplication(user.id);
+    // Race guard: just-submitted rows can briefly miss the safe-view read.
+    if (!data) {
+      await new Promise((r) => setTimeout(r, 600));
+      data = await getMyApplication(user.id);
+    }
     setApp(data);
     setLoading(false);
   };
@@ -29,18 +34,32 @@ export default function ArtistStatus() {
     if (!user) { navigate('/auth', { replace: true }); return; }
     load();
 
-    // Realtime — flip the page the moment admin approves
+    // Realtime — flip the page the moment admin approves OR a fresh app row lands.
     const channel = supabase
       .channel('artist-app-status')
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'artist_applications', filter: `user_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'artist_applications', filter: `user_id=eq.${user.id}` },
         () => load(),
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoading]);
+
+  // Make the device/browser back button land on /home instead of replaying the
+  // /artist/apply → /artist/auth chain (which 404s once the signed-in guard kicks in).
+  useEffect(() => {
+    window.history.pushState({ uf: 'artist-status' }, '', window.location.pathname);
+    const onPop = (e: PopStateEvent) => {
+      e.preventDefault?.();
+      navigate('/home', { replace: true });
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
 
   if (isLoading || loading) return <div className="min-h-[100dvh] bg-background" />;
 
