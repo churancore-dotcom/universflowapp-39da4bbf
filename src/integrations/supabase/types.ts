@@ -1598,6 +1598,42 @@ export type Database = {
         }
         Relationships: []
       }
+      stream_url_cache: {
+        Row: {
+          artist: string | null
+          audio_url: string
+          created_at: string
+          duration: number | null
+          expires_at: string
+          thumbnail: string | null
+          title: string | null
+          updated_at: string
+          video_id: string
+        }
+        Insert: {
+          artist?: string | null
+          audio_url: string
+          created_at?: string
+          duration?: number | null
+          expires_at?: string
+          thumbnail?: string | null
+          title?: string | null
+          updated_at?: string
+          video_id: string
+        }
+        Update: {
+          artist?: string | null
+          audio_url?: string
+          created_at?: string
+          duration?: number | null
+          expires_at?: string
+          thumbnail?: string | null
+          title?: string | null
+          updated_at?: string
+          video_id?: string
+        }
+        Relationships: []
+      }
       support_chats: {
         Row: {
           created_at: string

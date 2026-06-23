@@ -6,29 +6,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Piped instances (community-run YouTube proxies)
+// Piped instances — refreshed 2026-06. Verified from kavin.rocks/instances + community list.
 const PIPED_INSTANCES = [
+  'https://pipedapi.kavin.rocks',
   'https://pipedapi.adminforge.de',
   'https://api.piped.private.coffee',
-  'https://pipedapi.tokhmi.xyz',
-  'https://pipedapi.moomoo.me',
-  'https://pipedapi.syncpundit.io',
-  'https://api-piped.mha.fi',
   'https://pipedapi.leptons.xyz',
   'https://pipedapi.r4fo.com',
   'https://api.piped.yt',
+  'https://pipedapi.reallyaweso.me',
+  'https://pipedapi.darkness.services',
+  'https://pipedapi.drgns.space',
+  'https://pipedapi.ducks.party',
 ];
 
+// Invidious instances — refreshed 2026-06.
 const INVIDIOUS_INSTANCES = [
-  'https://invidious-production-d29a.up.railway.app',
   'https://inv.nadeko.net',
-  'https://invidious.private.coffee',
   'https://invidious.nerdvpn.de',
+  'https://invidious.private.coffee',
   'https://iv.datura.network',
-  'https://invidious.protokolla.fi',
   'https://invidious.jing.rocks',
-  'https://iv.nboez.cc',
-  'https://invidious.slipfox.xyz',
+  'https://invidious.privacyredirect.com',
+  'https://invidious-production-d29a.up.railway.app',
+  'https://invidious.protokolla.fi',
+  'https://yewtu.be',
 ];
 
 interface ExtractionResult {
@@ -41,406 +43,315 @@ interface ExtractionResult {
   platform?: string;
   error?: string;
   hint?: string;
+  cached?: boolean;
 }
 
-// Extract video ID from various YouTube URL formats
+// ---------- Module-level instance health cache ----------
+// Skip an instance for 5 minutes after a failure so we don't keep waiting on dead hosts.
+const HEALTH_TTL_MS = 5 * 60 * 1000;
+const unhealthy = new Map<string, number>(); // host -> blockedUntil epoch ms
+
+const isHealthy = (apiUrl: string): boolean => {
+  const until = unhealthy.get(apiUrl);
+  if (!until) return true;
+  if (Date.now() > until) { unhealthy.delete(apiUrl); return true; }
+  return false;
+};
+const markUnhealthy = (apiUrl: string) => {
+  unhealthy.set(apiUrl, Date.now() + HEALTH_TTL_MS);
+};
+
 function extractVideoId(url: string): string | null {
   const patterns = [
     /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/v\/|youtube\.com\/shorts\/|music\.youtube\.com\/watch\?v=|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/,
     /^([a-zA-Z0-9_-]{11})$/,
   ];
-
   const cleanUrl = url.trim();
-  
   try {
     const urlObj = new URL(cleanUrl);
     const vParam = urlObj.searchParams.get('v');
-    if (vParam && vParam.length === 11) {
-      return vParam;
-    }
-  } catch {
-    // Not a valid URL
-  }
-
+    if (vParam && vParam.length === 11) return vParam;
+  } catch { /* not a URL */ }
   for (const pattern of patterns) {
     const match = cleanUrl.match(pattern);
-    if (match && match[1]) {
-      return match[1];
-    }
+    if (match && match[1]) return match[1];
   }
-
   return null;
 }
 
 function isPlaylistUrl(url: string): boolean {
   try {
     const urlObj = new URL(url);
-    const hasPlaylist = urlObj.searchParams.has('list');
-    const hasVideo = urlObj.searchParams.has('v');
-    return hasPlaylist && !hasVideo && url.includes('playlist');
-  } catch {
-    return false;
-  }
+    return urlObj.searchParams.has('list') && !urlObj.searchParams.has('v') && url.includes('playlist');
+  } catch { return false; }
 }
 
-// Try a Piped instance
 async function tryPipedInstance(apiUrl: string, videoId: string): Promise<ExtractionResult | null> {
+  if (!isHealthy(apiUrl)) return null;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(
-      `${apiUrl}/streams/${videoId}`,
-      {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      }
-    );
-
+    const response = await fetch(`${apiUrl}/streams/${videoId}`, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+    });
     clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      console.log(`  ✗ ${new URL(apiUrl).hostname}: HTTP ${response.status}`);
-      return null;
-    }
-
+    if (!response.ok) { markUnhealthy(apiUrl); return null; }
     const data = await response.json();
-    
-    if (data.error || data.message) {
-      console.log(`  ✗ ${new URL(apiUrl).hostname}: ${data.error || data.message}`);
-      return null;
-    }
-
-    if (!data.audioStreams || data.audioStreams.length === 0) {
-      console.log(`  ✗ ${new URL(apiUrl).hostname}: No audio streams`);
-      return null;
-    }
-
-    // Sort audio streams by bitrate (highest first), prefer m4a
-    const sortedStreams = [...data.audioStreams].sort((a: any, b: any) => {
-      const aIsM4a = a.mimeType?.includes('mp4') || a.format === 'm4a';
-      const bIsM4a = b.mimeType?.includes('mp4') || b.format === 'm4a';
-      if (aIsM4a && !bIsM4a) return -1;
-      if (!aIsM4a && bIsM4a) return 1;
+    if (data.error || data.message || !data.audioStreams?.length) { markUnhealthy(apiUrl); return null; }
+    const sorted = [...data.audioStreams].sort((a: any, b: any) => {
+      const aM = a.mimeType?.includes('mp4') || a.format === 'm4a';
+      const bM = b.mimeType?.includes('mp4') || b.format === 'm4a';
+      if (aM && !bM) return -1;
+      if (!aM && bM) return 1;
       return (b.bitrate || 0) - (a.bitrate || 0);
     });
-
-    const bestStream = sortedStreams[0];
-    console.log(`  ✓ ${new URL(apiUrl).hostname}: ${bestStream.quality} ${Math.round(bestStream.bitrate / 1000)}kbps`);
-
+    const best = sorted[0];
+    console.log(`  ✓ [PIPED] ${new URL(apiUrl).hostname}`);
     return {
       success: true,
-      audioUrl: bestStream.url,
+      audioUrl: best.url,
       title: data.title,
       artist: data.uploader,
       thumbnail: data.thumbnailUrl,
       duration: data.duration,
       platform: 'YouTube',
     };
-
-  } catch (error: unknown) {
+  } catch {
     clearTimeout(timeoutId);
-    const err = error as Error;
-    const msg = err.name === 'AbortError' ? 'Timeout' : (err.message?.substring(0, 40) || 'Error');
-    console.log(`  ✗ ${new URL(apiUrl).hostname}: ${msg}`);
+    markUnhealthy(apiUrl);
     return null;
   }
 }
 
-// Try an Invidious instance
 async function tryInvidiousInstance(apiUrl: string, videoId: string): Promise<ExtractionResult | null> {
+  if (!isHealthy(apiUrl)) return null;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 10000);
-
+  const timeoutId = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(
-      `${apiUrl}/api/v1/videos/${videoId}`,
-      {
-        signal: controller.signal,
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-      }
-    );
-
+    const response = await fetch(`${apiUrl}/api/v1/videos/${videoId}`, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json', 'User-Agent': 'Mozilla/5.0' },
+    });
     clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      console.log(`  ✗ [INV] ${new URL(apiUrl).hostname}: HTTP ${response.status}`);
-      return null;
-    }
-
+    if (!response.ok) { markUnhealthy(apiUrl); return null; }
     const data = await response.json();
-    
-    if (data.error) {
-      console.log(`  ✗ [INV] ${new URL(apiUrl).hostname}: ${data.error}`);
-      return null;
-    }
-
-    if (!data.adaptiveFormats || data.adaptiveFormats.length === 0) {
-      console.log(`  ✗ [INV] ${new URL(apiUrl).hostname}: No adaptive formats`);
-      return null;
-    }
-
-    // Filter to audio-only formats
-    const audioFormats = data.adaptiveFormats.filter((f: any) => 
+    if (data.error || !data.adaptiveFormats?.length) { markUnhealthy(apiUrl); return null; }
+    const audio = data.adaptiveFormats.filter((f: any) =>
       f.type?.startsWith('audio/') || f.encoding === 'opus' || f.encoding === 'aac'
     );
-
-    if (audioFormats.length === 0) {
-      console.log(`  ✗ [INV] ${new URL(apiUrl).hostname}: No audio formats`);
-      return null;
-    }
-
-    // Sort by bitrate, prefer m4a/aac
-    const sortedFormats = [...audioFormats].sort((a: any, b: any) => {
-      const aIsM4a = a.type?.includes('mp4') || a.container === 'm4a';
-      const bIsM4a = b.type?.includes('mp4') || b.container === 'm4a';
-      if (aIsM4a && !bIsM4a) return -1;
-      if (!aIsM4a && bIsM4a) return 1;
+    if (!audio.length) { markUnhealthy(apiUrl); return null; }
+    const sorted = [...audio].sort((a: any, b: any) => {
+      const aM = a.type?.includes('mp4') || a.container === 'm4a';
+      const bM = b.type?.includes('mp4') || b.container === 'm4a';
+      if (aM && !bM) return -1;
+      if (!aM && bM) return 1;
       return (b.bitrate || 0) - (a.bitrate || 0);
     });
-
-    const bestFormat = sortedFormats[0];
-    const bitrate = bestFormat.bitrate ? Math.round(bestFormat.bitrate / 1000) : 'N/A';
-    console.log(`  ✓ [INV] ${new URL(apiUrl).hostname}: ${bestFormat.encoding || 'audio'} ${bitrate}kbps`);
-
-    // Get best thumbnail
+    const best = sorted[0];
     let thumbnail = '';
-    if (data.videoThumbnails && data.videoThumbnails.length > 0) {
-      const maxresThumbnail = data.videoThumbnails.find((t: any) => t.quality === 'maxres');
-      thumbnail = maxresThumbnail?.url || data.videoThumbnails[0]?.url || '';
+    if (data.videoThumbnails?.length) {
+      thumbnail = data.videoThumbnails.find((t: any) => t.quality === 'maxres')?.url
+        || data.videoThumbnails[0]?.url || '';
     }
-
+    console.log(`  ✓ [INV] ${new URL(apiUrl).hostname}`);
     return {
       success: true,
-      audioUrl: bestFormat.url,
+      audioUrl: best.url,
       title: data.title,
       artist: data.author,
-      thumbnail: thumbnail,
+      thumbnail,
       duration: data.lengthSeconds,
       platform: 'YouTube',
     };
-
-  } catch (error: unknown) {
+  } catch {
     clearTimeout(timeoutId);
-    const err = error as Error;
-    const msg = err.name === 'AbortError' ? 'Timeout' : (err.message?.substring(0, 40) || 'Error');
-    console.log(`  ✗ [INV] ${new URL(apiUrl).hostname}: ${msg}`);
+    markUnhealthy(apiUrl);
     return null;
   }
 }
 
-// Main extraction function - tries Piped first, then Invidious as fallback
+// Race N promises — resolve as soon as the first returns a successful result.
+function raceForSuccess<T extends { success: boolean }>(promises: Promise<T | null>[]): Promise<T | null> {
+  return new Promise((resolve) => {
+    let pending = promises.length;
+    if (pending === 0) { resolve(null); return; }
+    let settled = false;
+    for (const p of promises) {
+      p.then((res) => {
+        if (settled) return;
+        if (res && res.success) {
+          settled = true;
+          resolve(res);
+        } else if (--pending === 0) {
+          settled = true;
+          resolve(null);
+        }
+      }).catch(() => {
+        if (settled) return;
+        if (--pending === 0) { settled = true; resolve(null); }
+      });
+    }
+  });
+}
+
 async function extractFromYouTube(videoId: string): Promise<ExtractionResult> {
-  console.log(`\n=== Extracting YouTube video: ${videoId} ===`);
-  
-  // Shuffle instances for load distribution
-  const pipedInstances = [...PIPED_INSTANCES].sort(() => Math.random() - 0.5);
-  const invidiousInstances = [...INVIDIOUS_INSTANCES].sort(() => Math.random() - 0.5);
-  
-  // Try Piped instances first (batches of 6)
-  console.log(`\nTrying ${pipedInstances.length} Piped instances...`);
-  for (let i = 0; i < pipedInstances.length; i += 6) {
-    const batch = pipedInstances.slice(i, i + 6);
-    console.log(`Piped Batch ${Math.floor(i/6) + 1}:`);
-    
-    const results = await Promise.all(
-      batch.map(instance => tryPipedInstance(instance, videoId))
-    );
+  console.log(`\n=== Extracting: ${videoId} ===`);
+  const piped = [...PIPED_INSTANCES].filter(isHealthy).sort(() => Math.random() - 0.5);
+  const invid = [...INVIDIOUS_INSTANCES].filter(isHealthy).sort(() => Math.random() - 0.5);
 
-    const success = results.find(r => r?.success);
-    if (success) {
-      return success;
-    }
+  // Parallel race in batches of 3 — first success wins, others are abandoned.
+  const RACE_SIZE = 3;
+  for (let i = 0; i < piped.length; i += RACE_SIZE) {
+    const batch = piped.slice(i, i + RACE_SIZE);
+    const hit = await raceForSuccess(batch.map((u) => tryPipedInstance(u, videoId)));
+    if (hit) return hit;
   }
-  
-  // Fallback to Invidious instances (batches of 5)
-  console.log(`\nPiped failed. Trying ${invidiousInstances.length} Invidious instances...`);
-  for (let i = 0; i < invidiousInstances.length; i += 5) {
-    const batch = invidiousInstances.slice(i, i + 5);
-    console.log(`Invidious Batch ${Math.floor(i/5) + 1}:`);
-    
-    const results = await Promise.all(
-      batch.map(instance => tryInvidiousInstance(instance, videoId))
-    );
-
-    const success = results.find(r => r?.success);
-    if (success) {
-      return success;
-    }
+  for (let i = 0; i < invid.length; i += RACE_SIZE) {
+    const batch = invid.slice(i, i + RACE_SIZE);
+    const hit = await raceForSuccess(batch.map((u) => tryInvidiousInstance(u, videoId)));
+    if (hit) return hit;
   }
 
   return {
     success: false,
     error: 'Could not extract audio. All servers are busy or the video is unavailable.',
-    hint: 'Try again in a moment. Some videos may be geo-restricted or age-gated.',
+    hint: 'Try again in a moment.',
     platform: 'YouTube',
   };
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    // Authentication check
     const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Authentication required' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    if (!authHeader?.startsWith('Bearer ')) {
+      return new Response(JSON.stringify({ success: false, error: 'Authentication required' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Verify JWT token
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       { global: { headers: { Authorization: authHeader } } }
     );
-
     const token = authHeader.replace('Bearer ', '');
     const { data: claimsData, error: authError } = await supabaseClient.auth.getUser(token);
-
     if (authError || !claimsData?.user) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Invalid authentication' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log(`Authenticated user: ${claimsData.user.id}`);
-
-    // Admin-only gate + per-user rate limit (protects community Piped/Invidious instances)
     const adminClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
     const { data: isAdmin } = await adminClient.rpc('has_role', {
-      _user_id: claimsData.user.id,
-      _role: 'admin',
+      _user_id: claimsData.user.id, _role: 'admin',
     });
     if (!isAdmin) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Admin access required' }),
-        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Admin access required' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
     const { data: allowed } = await adminClient.rpc('check_and_increment_rate_limit', {
-      _user_id: claimsData.user.id,
-      _endpoint: 'extract-audio',
-      _max_per_minute: 10,
+      _user_id: claimsData.user.id, _endpoint: 'extract-audio', _max_per_minute: 10,
     });
     if (allowed === false) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'Rate limit exceeded. Try again in a minute.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
     const { url } = await req.json();
-
     if (!url) {
-      return new Response(
-        JSON.stringify({ success: false, error: 'URL is required' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ success: false, error: 'URL is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
-
-    console.log('\n========================================');
-    console.log('Extracting from URL:', url);
 
     // Direct audio URL
     if (url.match(/\.(mp3|wav|flac|aac|ogg|m4a|opus|webm)(\?.*)?$/i)) {
-      console.log('Direct audio URL detected');
-      return new Response(
-        JSON.stringify({
-          success: true,
-          audioUrl: url,
-          platform: 'Direct Link',
-          title: url.split('/').pop()?.split('?')[0] || 'audio',
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: true, audioUrl: url, platform: 'Direct Link',
+        title: url.split('/').pop()?.split('?')[0] || 'audio',
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Playlist URL check
     if (isPlaylistUrl(url)) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Playlist URLs are not supported. Please copy a specific video link.',
-          hint: 'Click on a video in the playlist, then copy its URL.',
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Playlist URLs are not supported. Please copy a specific video link.',
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Platform detection
     const isYouTube = url.includes('youtube.com') || url.includes('youtu.be') || url.includes('music.youtube.com');
-
     if (!isYouTube) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Currently only YouTube URLs are supported.',
-          hint: 'Paste a YouTube video URL (youtube.com/watch?v=... or youtu.be/...)',
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: false, error: 'Currently only YouTube URLs are supported.',
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Extract video ID
     const videoId = extractVideoId(url);
-    console.log('Video ID:', videoId);
-
     if (!videoId) {
-      return new Response(
-        JSON.stringify({ 
-          success: false,
-          error: 'Could not extract video ID from URL.',
-          hint: 'Please use a direct video URL like youtube.com/watch?v=VIDEO_ID',
-        }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({
+        success: false, error: 'Could not extract video ID from URL.',
+      }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Extract audio
+    // ---------- DB stream cache check ----------
+    try {
+      const { data: cached } = await adminClient
+        .from('stream_url_cache')
+        .select('audio_url, title, artist, thumbnail, duration, expires_at')
+        .eq('video_id', videoId)
+        .gt('expires_at', new Date().toISOString())
+        .maybeSingle();
+
+      if (cached?.audio_url) {
+        console.log(`✓ CACHE HIT for ${videoId}`);
+        return new Response(JSON.stringify({
+          success: true,
+          audioUrl: cached.audio_url,
+          title: cached.title || undefined,
+          artist: cached.artist || undefined,
+          thumbnail: cached.thumbnail || undefined,
+          duration: cached.duration || undefined,
+          platform: 'YouTube',
+          cached: true,
+        }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    } catch (e) {
+      console.warn('cache read failed:', (e as Error).message);
+    }
+
     const result = await extractFromYouTube(videoId);
 
     if (!result.success) {
-      return new Response(
-        JSON.stringify(result),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify(result),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    console.log('\n========================================');
-    console.log('✓ EXTRACTION SUCCESSFUL');
-    console.log('Title:', result.title);
-    console.log('Artist:', result.artist);
-    console.log('Duration:', result.duration, 'seconds');
-    console.log('========================================\n');
+    // ---------- Persist to cache (5h TTL, YouTube URLs valid ~6h) ----------
+    try {
+      await adminClient.from('stream_url_cache').upsert({
+        video_id: videoId,
+        audio_url: result.audioUrl!,
+        title: result.title ?? null,
+        artist: result.artist ?? null,
+        thumbnail: result.thumbnail ?? null,
+        duration: result.duration ?? null,
+        expires_at: new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'video_id' });
+    } catch (e) {
+      console.warn('cache write failed:', (e as Error).message);
+    }
 
-    return new Response(
-      JSON.stringify(result),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify(result),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
-  } catch (error: unknown) {
+  } catch (error) {
     console.error('Edge function error:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: 'An unexpected error occurred',
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: false, error: 'An unexpected error occurred' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
