@@ -47,18 +47,23 @@ export default function ArtistStatus() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoading]);
 
-  // Make the device/browser back button land on /home instead of replaying the
-  // /artist/apply → /artist/auth chain (which 404s once the signed-in guard kicks in).
+  // Keep device/browser back inside the artist flow: approved artists go to the
+  // Studio, pending/rejected stay on Status (no general /home jump).
   useEffect(() => {
     window.history.pushState({ uf: 'artist-status' }, '', window.location.pathname);
     const onPop = (e: PopStateEvent) => {
       e.preventDefault?.();
-      navigate('/home', { replace: true });
+      if (app?.status === 'approved') {
+        navigate('/artist/studio', { replace: true });
+      } else {
+        // Re-push so back stays on Status for pending/rejected.
+        window.history.pushState({ uf: 'artist-status' }, '', window.location.pathname);
+      }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [app?.status, navigate]);
+
 
 
   if (isLoading || loading) return <div className="min-h-[100dvh] bg-background" />;
