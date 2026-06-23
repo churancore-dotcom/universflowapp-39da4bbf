@@ -73,7 +73,9 @@ function poseMatches(target: Pose, yawDeg: number, pitchDeg: number): boolean {
   }
 }
 
-// Singleton: load the FaceLandmarker once per session.
+// Singleton: load the FaceLandmarker once per session. We try GPU first; if
+// the device/driver rejects it we transparently fall back to CPU so the user
+// is never stuck on "Loading face model".
 let landmarkerPromise: Promise<FaceLandmarker> | null = null;
 async function getLandmarker(): Promise<FaceLandmarker> {
   if (landmarkerPromise) return landmarkerPromise;
@@ -81,19 +83,33 @@ async function getLandmarker(): Promise<FaceLandmarker> {
     const fileset = await FilesetResolver.forVisionTasks(
       'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm',
     );
-    return FaceLandmarker.createFromOptions(fileset, {
-      baseOptions: {
-        modelAssetPath:
-          'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
-        delegate: 'GPU',
-      },
-      runningMode: 'VIDEO',
-      numFaces: 1,
-      outputFaceBlendshapes: false,
-      outputFacialTransformationMatrixes: true,
-    });
+    const make = (delegate: 'GPU' | 'CPU') =>
+      FaceLandmarker.createFromOptions(fileset, {
+        baseOptions: {
+          modelAssetPath:
+            'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+          delegate,
+        },
+        runningMode: 'VIDEO',
+        numFaces: 1,
+        outputFaceBlendshapes: false,
+        outputFacialTransformationMatrixes: true,
+      });
+    try {
+      return await make('GPU');
+    } catch (e) {
+      console.warn('Face GPU delegate failed, falling back to CPU', e);
+      return await make('CPU');
+    }
   })();
   return landmarkerPromise;
+}
+
+// Kick off model + WASM download as soon as this module is imported, so by
+// the time the user taps "Start camera" the model is usually ready.
+if (typeof window !== 'undefined') {
+  // best-effort, swallow errors — real load happens again in startCamera()
+  setTimeout(() => { void getLandmarker().catch(() => { landmarkerPromise = null; }); }, 50);
 }
 
 export default function FaceLivenessCapture({
