@@ -120,10 +120,11 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
     },
   });
 
-  // Realtime invalidation
+  // Realtime invalidation (NOTE: recently_played intentionally removed —
+  // Jump Back In is per-device now and lives in localStorage.)
   useEffect(() => {
     const channel = supabase.channel('home-bento-live-data');
-    ['stream_songs', 'recently_played', 'user_library', 'songs'].forEach((table) => {
+    ['stream_songs', 'user_library', 'songs'].forEach((table) => {
       channel.on('postgres_changes', { event: '*', schema: 'public', table }, () => {
         queryClient.invalidateQueries({ queryKey: ['home-bento'] });
         queryClient.invalidateQueries({ queryKey: ['home', 'songs'] });
@@ -133,25 +134,28 @@ const HomeBento: React.FC<Props> = ({ songs }) => {
     return () => { supabase.removeChannel(channel); };
   }, [queryClient]);
 
+  // Local recently-played changes (this device only)
+  useEffect(() => {
+    const handler = () => {
+      queryClient.invalidateQueries({ queryKey: ['home-bento', 'recent', user?.id ?? 'anon'] });
+    };
+    window.addEventListener('universflow:recently-played-changed', handler);
+    return () => window.removeEventListener('universflow:recently-played-changed', handler);
+  }, [queryClient, user?.id]);
+
   useEffect(() => {
     if (!currentSong?.id) return;
     queryClient.invalidateQueries({ queryKey: ['home-bento', 'recent', user?.id ?? 'anon'] });
   }, [currentSong?.id, queryClient, user?.id]);
 
-  // Recent
+  // Recent — per-device, read from localStorage (no cross-device sync)
   const { data: recentSongs = [] } = useQuery({
     queryKey: ['home-bento', 'recent', user?.id ?? 'anon'],
     enabled: !!user,
     staleTime: 60 * 1000,
     queryFn: async (): Promise<Song[]> => {
-      const { data, error } = await supabase
-        .from('recently_played')
-        .select('song_id, played_at')
-        .eq('user_id', user!.id)
-        .order('played_at', { ascending: false })
-        .limit(12);
-      if (error) throw error;
-      const ids = (data || []).map((r) => r.song_id).filter(isCatalogId);
+      const local = readLocalRecent(user!.id).slice(0, 12);
+      const ids = local.map((r) => r.song_id).filter(isCatalogId);
       if (ids.length === 0) return [];
       const { data: rows, error: songError } = await supabase
         .from('songs')
