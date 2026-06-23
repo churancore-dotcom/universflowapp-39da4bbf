@@ -284,7 +284,7 @@ export default function FaceLivenessCapture({
               setStepIdx(stepRef.current);
             }
             resolve();
-          }, 650);
+          }, 220);
         },
         'image/jpeg',
         0.85,
