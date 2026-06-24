@@ -1053,79 +1053,81 @@ async function resolveViaCobalt(videoId: string): Promise<{ streamUrl: string } 
   return null;
 }
 
-// YouTube Innertube /player (IOS client) — direct, signature-free audio URLs.
-// Most reliable resolver: no third-party instance, no API key, no decipher.
-async function resolveViaYoutubeiIOS(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
-  const KEY = 'AIzaSyB-63vPrdThhKuerbB2N_l7Kwwcxj6yUAc'; // public IOS player key (not a secret)
+// YouTube Innertube /player (TVHTML5 embedded client) — most reliable resolver
+// in 2026: no PoToken required, no signature decipher, no third-party instance.
+// Same client yt-dlp uses by default.
+async function resolveViaYoutubeiTV(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 7000);
-    const res = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${KEY}&prettyPrint=false`, {
+    const res = await fetch('https://www.youtube.com/youtubei/v1/player?prettyPrint=false', {
       method: 'POST',
       signal: ctrl.signal,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'com.google.ios.youtube/19.45.4 (iPhone16,2; U; CPU iOS 18_1_0 like Mac OS X;)',
-        'X-Youtube-Client-Name': '5',
-        'X-Youtube-Client-Version': '19.45.4',
+        'User-Agent': 'Mozilla/5.0 (PlayStation; PlayStation 4/12.00) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.0 Safari/605.1.15',
+        'X-Youtube-Client-Name': '85',
+        'X-Youtube-Client-Version': '2.0',
         'Origin': 'https://www.youtube.com',
+        'Referer': 'https://www.youtube.com/',
       },
       body: JSON.stringify({
         context: {
           client: {
-            clientName: 'IOS',
-            clientVersion: '19.45.4',
-            deviceMake: 'Apple',
-            deviceModel: 'iPhone16,2',
-            osName: 'iPhone',
-            osVersion: '18.1.0.22B83',
+            clientName: 'TVHTML5_SIMPLY_EMBEDDED_PLAYER',
+            clientVersion: '2.0',
             hl: 'en',
             gl: 'US',
+            clientScreen: 'EMBED',
           },
+          thirdParty: { embedUrl: 'https://www.youtube.com/' },
         },
         videoId,
         contentCheckOk: true,
         racyCheckOk: true,
+        playbackContext: {
+          contentPlaybackContext: { html5Preference: 'HTML5_PREF_WANTS' },
+        },
       }),
     });
     clearTimeout(t);
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
-      console.warn(`[resolve] youtubei-ios HTTP ${res.status} for ${videoId}: ${errBody.slice(0, 300)}`);
+      console.warn(`[resolve] youtubei-tv HTTP ${res.status} for ${videoId}: ${errBody.slice(0, 200)}`);
       return null;
     }
     const data = await res.json().catch(() => null) as any;
     const status = data?.playabilityStatus?.status;
     if (status && status !== 'OK') {
-      console.warn(`[resolve] youtubei-ios playability=${status} for ${videoId}`);
+      console.warn(`[resolve] youtubei-tv playability=${status} for ${videoId}`);
       return null;
     }
     const adaptive: any[] = data?.streamingData?.adaptiveFormats || [];
-    if (!adaptive.length) {
-      console.warn(`[resolve] youtubei-ios no adaptiveFormats for ${videoId}`);
-      return null;
-    }
+    // TV client returns un-ciphered direct URLs in `url` (no signatureCipher).
     const audio = adaptive
       .filter((f) => typeof f?.mimeType === 'string' && f.mimeType.startsWith('audio/') && typeof f?.url === 'string')
       .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-    // Prefer m4a (mp4a) for cross-browser HTML5 audio compatibility.
+    if (!audio.length) {
+      console.warn(`[resolve] youtubei-tv no direct audio for ${videoId} (got ${adaptive.length} formats)`);
+      return null;
+    }
     const m4a = audio.find((f) => /mp4a/i.test(f.mimeType));
     const best = m4a || audio[0];
     if (!best?.url) return null;
-    console.log(`[resolve] ✓ ${videoId} via youtubei-ios`);
+    console.log(`[resolve] ✓ ${videoId} via youtubei-tv`);
     return {
       streamUrl: best.url,
       duration: Number(data?.videoDetails?.lengthSeconds) || undefined,
     };
   } catch (e) {
-    console.warn(`[resolve] youtubei-ios failed for ${videoId}:`, (e as Error).message);
+    console.warn(`[resolve] youtubei-tv failed for ${videoId}:`, (e as Error).message);
     return null;
   }
 }
 
 async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
-  // 1) Try YouTube Innertube IOS (own server → YouTube, no third-party instance).
-  const it = await resolveViaYoutubeiIOS(videoId);
+  // 1) Try YouTube Innertube TV (own server → YouTube, no third-party instance).
+  const it = await resolveViaYoutubeiTV(videoId);
   if (it) return it;
 
   const piped = getPipedInstances();
