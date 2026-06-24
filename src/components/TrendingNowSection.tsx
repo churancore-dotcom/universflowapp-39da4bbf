@@ -4,6 +4,8 @@ import { Flame, Play } from 'lucide-react';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import OptimizedImage from './OptimizedImage';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import { useTasteProfile } from '@/hooks/useTasteProfile';
+import { rerank } from '@/lib/feedPersonalizer';
 
 interface Props { songs: Song[] }
 
@@ -13,12 +15,15 @@ interface Props { songs: Song[] }
  */
 const TrendingNowSection = memo(({ songs }: Props) => {
   const { playSong, currentSong } = usePlayer();
+  const taste = useTasteProfile();
 
   const trending = useMemo(() => {
     const flagged = songs.filter((s) => (s as Song & { show_in_trending?: boolean }).show_in_trending);
     const pool = flagged.length > 0 ? flagged : songs;
-    return pool.slice(0, 10);
-  }, [songs]);
+    // Pull a larger window then silently re-rank to user taste, finally trim.
+    const window = pool.slice(0, 30);
+    return rerank(window, taste).slice(0, 10);
+  }, [songs, taste]);
 
   if (trending.length === 0) return null;
 

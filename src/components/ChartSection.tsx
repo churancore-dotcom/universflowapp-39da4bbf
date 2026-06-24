@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Song, usePlayer } from '@/contexts/PlayerContext';
 import { prefetchIndexedTrack, type IndexedTrack } from '@/lib/musicIndexer';
 import { triggerHaptic } from '@/hooks/useHaptics';
+import { useTasteProfile } from '@/hooks/useTasteProfile';
+import { rerank } from '@/lib/feedPersonalizer';
 
 type ChartType = 'trending' | 'viral' | 'latest';
 
@@ -33,8 +35,11 @@ const ChartSection = memo(function ChartSection({ chartType, perCountry = false,
   const { user } = useAuth();
   const { currentSong, isPlaying, playSong, togglePlay } = usePlayer();
   const [country, setCountry] = useState<string>('GLOBAL');
-  const [tracks, setTracks] = useState<IndexedTrack[]>([]);
+  const [rawTracks, setRawTracks] = useState<IndexedTrack[]>([]);
   const [loading, setLoading] = useState(true);
+  const taste = useTasteProfile();
+  // Silent per-user re-rank — same chart pool, gently reordered to taste.
+  const tracks = useMemo(() => rerank(rawTracks, taste), [rawTracks, taste]);
 
   // Resolve user country once (only when perCountry)
   useEffect(() => {
@@ -87,7 +92,7 @@ const ChartSection = memo(function ChartSection({ chartType, perCountry = false,
       }
 
       if (!cancelled) {
-        setTracks(mapped);
+        setRawTracks(mapped);
         setLoading(false);
       }
     })();
