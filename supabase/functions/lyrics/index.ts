@@ -12,9 +12,51 @@ interface LyricsResponse {
   success: boolean;
   synced?: string | null;
   plain?: string | null;
-  source?: 'lrclib' | 'genius' | null;
+  source?: 'lrclib' | 'kugou' | 'genius' | null;
   geniusUrl?: string | null;
   error?: string;
+}
+
+// ───────── KuGou lyrics (fallback for non-Western/CJK and rare tracks) ─────────
+async function fetchKugou(artist: string, title: string, durationSec?: number): Promise<{ synced?: string; plain?: string } | null> {
+  try {
+    const keyword = `${clean(artist)} - ${clean(title)}`;
+    const searchUrl = new URL('https://lyrics.kugou.com/search');
+    searchUrl.searchParams.set('ver', '1');
+    searchUrl.searchParams.set('man', 'yes');
+    searchUrl.searchParams.set('client', 'pc');
+    searchUrl.searchParams.set('keyword', keyword);
+    if (durationSec && durationSec > 0) searchUrl.searchParams.set('duration', String(Math.round(durationSec * 1000)));
+
+    const sr = await fetch(searchUrl.toString(), {
+      headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' },
+    });
+    if (!sr.ok) return null;
+    const sj = await sr.json();
+    const cand = sj?.candidates?.[0];
+    if (!cand?.id || !cand?.accesskey) return null;
+
+    const dlUrl = new URL('https://lyrics.kugou.com/download');
+    dlUrl.searchParams.set('ver', '1');
+    dlUrl.searchParams.set('client', 'pc');
+    dlUrl.searchParams.set('id', String(cand.id));
+    dlUrl.searchParams.set('accesskey', String(cand.accesskey));
+    dlUrl.searchParams.set('fmt', 'lrc');
+    dlUrl.searchParams.set('charset', 'utf8');
+
+    const dr = await fetch(dlUrl.toString(), {
+      headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' },
+    });
+    if (!dr.ok) return null;
+    const dj = await dr.json();
+    if (!dj?.content) return null;
+    const lrc = atob(String(dj.content));
+    if (!lrc || lrc.length < 10) return null;
+    const plain = lrc.replace(/\[[^\]]+\]/g, '').replace(/\n{2,}/g, '\n').trim() || undefined;
+    return { synced: lrc, plain };
+  } catch {
+    return null;
+  }
 }
 
 // ───────── Per-IP sliding-window rate limit (in-memory, per edge instance) ─────────
