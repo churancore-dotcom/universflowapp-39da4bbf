@@ -812,6 +812,8 @@ CREATE TYPE public.subscription_type AS ENUM ('free', 'premium_monthly', 'premiu
 - `artist_applications` — UGC artist KYC applications.
 - `registered_devices` — push/device tokens.
 - `audit_logs` — security audit trail.
+- `stream_songs` — indexed/external track metadata cache (keyPath `track_id`, used by search & stream resolution).
+- `stream_url_cache` — YouTube stream URL cache (`video_id`, `audio_url`, `thumbnail`, `expires_at`).
 
 ### Key functions
 - `handle_new_user()` — create profile + seed admin role for `shashankyadavk12@gmail.com`.
@@ -820,6 +822,7 @@ CREATE TYPE public.subscription_type AS ENUM ('free', 'premium_monthly', 'premiu
 - `find_profile_by_share_code(share_code)` — friend referral lookup.
 - `prevent_admin_field_change()` — block direct `is_admin` mutation on profiles.
 - `update_updated_at_column()` — timestamp trigger.
+- `check_and_increment_rate_limit(user_id, endpoint, max_per_minute)` — per-user rate limit.
 
 ### Storage buckets
 - `music` — audio files.
