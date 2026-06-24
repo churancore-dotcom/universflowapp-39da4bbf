@@ -1060,7 +1060,7 @@ async function resolveViaYoutubeiIOS(videoId: string): Promise<{ streamUrl: stri
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 7000);
-    const res = await fetch(`https://youtubei.googleapis.com/youtubei/v1/player?key=${KEY}&prettyPrint=false`, {
+    const res = await fetch(`https://www.youtube.com/youtubei/v1/player?key=${KEY}&prettyPrint=false`, {
       method: 'POST',
       signal: ctrl.signal,
       headers: {
