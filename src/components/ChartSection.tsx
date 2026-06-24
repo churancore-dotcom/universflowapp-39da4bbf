@@ -37,6 +37,7 @@ const ChartSection = memo(function ChartSection({ chartType, perCountry = false,
   const [country, setCountry] = useState<string>('GLOBAL');
   const [tracks, setTracks] = useState<IndexedTrack[]>([]);
   const [loading, setLoading] = useState(true);
+  const taste = useTasteProfile();
 
   // Resolve user country once (only when perCountry)
   useEffect(() => {
@@ -89,7 +90,8 @@ const ChartSection = memo(function ChartSection({ chartType, perCountry = false,
       }
 
       if (!cancelled) {
-        setTracks(mapped);
+        // Silent per-user re-rank — same chart, gently reordered to taste.
+        setTracks(rerank(mapped, taste));
         setLoading(false);
       }
     })();
