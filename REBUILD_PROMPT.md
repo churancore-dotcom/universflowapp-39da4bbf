@@ -1,7 +1,7 @@
 # UniversFlow — Complete Technical Specification for Full App Rebuild
 
-**Version:** 4.0 — Refreshed Edition  
-**Last Updated:** June 2026  
+**Version:** 4.1 — GitHub Sync Refresh Edition  
+**Last Updated:** June 24, 2026  
 **Brand:** UniversFlow only  
 **Primary Domain:** https://universflow.in
 
@@ -1125,4 +1125,4 @@ This specification describes the current **UniversFlow** application as of June 
 
 ---
 
-*UniversFlow v4.0 • June 2026*
+*UniversFlow v4.1 • June 24, 2026*

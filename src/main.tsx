@@ -11,7 +11,11 @@ import "@/lib/median";
 
 // Initialize Sentry error monitoring (must run before React mounts)
 import { initSentry } from "@/lib/sentry";
+import { BUILD_INFO } from "@/lib/buildInfo";
 initSentry();
+
+document.documentElement.dataset.appVersion = BUILD_INFO.version;
+document.documentElement.dataset.appRefresh = BUILD_INFO.refreshedAt;
 
 const rootElement = document.getElementById("root");
 

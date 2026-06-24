@@ -1,73 +1,51 @@
-# Welcome to your Lovable project
+# Universflow
 
-## Project info
+Current repository refresh: **v4.1 — June 24, 2026**.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+Universflow is a mobile-first music streaming app with the dark Apple Music-style Bento UI, rose accents, real catalog search, synced lyrics, offline IndexedDB caching, artist tools, admin tools, and a Capacitor Android build.
 
-## How can I edit this code?
+## Current App Includes
 
-There are several ways of editing your application.
+- Mobile-only dark music UI with bottom navigation, mini player, full player, queue, library, search, profile, premium, settings, and offline screens.
+- Real user music search through the existing `yt-music-search` backend function plus indexed catalog results.
+- LRCLIB synced lyrics with active-line highlighting and auto-scroll.
+- Song recognition through the `recognize-song` backend function.
+- Artist platform with verification, Artist Studio, uploads, analytics, followers, activity, and public artist pages.
+- Admin modules for content, users, subscriptions, payments, analytics, security, moderation, support, app updates, push notifications, and performance.
+- Capacitor Android setup with native media controls, notification/lock-screen playback, Dynamic Island overlay support, push notifications, and APK build workflow.
+- Repository docs: `REBUILD_PROMPT.md`, `SECURITY.md`, `CONTRIBUTING.md`, and `LICENSE`.
 
-**Use Lovable**
+## Run Locally
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+npm install
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app runs on the local URL printed by Vite, usually `http://localhost:8080`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Build
 
-**Use GitHub Codespaces**
+```bash
+npm run build
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Android APK Build
 
-## What technologies are used for this project?
+Use the current GitHub Actions workflow:
 
-This project is built with:
+- **Build Android APK** (`.github/workflows/build-android.yml`)
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+The older `build.yml` workflow now delegates to the current Android workflow so it cannot build an outdated APK path.
 
-## How can I deploy this project?
+## Tech Stack
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+- React 18 + TypeScript
+- Vite 5
+- Tailwind CSS + shadcn-style primitives
+- Lovable Cloud backend functions, database, auth, and storage
+- Capacitor 8 for Android
 
-## Can I connect a custom domain to my Lovable project?
+## Full Rebuild Spec
 
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+See `REBUILD_PROMPT.md` for the complete full-app technical specification.
