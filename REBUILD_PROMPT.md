@@ -697,6 +697,17 @@ Mounts `MiniPlayer`, `FullscreenPlayer`, and `LockScreenPlayer` overlays globall
   6. **Global Top Tracks**: horizontal scroll of top trending songs.
 - Data sources: `songs` catalog + `stream_songs` fallback; Supabase Realtime invalidation for `songs`, `stream_songs`, `user_library`.
 
+### Search page (`/search`)
+- 250ms debounced query input.
+- `detectMoodAndLanguage(query)` infers mood/language tags.
+- Parallel sources: `searchYouTubeMusicTracks`, `searchIndexedTracks`, `searchJioSaavnTracks`, `searchArtistDirectory`, plus tag-top tracks.
+- `rankAndDedupeResults()` scores by title-first matching, token overlap, popularity (log10 listeners), source priority (library > indexer > youtube > tags).
+- Spam filter removes covers/karaoke/sped-up/compilations and duration outliers (<75s or >540s unless long-form query).
+- Hidden results: users can hide individual results; persisted to localStorage.
+- Prefetch top-6 results immediately after render.
+- Source filter: **All Songs** (merged) and **Worldwide** (indexer only).
+- Artist card shown only when listeners ≥ 100,000 with a real photo.
+
 ### Bottom navigation
 - 4 tabs: Listen Now (`/home`), Search (`/search`), Library (`/library`), Profile (`/profile`).
 - Scroll-responsive hide/show.
