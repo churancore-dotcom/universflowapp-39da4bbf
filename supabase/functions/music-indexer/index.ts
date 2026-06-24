@@ -1107,8 +1107,6 @@ async function resolveViaYoutubeiIOS(videoId: string): Promise<{ streamUrl: stri
     const audio = adaptive
       .filter((f) => typeof f?.mimeType === 'string' && f.mimeType.startsWith('audio/') && typeof f?.url === 'string')
       .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
-      .filter((f) => typeof f?.mimeType === 'string' && f.mimeType.startsWith('audio/') && typeof f?.url === 'string')
-      .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
     // Prefer m4a (mp4a) for cross-browser HTML5 audio compatibility.
     const m4a = audio.find((f) => /mp4a/i.test(f.mimeType));
     const best = m4a || audio[0];
