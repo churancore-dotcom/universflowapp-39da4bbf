@@ -1053,13 +1053,21 @@ async function resolveViaCobalt(videoId: string): Promise<{ streamUrl: string } 
   return null;
 }
 
+// NOTE on direct YouTube Innertube /player extraction:
+// We tested ANDROID_VR, TVHTML5_SIMPLY_EMBEDDED_PLAYER, and IOS clients from
+// the edge runtime. ALL of them get blocked with either "LOGIN_REQUIRED — Sign
+// in to confirm you're not a bot" or "FAILED_PRECONDITION" because Supabase
+// edge functions run on Cloudflare/Deno datacenter IPs that YouTube flags.
+// Bypassing this requires either a PoToken solver (needs a real browser
+// WebView) or a residential proxy — neither is feasible in a stateless edge
+// function. We rely on third-party Piped/Invidious instances which use
+// residential or dedicated IPs YouTube does not block.
+
 async function resolveVideoId(videoId: string): Promise<{ streamUrl: string; duration?: number } | null> {
-  // NOTE: Cobalt is disabled — its hosts (co.wuk.sh / cobalt.tools) are not
-  // resolvable from the edge runtime (DNS NXDOMAIN), and the 8s timeout
-  // added massive latency to every resolve. Go straight to Piped/Invidious.
 
   const piped = getPipedInstances();
   const inv = getInvidiousInstances();
+
 
   // Piped adminforge currently redirects /streams to the invalid host
   // "adminforge.destreams". Use the working Invidious audio proxy first.
