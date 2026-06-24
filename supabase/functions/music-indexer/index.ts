@@ -1090,7 +1090,8 @@ async function resolveViaYoutubeiIOS(videoId: string): Promise<{ streamUrl: stri
     });
     clearTimeout(t);
     if (!res.ok) {
-      console.warn(`[resolve] youtubei-ios HTTP ${res.status} for ${videoId}`);
+      const errBody = await res.text().catch(() => '');
+      console.warn(`[resolve] youtubei-ios HTTP ${res.status} for ${videoId}: ${errBody.slice(0, 300)}`);
       return null;
     }
     const data = await res.json().catch(() => null) as any;
