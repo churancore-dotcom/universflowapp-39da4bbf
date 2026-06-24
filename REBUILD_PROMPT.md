@@ -919,10 +919,10 @@ Every new `public` table must have explicit `GRANT` statements in the same migra
 ## 14. Offline & Download Architecture
 
 ### IndexedDB
-- Database name: `uf-audio-cache`.
-- Object stores: `audio-blobs` (Blob), `audio-meta` (metadata).
-- `useOfflineAudio` hook / `DownloadContext` wrapper.
-- Blob URLs created on demand, revoked on removal.
+- Database name: `MusicAppOffline`.
+- Object store: `songs` (keyPath `id`); stores audio Blob, cover Blob, and full song metadata.
+- `DownloadContext` wrapper manages all cache operations.
+- Blob URLs created on demand from the stored Blob, revoked on removal/unmount.
 - Storage quota awareness via `navigator.storage.estimate()`.
 
 ### Download UI
