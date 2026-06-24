@@ -11,6 +11,7 @@ import DownloadButton from '@/components/DownloadButton';
 import { TabTransition } from '@/components/PageTransition';
 import SEOHead from '@/components/SEOHead';
 import RoseHero from '@/components/RoseHero';
+import RecognizeSongButton from '@/components/RecognizeSongButton';
 import { Input } from '@/components/ui/input';
 import { SearchSkeleton } from '@/components/PageSkeletons';
 import { prefetchIndexedTrack, searchIndexedTracks, getTagTopTracks, searchYouTubeMusicTracks, searchArtistDirectory, type IndexedArtistInfo, type IndexedTrack } from '@/lib/musicIndexer';
@@ -333,26 +334,29 @@ const Search = () => {
           <div className="px-1 mt-3">
 
 
-          <div className="relative">
-            <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)}
-              onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
-              placeholder="Any song, artist, or album worldwide"
-              aria-label="Search songs, artists, or albums"
-              className="pl-10 pr-8 h-12 text-sm rounded-3xl border-0 bg-card"
-              style={{
-                background: 'rgba(255, 255, 255, 0.06)',
-                border: isFocused ? '1px solid hsl(var(--primary) / 0.4)' : '1px solid rgba(255,255,255,0.06)',
-                transition: 'border-color 0.2s',
-              }} />
-            {query && (
-              <button onClick={() => { setQuery(''); setIndexedResults([]); }}
-                aria-label="Clear search"
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full"
-                style={{ background: 'rgba(255,255,255,0.15)' }}>
-                <X className="w-3 h-3" />
-              </button>
-            )}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <SearchIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input value={query} onChange={(e) => setQuery(e.target.value)}
+                onFocus={() => setIsFocused(true)} onBlur={() => setIsFocused(false)}
+                placeholder="Any song, artist, or album worldwide"
+                aria-label="Search songs, artists, or albums"
+                className="pl-10 pr-8 h-12 text-sm rounded-3xl border-0 bg-card"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.06)',
+                  border: isFocused ? '1px solid hsl(var(--primary) / 0.4)' : '1px solid rgba(255,255,255,0.06)',
+                  transition: 'border-color 0.2s',
+                }} />
+              {query && (
+                <button onClick={() => { setQuery(''); setIndexedResults([]); }}
+                  aria-label="Clear search"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full"
+                  style={{ background: 'rgba(255,255,255,0.15)' }}>
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            <RecognizeSongButton />
           </div>
 
           {/* Source tabs */}
