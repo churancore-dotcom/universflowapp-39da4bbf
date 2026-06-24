@@ -1099,7 +1099,7 @@ async function resolveViaYoutubeiTV(videoId: string): Promise<{ streamUrl: strin
     const data = await res.json().catch(() => null) as any;
     const status = data?.playabilityStatus?.status;
     if (status && status !== 'OK') {
-      console.warn(`[resolve] youtubei-tv playability=${status} for ${videoId}`);
+      console.warn(`[resolve] youtubei-tv playability=${status} reason=${data?.playabilityStatus?.reason || ''} for ${videoId}`);
       return null;
     }
     const adaptive: any[] = data?.streamingData?.adaptiveFormats || [];
