@@ -218,7 +218,69 @@ serve(async (req) => {
     // Cap raised to 100 so artist searches can return a full discography.
     const limit = Math.max(1, Math.min(100, typeof requestedLimit === 'number' ? requestedLimit : 50));
 
-    // ---------- Try Invidious (Railway) FIRST for fresh results ----------
+    // ---------- Try YouTube Music Innertube FIRST (no quota, music-tuned) ----------
+    try {
+      const ir = await fetch('https://music.youtube.com/youtubei/v1/search?prettyPrint=false', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Origin': 'https://music.youtube.com',
+          'Referer': 'https://music.youtube.com/',
+        },
+        body: JSON.stringify({
+          context: { client: { clientName: 'WEB_REMIX', clientVersion: '1.20250101.01.00', hl: 'en', gl: 'US' } },
+          query: query.trim(),
+          params: 'EgWKAQIIAWoOEAMQBBAJEAoQBRAVEBE%3D', // Songs filter
+        }),
+      });
+      if (ir.ok) {
+        const data = await ir.json();
+        const tabs = data?.contents?.tabbedSearchResultsRenderer?.tabs || [];
+        const sections = tabs?.[0]?.tabRenderer?.content?.sectionListRenderer?.contents || [];
+        const itResults: SearchResult[] = [];
+        const parseDur = (t?: string) => {
+          if (!t) return undefined;
+          const p = t.split(':').map((x) => parseInt(x, 10));
+          if (p.some(isNaN)) return undefined;
+          return p.reduce((a, b) => a * 60 + b, 0) || undefined;
+        };
+        for (const sec of sections) {
+          const contents = sec?.musicShelfRenderer?.contents || sec?.musicCardShelfRenderer?.contents || [];
+          for (const c of contents) {
+            const it = c?.musicResponsiveListItemRenderer;
+            const vid = it?.playlistItemData?.videoId
+              || it?.overlay?.musicItemThumbnailOverlayRenderer?.content?.musicPlayButtonRenderer?.playNavigationEndpoint?.watchEndpoint?.videoId;
+            if (!vid) continue;
+            const cols = it?.flexColumns || [];
+            const title = (cols?.[0]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || []).map((r: any) => r?.text || '').join('').trim();
+            const meta = cols?.[1]?.musicResponsiveListItemFlexColumnRenderer?.text?.runs || [];
+            const artist = (meta.filter((r: any) => r?.navigationEndpoint?.browseEndpoint).map((r: any) => r.text).join(', ') || (meta[0]?.text || 'Unknown Artist')).trim();
+            const durationText = meta.length ? meta[meta.length - 1]?.text : undefined;
+            const thumbs = it?.thumbnail?.musicThumbnailRenderer?.thumbnail?.thumbnails || [];
+            const cover_url = thumbs[thumbs.length - 1]?.url;
+            if (!title) continue;
+            itResults.push({
+              id: `ytm-${vid}`, videoId: vid, title, artist,
+              audio_url: `yt-video:${vid}`, cover_url, duration: parseDur(durationText),
+            });
+            if (itResults.length >= limit) break;
+          }
+          if (itResults.length >= limit) break;
+        }
+        if (itResults.length > 0) {
+          console.log(`Innertube OK: ${itResults.length} results`);
+          await persistSearchResults(adminClient, itResults);
+          return new Response(JSON.stringify({ success: true, results: itResults, source: 'innertube' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+      } else {
+        console.warn('Innertube non-OK:', ir.status);
+      }
+    } catch (e) {
+      console.warn('Innertube failed:', (e as Error).message);
+    }
     const INVIDIOUS_INSTANCES = [
       'https://invidious-production-d29a.up.railway.app',
       'https://inv.nadeko.net',
