@@ -536,18 +536,23 @@ export interface Song {
 ```
 
 ### PlayerContext features
-1. **Dual audio element system** — primary `audioRef` + secondary `nextAudioRef` for crossfade transitions.
-2. **Smart shuffle** — shuffleHistory Set avoids repeats until the queue is exhausted.
-3. **Queue management** — `setQueue`, `addToQueue`, drag-and-drop reorder in `QueueDrawer`.
-4. **Crossfade** — configurable 1–12s, 30-step volume interpolation, audio refs swapped at completion.
-5. **Pre-roll ads** — free users see an ad every 3 songs (`AD_FREQUENCY = 3`); `pendingSong` stored while the ad plays.
-6. **Progress tracking** — `requestAnimationFrame` loop; decoupled via `playerProgressStore` for high-frequency updates.
-7. **Background audio resilience** — `visibilitychange` + `focus` listeners resume interrupted playback.
-8. **MediaSession** — metadata + action handlers (play, pause, next, previous, seek, seekbackward, seekforward).
-9. **Recently played tracking** — fire-and-forget insert into `recently_played`.
-10. **Cross-device resume** — `playback_state` table syncs song/queue/position.
-11. **Two-track prefetch** — next track prefetched for gapless transitions.
-12. **Native music controls** — Capacitor bridge for Android media notifications.
+1. **Dual audio element system** — primary `audioRef` + secondary `nextAudioRef` for crossfade transitions; both created once and never re-mounted.
+2. **YouTube IFrame fallback** — lazy-loaded `youtubePlayerRef` handles `audio_url = 'yt-video:<id>` URLs when extraction fails.
+3. **Smart shuffle** — `shuffleHistory` Set avoids repeats until the queue is exhausted.
+4. **Queue management** — `setQueue`, `addToQueue`, drag-and-drop reorder in `QueueDrawer`; last 100 songs persisted to `localStorage('player_queue_state')`.
+5. **Crossfade** — configurable 1–12s, 30-step volume interpolation, audio refs swapped at completion; curves: `linear`, `equal-power`, `smooth`, `exponential`.
+6. **Gapless Pro** — `gaplessPro` toggle; next track preloaded for seamless album playback.
+7. **Pre-roll ads** — free users see an ad every 3 songs (`AD_FREQUENCY = 3`); `pendingSong` stored while the ad plays.
+8. **Progress tracking** — `requestAnimationFrame` loop; decoupled via `playerProgressStore` (external store) for high-frequency updates.
+9. **Background audio resilience** — `visibilitychange` + `focus` listeners resume interrupted playback; 5s keep-alive; `wasPlayingRef` tracks pre-background state.
+10. **Buffering stall recovery** — 4s stall wait then nudge `audio.play()` if `readyState < 2`.
+11. **CORS management** — `crossOrigin = 'anonymous'` applied only to known-safe hosts; `stream-proxy` used only when EQ is active.
+12. **MediaSession** — metadata + action handlers (play, pause, next, previous, seek, seekbackward, seekforward).
+13. **Recently played tracking** — fire-and-forget insert into `recently_played`.
+14. **Cross-device resume** — `playback_state` table syncs song/queue/position.
+15. **Two-track prefetch** — next track prefetched for gapless transitions.
+16. **Native music controls** — Capacitor bridge for Android media notifications.
+17. **Auto-mix** — extends the queue with recommendations when it runs out.
 
 ### PlayerContext methods
 ```typescript
@@ -563,6 +568,8 @@ interface PlayerContextType {
   isExpanded: boolean;
   crossfade: boolean;
   crossfadeDuration: number;
+  crossfadeCurve: 'linear' | 'equal-power' | 'smooth' | 'exponential';
+  gaplessPro: boolean;
   audioElement: HTMLAudioElement | null;
   showPrerollAd: boolean;
   adType: 'start' | 'end';
@@ -583,6 +590,8 @@ interface PlayerContextType {
   setExpanded(expanded);
   toggleCrossfade();
   setCrossfadeDuration(seconds);
+  setCrossfadeCurve(curve);
+  toggleGaplessPro();
   onPrerollAdComplete();
 }
 ```
