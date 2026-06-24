@@ -190,16 +190,30 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Lazy Genius fallback: only call Genius if LRCLIB has nothing.
+    // Chain: LRCLIB → KuGou → Genius (metadata link only).
     const lrc = await fetchLrclib(artist, title, duration);
-    const haveLyrics = !!(lrc?.synced || lrc?.plain);
+    let synced = lrc?.synced || null;
+    let plain = lrc?.plain || null;
+    let source: LyricsResponse['source'] = (synced || plain) ? 'lrclib' : null;
+
+    if (!synced && !plain) {
+      const kg = await fetchKugou(artist, title, duration);
+      if (kg?.synced || kg?.plain) {
+        synced = kg.synced || null;
+        plain = kg.plain || null;
+        source = 'kugou';
+      }
+    }
+
+    const haveLyrics = !!(synced || plain);
     const geniusUrl = haveLyrics ? null : await fetchGeniusUrl(artist, title);
+    if (!haveLyrics && geniusUrl) source = 'genius';
 
     const payload: LyricsResponse = {
       success: true,
-      synced: lrc?.synced || null,
-      plain: lrc?.plain || null,
-      source: haveLyrics ? 'lrclib' : (geniusUrl ? 'genius' : null),
+      synced,
+      plain,
+      source,
       geniusUrl: geniusUrl || null,
     };
 
