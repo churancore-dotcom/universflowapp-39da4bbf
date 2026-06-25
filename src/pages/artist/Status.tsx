@@ -1,26 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, ArrowRight, RotateCw, LogOut, LockKeyhole } from 'lucide-react';
+import {
+  ArrowLeft, ArrowRight, RotateCw, LogOut, Send, ScanFace,
+  ShieldCheck, Sparkles, BadgeCheck, XCircle, Headphones,
+} from 'lucide-react';
 import SEOHead from '@/components/SEOHead';
 import { FadeTransition } from '@/components/PageTransition';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { getArtistReapplyState, getMyApplication, type ArtistApplicationSafe, type ArtistAppStatus } from '@/lib/artist';
+import {
+  getArtistReapplyState, getMyApplication,
+  type ArtistApplicationSafe, type ArtistAppStatus,
+} from '@/lib/artist';
 import { toast } from 'sonner';
+import StepRail, { type RailStep } from '@/components/artist/StepRail';
+import BentoCard from '@/components/artist/BentoCard';
 
+function fmtShort(iso?: string | null) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+    ' · ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+}
+
+function countdownText(target: Date) {
+  const diff = target.getTime() - Date.now();
+  if (diff <= 0) return 'You can re-submit now.';
+  const days = Math.floor(diff / 86_400_000);
+  const hours = Math.floor((diff % 86_400_000) / 3_600_000);
+  if (days > 0) return `${days}d ${hours}h until re-submit`;
+  const mins = Math.floor((diff % 3_600_000) / 60_000);
+  return `${hours}h ${mins}m until re-submit`;
+}
 
 export default function ArtistStatus() {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
   const [app, setApp] = useState<ArtistApplicationSafe | null>(null);
   const [loading, setLoading] = useState(true);
+  const [, force] = useState(0);
 
   const load = async () => {
     if (!user) return;
     let data = await getMyApplication(user.id);
-    // Race guard: just-submitted rows can briefly miss the safe-view read.
     if (!data) {
       await new Promise((r) => setTimeout(r, 600));
       data = await getMyApplication(user.id);
@@ -33,12 +58,9 @@ export default function ArtistStatus() {
     if (isLoading) return;
     if (!user) { navigate('/auth', { replace: true }); return; }
     load();
-
-    // Realtime — flip the page the moment admin approves OR a fresh app row lands.
     const channel = supabase
       .channel('artist-app-status')
-      .on(
-        'postgres_changes',
+      .on('postgres_changes',
         { event: '*', schema: 'public', table: 'artist_applications', filter: `user_id=eq.${user.id}` },
         () => load(),
       )
@@ -47,24 +69,55 @@ export default function ArtistStatus() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isLoading]);
 
-  // Keep device/browser back inside the artist flow: approved artists go to the
-  // Studio, pending/rejected stay on Status (no general /home jump).
+  // tick countdown every minute when rejected
+  useEffect(() => {
+    if (app?.status !== 'rejected') return;
+    const i = setInterval(() => force((n) => n + 1), 60_000);
+    return () => clearInterval(i);
+  }, [app?.status]);
+
   useEffect(() => {
     window.history.pushState({ uf: 'artist-status' }, '', window.location.pathname);
     const onPop = (e: PopStateEvent) => {
       e.preventDefault?.();
-      if (app?.status === 'approved') {
-        navigate('/artist/studio', { replace: true });
-      } else {
-        // Re-push so back stays on Status for pending/rejected.
-        window.history.pushState({ uf: 'artist-status' }, '', window.location.pathname);
-      }
+      if (app?.status === 'approved') navigate('/artist/studio', { replace: true });
+      else window.history.pushState({ uf: 'artist-status' }, '', window.location.pathname);
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
   }, [app?.status, navigate]);
 
+  const steps: RailStep[] = useMemo(() => {
+    if (!app) return [];
+    const status = app.status as ArtistAppStatus;
+    const submittedAt = fmtShort(app.created_at);
+    const reviewedAt = fmtShort(app.reviewed_at);
+    const autoDone = !!app.created_at; // auto-checks run on submit
 
+    if (status === 'approved') {
+      return [
+        { key: 's', label: 'Submitted', sub: 'Your application reached our review desk.', icon: Send, state: 'done', at: submittedAt },
+        { key: 'a', label: 'Automated identity checks', sub: 'ID, face match and link signals scored.', icon: ScanFace, state: 'done' },
+        { key: 'h', label: 'Human review', sub: 'Trust & Safety team confirmed your account.', icon: ShieldCheck, state: 'done', at: reviewedAt },
+        { key: 'd', label: 'Verified', sub: "You earned the rose checkmark. Studio is unlocked.", icon: BadgeCheck, state: 'done' },
+      ];
+    }
+    if (status === 'rejected') {
+      return [
+        { key: 's', label: 'Submitted', sub: 'Your application was received.', icon: Send, state: 'done', at: submittedAt },
+        { key: 'a', label: 'Automated identity checks', sub: 'ID, face match and link signals scored.', icon: ScanFace, state: 'done' },
+        { key: 'h', label: 'Human review', sub: 'A reviewer flagged something below.', icon: ShieldCheck, state: 'failed', at: reviewedAt },
+        { key: 'd', label: 'Decision', sub: 'Not approved this time — see notes below.', icon: XCircle, state: 'failed' },
+      ];
+    }
+    // pending
+    return [
+      { key: 's', label: 'Submitted', sub: 'Your application is in the queue.', icon: Send, state: 'done', at: submittedAt },
+      { key: 'a', label: 'Automated identity checks', sub: 'ID, face match and link signals scored.', icon: ScanFace, state: autoDone ? 'done' : 'active' },
+      { key: 'h', label: 'Human review', sub: 'A real person reviews every artist. Usually 1–3 days.', icon: ShieldCheck, state: 'active' },
+      { key: 'd', label: 'Decision & rose checkmark', sub: "We'll push you the moment you're verified.", icon: BadgeCheck, state: 'todo' },
+    ];
+  }, [app]);
 
   if (isLoading || loading) return <div className="min-h-[100dvh] bg-background" />;
 
@@ -72,7 +125,7 @@ export default function ArtistStatus() {
     return (
       <FadeTransition>
         <Shell>
-          <div className="text-center pt-20">
+          <div className="text-center pt-16">
             <p className="text-muted-foreground text-[14px] mb-4">No artist application yet.</p>
             <Button onClick={() => navigate('/artist/apply')} style={{ background: '#FF2D55' }} className="text-white">
               Start application <ArrowRight className="w-4 h-4 ml-1.5" />
@@ -83,7 +136,7 @@ export default function ArtistStatus() {
     );
   }
 
-  const status: ArtistAppStatus = app.status;
+  const status = app.status as ArtistAppStatus;
   const reapply = status === 'rejected' ? getArtistReapplyState(app) : null;
 
   const goToReapply = () => {
@@ -94,87 +147,176 @@ export default function ArtistStatus() {
     navigate('/artist/apply?mode=reapply');
   };
 
+  // Status hero copy
+  const hero = status === 'approved'
+    ? {
+        eyebrow: 'Verified',
+        title: "You're on the stage.",
+        sub: 'Welcome to Universflow for Artists. Your Studio, analytics and uploads are all unlocked.',
+        accent: '#10B981',
+      }
+    : status === 'rejected'
+      ? {
+          eyebrow: 'Not approved',
+          title: 'A reviewer flagged something.',
+          sub: 'Read the note below, fix what they mentioned, and re-submit when the cooldown ends.',
+          accent: '#FB7185',
+        }
+      : {
+          eyebrow: 'Under review',
+          title: 'Sit tight — humans are looking at it.',
+          sub: 'Most artists are verified within 1 to 3 days. You can close the app, we\'ll push you the moment it\'s decided.',
+          accent: '#FF2D55',
+        };
+
   return (
     <FadeTransition>
       <SEOHead title="Artist Status — Universflow" description="Your Universflow artist application status." path="/artist/status" />
-      <Shell backTo={app.status === 'approved' ? '/artist/studio' : '/artist/status'}>
+      <Shell backTo={status === 'approved' ? '/artist/studio' : '/artist/status'}>
 
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
+        {/* === HERO === */}
+        <motion.section
+          initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl p-6 text-center"
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          className="relative rounded-[28px] overflow-hidden mb-5"
           style={{
-            background: 'rgba(16,16,18,0.78)',
-            border: '0.5px solid rgba(255,255,255,0.07)',
+            background:
+              status === 'approved'
+                ? 'linear-gradient(155deg, #064E3B 0%, #0A0A0B 70%)'
+                : status === 'rejected'
+                  ? 'linear-gradient(155deg, #4C0519 0%, #0A0A0B 70%)'
+                  : 'linear-gradient(155deg, #FF2D55 0%, #2A0712 45%, #0A0A0B 100%)',
+            boxShadow: '0 30px 80px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08)',
           }}
         >
+          {/* live pulse for pending */}
           {status === 'pending' && (
-            <>
-              <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center bg-amber-500/10 text-amber-400 mb-4">
-                <Clock className="w-8 h-8" />
-              </div>
-              <h2 className="text-[20px] font-semibold mb-1.5">Under review</h2>
-              <p className="text-[13.5px] text-muted-foreground leading-relaxed">
-                Hang tight — most artists are verified within 1 to 3 days. We'll send you a push the moment it's approved.
-              </p>
-            </>
+            <span
+              aria-hidden
+              className="pointer-events-none absolute -top-24 -left-12 w-64 h-64 rounded-full opacity-60"
+              style={{ background: 'radial-gradient(closest-side, rgba(255,45,85,0.5), transparent 70%)' }}
+            />
           )}
-          {status === 'approved' && (
-            <>
-              <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center bg-emerald-500/10 text-emerald-400 mb-4">
-                <CheckCircle2 className="w-8 h-8" />
-              </div>
-              <h2 className="text-[20px] font-semibold mb-1.5">You're verified ✓</h2>
-              <p className="text-[13.5px] text-muted-foreground leading-relaxed mb-5">
-                Welcome to Universflow Artists. Your Studio is ready.
-              </p>
+
+          <div className="relative p-5 pt-6">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/35 border border-white/15 backdrop-blur-sm">
+              {status === 'pending' && (
+                <span className="relative flex w-1.5 h-1.5">
+                  <span className="absolute inset-0 rounded-full bg-white/90 animate-ping" />
+                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-white" />
+                </span>
+              )}
+              {status === 'approved' && <BadgeCheck className="w-3 h-3" fill="#10B981" stroke="#fff" />}
+              {status === 'rejected' && <XCircle className="w-3 h-3 text-white/90" />}
+              <span className="text-[9.5px] uppercase tracking-[0.22em] font-semibold text-white/90">
+                {hero.eyebrow}
+              </span>
+            </div>
+
+            <h1 className="mt-3 font-display text-[28px] leading-[1.02] tracking-tight text-white">
+              {hero.title}
+            </h1>
+            <p className="mt-2 text-[13px] leading-snug text-white/80 max-w-[300px]">
+              {hero.sub}
+            </p>
+
+            {status === 'approved' && (
               <Button
-                className="w-full h-12 rounded-xl text-[14px] font-semibold text-white"
-                style={{ background: '#FF2D55' }}
+                className="mt-5 w-full h-12 rounded-xl text-[14px] font-semibold text-white"
+                style={{ background: '#FF2D55', boxShadow: '0 12px 30px rgba(255,45,85,0.45)' }}
                 onClick={() => navigate('/artist/studio')}
               >
                 Open Artist Studio <ArrowRight className="w-4 h-4 ml-1.5" />
               </Button>
-            </>
-          )}
-          {status === 'rejected' && (
-            <>
-              <div className="w-16 h-16 mx-auto rounded-full flex items-center justify-center bg-rose-500/10 text-rose-400 mb-4">
-                <XCircle className="w-8 h-8" />
-              </div>
-              <h2 className="text-[20px] font-semibold mb-1.5">Verification rejected</h2>
-              <div className="text-left rounded-2xl bg-white/[0.04] border border-white/10 p-4 mb-4">
-                <p className="text-[11px] uppercase tracking-[0.16em] text-rose-300/80 mb-2">Reason from review team</p>
-                <p className="text-[13.5px] text-foreground/90 leading-relaxed">
-                  {app.admin_note || 'Your ID, selfie, face check, or artist links did not pass review. Fix the missing proof before trying again.'}
-                </p>
-              </div>
-              <div className="text-left rounded-2xl bg-amber-500/10 border border-amber-500/20 p-4 mb-4 flex gap-3">
-                <LockKeyhole className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-[13px] font-semibold text-amber-100">Re-submit cooldown</p>
-                  <p className="text-[12.5px] text-amber-100/80 leading-relaxed">
-                    {reapply?.waitText} {reapply?.reapplyAt && !reapply.canReapply ? `Available after ${reapply.reapplyAt.toLocaleString()}.` : ''}
+            )}
+          </div>
+        </motion.section>
+
+        {/* === TIMELINE === */}
+        <BentoCard glow={status === 'pending'} className="p-5 mb-4">
+          <p className="text-[10.5px] uppercase tracking-[0.22em] text-muted-foreground/70 font-semibold mb-4">
+            Verification timeline
+          </p>
+          <StepRail steps={steps} />
+        </BentoCard>
+
+        {/* === REJECTION NOTE === */}
+        {status === 'rejected' && (
+          <BentoCard className="p-5 mb-4" delay={0.05}>
+            <p className="text-[10.5px] uppercase tracking-[0.22em] text-rose-300/80 font-semibold mb-2">
+              Note from review team
+            </p>
+            <p className="text-[14px] text-foreground/90 leading-relaxed font-display italic">
+              "{app.admin_note || 'Your ID, selfie, face check, or artist links did not pass review. Please re-submit with clearer documents and verifiable links.'}"
+            </p>
+            {reapply?.reapplyAt && (
+              <div className="mt-4 rounded-2xl p-3.5 flex items-center gap-3"
+                style={{ background: 'rgba(251,191,36,0.07)', border: '1px solid rgba(251,191,36,0.18)' }}>
+                <div className="w-9 h-9 rounded-full grid place-items-center bg-amber-500/15 text-amber-300 shrink-0">
+                  <RotateCw className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12.5px] font-semibold text-amber-100 tabular-nums">
+                    {countdownText(reapply.reapplyAt)}
+                  </p>
+                  <p className="text-[11.5px] text-amber-100/70 truncate">
+                    Available {reapply.reapplyAt.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                   </p>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                className="w-full h-12 rounded-xl text-[14px] font-semibold"
-                disabled={!reapply?.canReapply}
-                onClick={goToReapply}
-              >
-                <RotateCw className="w-4 h-4 mr-1.5" /> Re-submit verification
-              </Button>
-            </>
-          )}
-        </motion.div>
+            )}
+            <Button
+              className="mt-4 w-full h-12 rounded-xl text-[14px] font-semibold text-white"
+              style={{ background: reapply?.canReapply ? '#FF2D55' : 'rgba(255,255,255,0.06)', color: reapply?.canReapply ? '#fff' : 'rgba(255,255,255,0.4)' }}
+              disabled={!reapply?.canReapply}
+              onClick={goToReapply}
+            >
+              <RotateCw className="w-4 h-4 mr-1.5" /> Re-submit verification
+            </Button>
+          </BentoCard>
+        )}
 
-        <div className="mt-5 text-[11.5px] text-center text-muted-foreground/70">
-          Submitted {new Date(app.created_at).toLocaleString()}
-        </div>
+        {/* === WHILE YOU WAIT (pending only) === */}
+        {status === 'pending' && (
+          <BentoCard className="p-5 mb-4" delay={0.08}>
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-full grid place-items-center bg-primary/15 text-primary">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-[14px] font-semibold tracking-tight">While you wait</p>
+                <p className="text-[11.5px] text-muted-foreground">Get ahead before approval lands</p>
+              </div>
+            </div>
+            <ul className="space-y-2.5">
+              {[
+                { icon: Headphones, t: 'Pick your release cover', s: 'Square, 1500×1500, no watermark.' },
+                { icon: ShieldCheck, t: 'Stage your direct audio URL', s: 'WAV / 320 MP3 on a CDN you control.' },
+                { icon: Send, t: 'Plan your launch day', s: 'Story assets ready, fans alerted.' },
+              ].map((row) => {
+                const I = row.icon;
+                return (
+                  <li key={row.t} className="flex items-start gap-3 rounded-xl p-2.5 -mx-1 hover:bg-white/[0.03] transition">
+                    <span className="w-7 h-7 rounded-lg grid place-items-center bg-white/[0.05] text-foreground/80 shrink-0 mt-0.5">
+                      <I className="w-3.5 h-3.5" />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium">{row.t}</p>
+                      <p className="text-[11.5px] text-muted-foreground/85 leading-snug">{row.s}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </BentoCard>
+        )}
 
-        {/* Logout — only shown once the user has submitted for review. */}
+        {/* Submitted meta + logout */}
+        <p className="mt-4 text-[11px] text-center text-muted-foreground/60 tabular-nums">
+          Submitted {fmtShort(app.created_at)} · ref {app.id.slice(0, 8)}
+        </p>
+
         <button
           type="button"
           onClick={async () => {
@@ -182,9 +324,9 @@ export default function ArtistStatus() {
             toast.success('Signed out');
             navigate('/auth', { replace: true });
           }}
-          className="mt-6 mx-auto flex items-center justify-center gap-2 text-[12.5px] font-medium text-white/70 hover:text-white px-4 py-2.5 rounded-xl bg-white/[0.04] border border-white/10 active:scale-[0.98] transition"
+          className="mt-5 mx-auto flex items-center justify-center gap-2 text-[12px] font-medium text-white/55 hover:text-white px-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/[0.06] active:scale-[0.98] transition"
         >
-          <LogOut className="w-3.5 h-3.5" /> Log out of this account
+          <LogOut className="w-3.5 h-3.5" /> Log out
         </button>
 
       </Shell>
@@ -196,19 +338,33 @@ function Shell({ children, backTo = '/artist/status' }: { children: React.ReactN
   const navigate = useNavigate();
   const isSelf = backTo === '/artist/status';
   return (
-    <div className="min-h-[100dvh] bg-background text-foreground">
-      <header className="sticky top-0 z-20 bg-background/85 backdrop-blur-xl border-b border-white/5">
+    <div className="min-h-[100dvh] bg-[#060608] text-foreground relative overflow-y-auto overflow-x-hidden">
+      {/* Ambient backdrop */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(120% 80% at 0% 0%, hsl(340 100% 55% / 0.20) 0%, transparent 55%),' +
+            'radial-gradient(80% 60% at 100% 100%, hsl(28 100% 60% / 0.10) 0%, transparent 60%)',
+        }}
+      />
+      <header className="sticky top-0 z-20 bg-[#060608]/85 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-md mx-auto px-4 py-3 flex items-center gap-3">
           {!isSelf && (
-            <button onClick={() => navigate(backTo, { replace: true })} className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.04] active:scale-95">
+            <button
+              onClick={() => navigate(backTo, { replace: true })}
+              className="w-9 h-9 rounded-full flex items-center justify-center bg-white/[0.04] active:scale-95"
+            >
               <ArrowLeft className="w-5 h-5" />
             </button>
           )}
-          <h1 className="text-[15px] font-semibold tracking-tight">Artist Application</h1>
+          <h1 className="text-[15px] font-semibold tracking-tight">Artist Verification</h1>
+          <span className="ml-1 text-[9.5px] tracking-[0.28em] uppercase text-muted-foreground/55 font-semibold">
+            Universflow
+          </span>
         </div>
       </header>
-      <main className="max-w-md mx-auto px-5 pt-8 pb-32">{children}</main>
+      <main className="relative max-w-md mx-auto px-5 pt-6 pb-32">{children}</main>
     </div>
   );
 }
-
