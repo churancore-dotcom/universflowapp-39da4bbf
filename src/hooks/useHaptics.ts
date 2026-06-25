@@ -1,5 +1,35 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { isMedianApp, getMedian } from '@/lib/median';
+
+const isCapacitorNative = Capacitor.isNativePlatform();
+
+async function triggerCapacitorHaptic(style: HapticStyle): Promise<boolean> {
+  if (!isCapacitorNative) return false;
+  try {
+    const { Haptics, ImpactStyle, NotificationType } = await import('@capacitor/haptics');
+    switch (style) {
+      case 'impactLight':
+        await Haptics.impact({ style: ImpactStyle.Light }); return true;
+      case 'impactMedium':
+        await Haptics.impact({ style: ImpactStyle.Medium }); return true;
+      case 'impactHeavy':
+        await Haptics.impact({ style: ImpactStyle.Heavy }); return true;
+      case 'selection':
+        await Haptics.selectionStart(); await Haptics.selectionEnd(); return true;
+      case 'success':
+        await Haptics.notification({ type: NotificationType.Success }); return true;
+      case 'warning':
+        await Haptics.notification({ type: NotificationType.Warning }); return true;
+      case 'error':
+        await Haptics.notification({ type: NotificationType.Error }); return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
 
 type HapticStyle = 'impactLight' | 'impactMedium' | 'impactHeavy' | 'selection' | 'success' | 'warning' | 'error';
 
