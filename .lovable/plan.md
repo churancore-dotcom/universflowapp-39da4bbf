@@ -1,81 +1,63 @@
+# Artist Experience — Premium Overhaul
 
-# Artist Dashboard — Premium Rebuild
+Goal: every artist surface feels hand-crafted (Spotify-for-Artists / Apple-grade), not generic AI. Locked palette: Obsidian + Rose (`#0A0A0B` / `#141417` / `#FF2D55` / `#F5F5F7`). Mobile-first, with desktop refinements.
 
-A complete reimagining of `/artist/studio/*`. Spotify-for-Artists aesthetic: dark, dense, premium, with live realtime pulses. Sidebar shell stays, every page gets rebuilt, plus two new pages (Notifications, Activity) and one redesigned upload flow restricted to Dropbox / Google Drive links.
+Shipped in 4 focused turns so each surface lands polished, not half-done.
 
-## Pages & sections
+---
 
-```
-/artist/studio                 Overview        Hero, live KPIs, sparkline, top song, recent activity
-/artist/studio/upload          Upload          Dropbox/Drive only, with visual how-to
-/artist/studio/songs           My Music        Status pills, inline stats, edit, delete
-/artist/studio/songs/:id/edit  Edit Song       Title, genre, cover URL
-/artist/studio/analytics       Analytics       Time-series chart, top songs, country map
-/artist/studio/followers       Fans            Recent followers + growth sparkline
-/artist/studio/activity        Activity Feed   New followers, milestones, status updates
-/artist/studio/notifications   Notifications   Inbox-style, mark-read
-/artist/studio/profile         Branding        Bio, photo, banner, socials, slug
-```
+## Turn 1 — Onboarding (Apply + Status + Auth)
 
-## Upload flow (the core change)
+New flow at `/artist/auth → /artist/apply → /artist/status`.
 
-- Field accepts ONLY:
-  - `dropbox.com/s/...`, `dropbox.com/scl/...`, `dl.dropboxusercontent.com/...`
-  - `drive.google.com/file/d/.../view`, `drive.google.com/open?id=...`, `drive.google.com/uc?id=...`
-- Reject any other host (YouTube, Spotify, raw `.mp3` URLs, JioSaavn, etc.) inline with a clear red message.
-- Auto-normalize on save:
-  - Dropbox: rewrite `?dl=0` → `?dl=1`, swap host to `dl.dropboxusercontent.com` for direct streaming.
-  - Drive: extract file ID and store as `https://drive.google.com/uc?export=download&id=<ID>`.
-- Visual how-to card with two tabs (Drive | Dropbox), step icons, copy-link mock.
-- New fields on upload: title, genre (select), cover art URL (also validated as https image link), source platform auto-detected badge.
+- **Cinematic intro** on `/artist/auth`: full-bleed obsidian gradient, slow rose aurora, kinetic headline ("Your sound. Our stage."), one CTA. No marketing fluff stack.
+- **5-step wizard** `/artist/apply` with progress rail, step transitions (framer-motion), persisted draft in localStorage:
+  1. Identity (stage name, real name, country)
+  2. Socials (live preview chips, validator)
+  3. ID document (upload with frame guide, doc-type aware)
+  4. Selfie (existing FaceLivenessCapture, restyled)
+  5. Press photo + review screen
+- **Status page**: timeline component (Submitted → Under Review → Decision) with live ETA copy, animated rose pulse on current step. Rejected state shows reason in a quote-block + countdown card to re-apply.
 
-## Analytics
+## Turn 2 — Artist Studio (Overview + Analytics)
 
-- Aggregate KPIs (streams, listeners, followers, growth %) — live via realtime subscription on `artist_songs` and `artist_followers`.
-- Time-series line chart (Recharts already in stack) with Day / Week / Month tabs, built from `song_play_events` for the artist's songs.
-- Top songs ranking by selectable metric (existing pattern, restyled).
-- Top countries derived from `song_play_events.country` — horizontal bar list with flag emoji. Falls back to "Locations available once you have plays" when empty.
+- **Overview** rebuilt as a Bento grid: hero "Today" card (live listeners count w/ pulse), monthly listeners spark, top track card with mini-waveform, fan-map preview, latest follower stream.
+- **Analytics**: real charts (Recharts) — 28-day plays line, demographics donut, top cities bar, save-rate gauge. Time-range pills. Empty states with art, not gray boxes.
+- New **Audience Map** card (country heat list, no maps lib — pure CSS bars sorted).
+- New **Revenue placeholder card** (Coming soon, branded — not a TODO).
 
-## Music management
+## Turn 3 — Upload Wizard
 
-- Status pills: live, pending review, taken_down (rejected) — color-coded.
-- Inline per-song stats row.
-- Edit modal: title, genre, cover URL. Delete with confirm.
-- Source-platform badge on each row (Drive / Dropbox).
+`/artist/studio/upload` rebuilt as 3-step wizard:
 
-## Profile & branding
+1. **Source** — URL paste with live host validation, format detection, duration probe.
+2. **Cover & Metadata** — drag/drop cover with square cropper, AI title-case suggest, genre/mood chips, explicit toggle, release date picker.
+3. **Review & Publish** — full preview card identical to how it'll render in the app, publish animation (rose burst → "It's live").
 
-- Bio (textarea, 280 char), profile photo upload, banner upload, social links (instagram, youtube, spotify, apple_music, twitter, website), slug display + "Copy public link" button.
-- All edits via existing `artist_profiles` table; live preview card at top.
+Plus: drafts auto-saved, waveform preview after URL load (Web Audio peaks), share-kit modal post-publish.
 
-## Fan engagement
+## Turn 4 — Public Artist Page `/a/:slug`
 
-- Activity feed assembled client-side from:
-  - `artist_followers` inserts (last 30d)
-  - Milestone events (computed from `artist_songs` totals crossing 100 / 1k / 10k / 100k / 1M)
-  - `artist_applications.status` changes
-- Notifications page = same source, but persistent and dismissible (stored in `localStorage` keyed by `lastReadAt`).
+- **Editorial hero**: parallax banner, large stage name in display font, verified rose check, monthly-listener badge, follow CTA (sticky on scroll).
+- **Top Tracks** list with play counts + inline play.
+- **About** card with social link chips.
+- **Share kit** (copy link, story image gen, X/IG deep links).
+- **SEO**: structured data (MusicGroup schema), OG image per artist.
 
-## Design language
-
-- Dark surface `bg-background` with `rgba(255,255,255,0.03)` cards and `0.5px` borders, rose accent `#FF2D55`.
-- KPI numbers in tabular-nums, animated counter on realtime updates (extend existing `StatCard`).
-- Sidebar gains: Activity, Notifications items; unread dot for notifications.
-- Live indicator pulse in header — reuse existing.
-- Framer-motion entry animations on every section.
+---
 
 ## Technical notes
 
-- No DB schema changes required. All needed columns already exist (`artist_songs.genre` exists? — verified below; if missing, add via migration in a small follow-up).
-- All analytics built from existing tables: `song_play_events`, `artist_songs`, `artist_followers`, `artist_applications`.
-- Realtime: extend `useArtistLive` to also subscribe to `artist_applications` for status updates.
-- New helper `src/lib/artistUploadLinks.ts` for Drive/Dropbox detection + normalization with unit-testable pure functions.
-- New `src/pages/artist/Activity.tsx`, `Notifications.tsx`, `EditSong.tsx`.
-- Routes added in `src/App.tsx` under the existing `ArtistProtectedRoute`.
-- Recharts is already a dependency (used elsewhere); no new packages.
+- New shared primitives in `src/components/artist/`: `StepRail.tsx`, `BentoCard.tsx`, `StatPill.tsx`, `Waveform.tsx`, `EmptyArt.tsx`.
+- Display font: add `@fontsource-variable/fraunces` (editorial serif for hero numbers/names) paired with existing sans. Body stays current.
+- Tokens added to `index.css`: `--rose-glow`, `--obsidian-1/2/3`, `--shadow-hero`, `--gradient-aurora`.
+- No backend schema changes needed for Turns 1, 3, 4. Turn 2 adds two RPCs: `get_artist_overview_stats(_user_id)` and `get_artist_audience_breakdown(_user_id)` (read-only, security-definer, owner-scoped).
+- All existing data hooks (`useArtistLive`) reused — pure presentation rebuild on top.
 
-## Out of scope (call out so it isn't expected)
+---
 
-- Server-side validation/transcoding of Drive/Dropbox links — links are stored as-is after client normalization; playback already streams external URLs.
-- Comments system (the brief said "if applicable" — no comments table exists; skipped).
-- Email/push notifications for milestones (in-app only this pass).
+## Ship order
+
+I'll do **Turn 1 (Onboarding) now**, then check in with a screenshot. You approve → I roll Turn 2, etc. This keeps each surface tight instead of one giant blurry PR.
+
+Reply **"go"** to start Turn 1, or tell me to reorder (e.g. "do Studio first").
