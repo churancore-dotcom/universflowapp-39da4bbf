@@ -1,7 +1,39 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { isMedianApp, getMedian } from '@/lib/median';
 
 type HapticStyle = 'impactLight' | 'impactMedium' | 'impactHeavy' | 'selection' | 'success' | 'warning' | 'error';
+
+const isCapacitorNative = Capacitor.isNativePlatform();
+
+
+async function triggerCapacitorHaptic(style: HapticStyle): Promise<boolean> {
+  if (!isCapacitorNative) return false;
+  try {
+    const { Haptics, ImpactStyle, NotificationType } = await import('@capacitor/haptics');
+    switch (style) {
+      case 'impactLight':
+        await Haptics.impact({ style: ImpactStyle.Light }); return true;
+      case 'impactMedium':
+        await Haptics.impact({ style: ImpactStyle.Medium }); return true;
+      case 'impactHeavy':
+        await Haptics.impact({ style: ImpactStyle.Heavy }); return true;
+      case 'selection':
+        await Haptics.selectionStart(); await Haptics.selectionEnd(); return true;
+      case 'success':
+        await Haptics.notification({ type: NotificationType.Success }); return true;
+      case 'warning':
+        await Haptics.notification({ type: NotificationType.Warning }); return true;
+      case 'error':
+        await Haptics.notification({ type: NotificationType.Error }); return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+
 
 // Global haptics enabled state (can be toggled from settings)
 let hapticsEnabled = true;
@@ -41,10 +73,18 @@ export const useHaptics = () => {
   const trigger = useCallback((style: HapticStyle = 'impactLight') => {
     if (!hapticsEnabled) return;
 
-    // Native haptics via Median
+    // 1) Capacitor native (preferred on installed app)
+    if (isCapacitorNative) {
+      triggerCapacitorHaptic(style).then((ok) => {
+        if (ok) return;
+        if ('vibrate' in navigator) { try { navigator.vibrate(10); } catch { /* noop */ } }
+      });
+      return;
+    }
+
+    // 2) Median bridge (legacy native shell)
     if (isMedianApp && median) {
       try {
-        // Map our style names to Median's expected styles
         const medianStyle = style === 'selection' || style === 'success' || style === 'warning' || style === 'error'
           ? 'impactLight'
           : style;
@@ -54,6 +94,7 @@ export const useHaptics = () => {
         console.warn('Median haptics failed:', error);
       }
     }
+
 
     // Web Vibration API fallback
     if ('vibrate' in navigator) {
@@ -100,6 +141,15 @@ export const useHaptics = () => {
 export const triggerHaptic = (style: HapticStyle = 'impactLight') => {
   if (!hapticsEnabled) return;
 
+  if (isCapacitorNative) {
+    triggerCapacitorHaptic(style).then((ok) => {
+      if (!ok && 'vibrate' in navigator) {
+        try { navigator.vibrate(10); } catch { /* noop */ }
+      }
+    });
+    return;
+  }
+
   if (isMedianApp) {
     getMedian().then((Median) => {
       try {
@@ -116,6 +166,7 @@ export const triggerHaptic = (style: HapticStyle = 'impactLight') => {
     });
     return;
   }
+
 
   if ('vibrate' in navigator) {
     try {

@@ -222,4 +222,10 @@
     <changefreq>weekly</changefreq>
     <priority>0.65</priority>
   </url>
+  <url>
+    <loc>https://universflow.in/playlist/aacba348-5d10-42da-87c6-cc74b4382eeb</loc>
+    <lastmod>2026-06-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.65</priority>
+  </url>
 </urlset>
