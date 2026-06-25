@@ -204,14 +204,83 @@ export default function ArtistPublic() {
   const yt = profile.social_links?.youtube;
   const accent = '#FF2D55';
 
+  const canonicalUrl = `https://universflow.in/a/${profile.slug}`;
+  const shareImage =
+    profile.banner_url ||
+    profile.avatar_url ||
+    'https://universflow.in/pwa-512x512.png';
+  const topTitles = songs.slice(0, 5).map((s) => s.title).filter(Boolean);
+  const seoTitle = `${profile.stage_name}${profile.is_verified ? ' ✓' : ''} — Songs, Albums & Playlists | Universflow`;
+  const seoDescription =
+    (profile.bio?.trim() ? `${profile.bio.trim().slice(0, 140)} ` : '') +
+    `Listen to ${profile.stage_name} on Universflow — ${fmt(monthly)} monthly listeners, ${fmt(followers)} followers, ${songs.length} track${songs.length === 1 ? '' : 's'}.${topTitles.length ? ` Popular: ${topTitles.slice(0, 3).join(', ')}.` : ''}`;
+  const seoKeywords = [
+    profile.stage_name,
+    `${profile.stage_name} songs`,
+    `${profile.stage_name} music`,
+    `listen to ${profile.stage_name}`,
+    `${profile.stage_name} playlist`,
+    'Universflow artist',
+    'free music streaming',
+    ...topTitles.slice(0, 3).map((t) => `${profile.stage_name} ${t}`),
+  ].join(', ');
+
+  const socialSameAs = [
+    ig ? `https://instagram.com/${String(ig).replace(/^@/, '')}` : null,
+    yt ? (String(yt).startsWith('http') ? String(yt) : `https://youtube.com/${String(yt).replace(/^@/, '@')}`) : null,
+    profile.social_links?.spotify || null,
+    profile.social_links?.website || null,
+  ].filter(Boolean) as string[];
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'MusicGroup',
+    '@id': canonicalUrl,
+    name: profile.stage_name,
+    url: canonicalUrl,
+    image: shareImage,
+    ...(profile.avatar_url ? { logo: profile.avatar_url } : {}),
+    ...(profile.bio ? { description: profile.bio } : {}),
+    ...(socialSameAs.length ? { sameAs: socialSameAs } : {}),
+    ...(songs.length
+      ? {
+          track: songs.slice(0, 10).map((s) => ({
+            '@type': 'MusicRecording',
+            name: s.title,
+            byArtist: { '@type': 'MusicGroup', name: profile.stage_name },
+            ...(s.duration ? { duration: `PT${Math.floor(s.duration / 60)}M${Math.floor(s.duration % 60)}S` } : {}),
+            ...(s.cover_url ? { image: s.cover_url } : {}),
+          })),
+        }
+      : {}),
+    interactionStatistic: [
+      {
+        '@type': 'InteractionCounter',
+        interactionType: 'https://schema.org/FollowAction',
+        userInteractionCount: followers,
+      },
+      {
+        '@type': 'InteractionCounter',
+        interactionType: 'https://schema.org/ListenAction',
+        userInteractionCount: totalStreams,
+      },
+    ],
+  } as Record<string, unknown>;
+
   return (
     <FadeTransition>
       <SEOHead
-        title={`${profile.stage_name} — Universflow`}
-        description={profile.bio || `Listen to ${profile.stage_name} on Universflow.`}
+        title={seoTitle}
+        description={seoDescription}
+        keywords={seoKeywords}
         path={`/a/${profile.slug}`}
-        image={profile.avatar_url || undefined}
+        url={canonicalUrl}
+        image={shareImage}
+        type="profile"
+        jsonLd={jsonLd}
+        jsonLdId={`artist-${profile.slug}-jsonld`}
       />
+
 
       <div
         ref={scrollRef}
