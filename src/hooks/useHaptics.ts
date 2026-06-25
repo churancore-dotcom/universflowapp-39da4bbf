@@ -139,6 +139,15 @@ export const useHaptics = () => {
 export const triggerHaptic = (style: HapticStyle = 'impactLight') => {
   if (!hapticsEnabled) return;
 
+  if (isCapacitorNative) {
+    triggerCapacitorHaptic(style).then((ok) => {
+      if (!ok && 'vibrate' in navigator) {
+        try { navigator.vibrate(10); } catch { /* noop */ }
+      }
+    });
+    return;
+  }
+
   if (isMedianApp) {
     getMedian().then((Median) => {
       try {
@@ -155,6 +164,7 @@ export const triggerHaptic = (style: HapticStyle = 'impactLight') => {
     });
     return;
   }
+
 
   if ('vibrate' in navigator) {
     try {
