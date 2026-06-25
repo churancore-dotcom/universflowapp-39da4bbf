@@ -1,46 +1,101 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
-import { Image as ImageIcon, Loader2, Upload as UploadIcon, Link2, CheckCircle2, AlertCircle, Cloud, HardDrive } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Image as ImageIcon, Loader2, Upload as UploadIcon, Link2, CheckCircle2,
+  AlertCircle, Cloud, HardDrive, ArrowLeft, ArrowRight, Play, Pause,
+  Music2, Sparkles,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { uploadArtistCover } from '@/lib/artist';
 import { useFilePreview } from '@/lib/useFilePreview';
-import { validateUploadLink } from '@/lib/artistUploadLinks';
+import { validateUploadLink, type LinkValidation } from '@/lib/artistUploadLinks';
 import { ArtistProfile } from './_shared';
+import BentoCard from '@/components/artist/BentoCard';
 
 type Ctx = { profile: ArtistProfile; user: { id: string } };
 
-const GENRES = ['Pop', 'Hip-Hop', 'R&B', 'Rock', 'Indie', 'Electronic', 'Dance', 'Lo-fi', 'Classical', 'Jazz', 'Folk', 'Punjabi', 'Bollywood', 'Devotional', 'Regional', 'Other'];
+const GENRES = [
+  'Pop', 'Hip-Hop', 'R&B', 'Rock', 'Indie', 'Electronic', 'Dance',
+  'Lo-fi', 'Classical', 'Jazz', 'Folk', 'Punjabi', 'Bollywood',
+  'Devotional', 'Regional', 'Other',
+];
+
+const STEPS = [
+  { key: 'source', label: 'Source', sub: 'Where is the audio?' },
+  { key: 'details', label: 'Details', sub: 'Title, art, mood' },
+  { key: 'review', label: 'Review', sub: 'Publish to your page' },
+] as const;
+type StepKey = typeof STEPS[number]['key'];
+
+/* ---------------- Synthetic waveform (CORS-safe pseudo-preview) ---------------- */
+function hashString(s: string) {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+function pseudoWaveform(seed: string, bars = 64) {
+  let h = hashString(seed) || 1;
+  const out: number[] = [];
+  for (let i = 0; i < bars; i++) {
+    h = (Math.imul(h, 48271) ^ (h >>> 13)) >>> 0;
+    // shape: louder in the middle, softer at edges
+    const env = 0.45 + 0.55 * Math.sin((i / (bars - 1)) * Math.PI);
+    const r = ((h >>> 8) & 0xff) / 255;
+    out.push(Math.max(0.08, env * (0.4 + 0.6 * r)));
+  }
+  return out;
+}
 
 export default function ArtistUpload() {
   const { user } = useOutletContext<Ctx>();
   const navigate = useNavigate();
-  const [title, setTitle] = useState('');
-  const [genre, setGenre] = useState<string>('');
+  const [step, setStep] = useState<StepKey>('source');
+  const [tab, setTab] = useState<'drive' | 'dropbox'>('drive');
+
+  // form state
   const [streamUrl, setStreamUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [genre, setGenre] = useState('');
   const [cover, setCover] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState<'drive' | 'dropbox'>('drive');
-  const coverPreview = useFilePreview(cover);
 
-  const linkState = useMemo(() => streamUrl.trim() ? validateUploadLink(streamUrl) : null, [streamUrl]);
-  const isValid = !!linkState?.ok;
-  const linkMessage = linkState
-    ? linkState.ok === false
-      ? linkState.reason
-      : `${linkState.source === 'drive' ? 'Google Drive' : 'Dropbox'} link looks good — we’ll stream it directly.`
-    : null;
+  const coverPreview = useFilePreview(cover);
+  const linkState: LinkValidation | null = useMemo(
+    () => streamUrl.trim() ? validateUploadLink(streamUrl) : null,
+    [streamUrl],
+  );
+
+  const stepIndex = STEPS.findIndex((s) => s.key === step);
+
+  const canNext = (() => {
+    if (step === 'source') return !!linkState?.ok;
+    if (step === 'details') return title.trim().length > 0;
+    return true;
+  })();
+
+  const next = () => {
+    if (!canNext) return;
+    if (step === 'source') setStep('details');
+    else if (step === 'details') setStep('review');
+  };
+  const back = () => {
+    if (step === 'source') navigate('/artist/studio');
+    else if (step === 'details') setStep('source');
+    else setStep('details');
+  };
 
   const save = async () => {
     if (!title.trim() || !linkState?.ok) return;
     setSaving(true);
     try {
       const coverUrl = cover ? await uploadArtistCover(user.id, cover) : null;
-      // Append metadata to title as " · genre" if the schema lacks a genre column,
-      // but write to a `title` field only — `artist_songs` doesn't expose genre yet.
       const { error } = await supabase.from('artist_songs').insert({
         artist_user_id: user.id,
         title: title.trim(),
@@ -59,148 +114,477 @@ export default function ArtistUpload() {
 
   return (
     <div className="max-w-2xl mx-auto px-5 pt-5 pb-12">
-      <h2 className="text-[22px] font-semibold tracking-tight">Upload a song</h2>
-      <p className="text-[12.5px] text-muted-foreground mt-1">
-        Share a new track from your Google Drive or Dropbox.
-      </p>
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={back}
+          className="w-9 h-9 rounded-full grid place-items-center bg-white/[0.05] hover:bg-white/[0.08] active:scale-95 transition"
+          aria-label="Back"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground/80 font-semibold">
+            New release
+          </p>
+          <h2 className="font-display text-[24px] leading-none tracking-tight mt-1">
+            Upload a song
+          </h2>
+        </div>
+      </div>
 
-      {/* How-to card */}
-      <div className="mt-5 rounded-3xl overflow-hidden border border-white/[0.06] bg-white/[0.025]">
-        <div className="flex">
+      {/* Progress rail */}
+      <ProgressRail index={stepIndex} />
+
+      {/* Step content */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={step}
+          initial={{ opacity: 0, x: 16 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -16 }}
+          transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+          className="mt-5"
+        >
+          {step === 'source' && (
+            <SourceStep
+              tab={tab}
+              setTab={setTab}
+              streamUrl={streamUrl}
+              setStreamUrl={setStreamUrl}
+              linkState={linkState}
+            />
+          )}
+          {step === 'details' && (
+            <DetailsStep
+              title={title}
+              setTitle={setTitle}
+              genre={genre}
+              setGenre={setGenre}
+              cover={cover}
+              setCover={setCover}
+              coverPreview={coverPreview}
+              streamUrl={linkState?.ok ? linkState.normalized : ''}
+            />
+          )}
+          {step === 'review' && (
+            <ReviewStep
+              title={title}
+              genre={genre}
+              coverPreview={coverPreview}
+              source={linkState?.ok ? linkState.source : null}
+            />
+          )}
+        </motion.div>
+      </AnimatePresence>
+
+      {/* Footer */}
+      <div className="mt-6 flex items-center gap-3">
+        <Button
+          variant="ghost"
+          className="h-12 px-4 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/[0.04]"
+          onClick={back}
+        >
+          <ArrowLeft className="w-4 h-4 mr-1.5" />
+          {step === 'source' ? 'Cancel' : 'Back'}
+        </Button>
+
+        {step !== 'review' ? (
+          <Button
+            className="flex-1 h-12 rounded-xl font-semibold text-white"
+            style={{
+              background: canNext ? '#FF2D55' : 'rgba(255,255,255,0.06)',
+              color: canNext ? '#fff' : 'rgba(255,255,255,0.4)',
+              boxShadow: canNext ? '0 12px 30px -8px rgba(255,45,85,0.5)' : 'none',
+            }}
+            disabled={!canNext}
+            onClick={next}
+          >
+            Continue <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
+        ) : (
+          <Button
+            className="flex-1 h-12 rounded-xl font-semibold text-white"
+            style={{ background: '#FF2D55', boxShadow: '0 12px 30px -8px rgba(255,45,85,0.5)' }}
+            disabled={saving}
+            onClick={save}
+          >
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (
+              <span className="flex items-center gap-2"><UploadIcon className="w-4 h-4" /> Publish to your page</span>
+            )}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ============================== Progress rail ============================== */
+function ProgressRail({ index }: { index: number }) {
+  return (
+    <div className="mt-5">
+      <div className="flex items-center gap-2">
+        {STEPS.map((s, i) => {
+          const done = i < index;
+          const active = i === index;
+          return (
+            <div key={s.key} className="flex-1 flex items-center gap-2">
+              <div className="flex-1 h-1 rounded-full overflow-hidden bg-white/[0.06]">
+                <motion.div
+                  initial={false}
+                  animate={{ width: done || active ? '100%' : '0%' }}
+                  transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                  className="h-full"
+                  style={{
+                    background: done || active
+                      ? 'linear-gradient(90deg, #FF2D55, #FF5A77)'
+                      : 'transparent',
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 flex items-center justify-between">
+        <p className="text-[11px] font-semibold tracking-wide text-foreground">
+          Step {index + 1} of {STEPS.length} · {STEPS[index].label}
+        </p>
+        <p className="text-[11px] text-muted-foreground">{STEPS[index].sub}</p>
+      </div>
+    </div>
+  );
+}
+
+/* ============================== Step 1 — Source ============================== */
+function SourceStep({
+  tab, setTab, streamUrl, setStreamUrl, linkState,
+}: {
+  tab: 'drive' | 'dropbox';
+  setTab: (t: 'drive' | 'dropbox') => void;
+  streamUrl: string;
+  setStreamUrl: (s: string) => void;
+  linkState: LinkValidation | null;
+}) {
+  const isValid = !!linkState?.ok;
+  const linkMessage = linkState
+    ? linkState.ok === false
+      ? linkState.reason
+      : `${linkState.source === 'drive' ? 'Google Drive' : 'Dropbox'} link looks good — we'll stream it directly.`
+    : null;
+
+  return (
+    <div className="space-y-4">
+      <BentoCard className="overflow-hidden">
+        <div className="grid grid-cols-2">
           {(['drive', 'dropbox'] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 px-4 py-3 text-[12.5px] font-medium flex items-center justify-center gap-2 transition ${
-                tab === t ? 'bg-white/[0.05] text-foreground' : 'text-muted-foreground'
+              className={`px-4 py-3 text-[12.5px] font-medium flex items-center justify-center gap-2 transition relative ${
+                tab === t ? 'text-foreground' : 'text-muted-foreground'
               }`}
             >
               {t === 'drive' ? <HardDrive className="w-4 h-4" /> : <Cloud className="w-4 h-4" />}
               {t === 'drive' ? 'Google Drive' : 'Dropbox'}
+              {tab === t && (
+                <motion.span
+                  layoutId="upload-tab-underline"
+                  className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full"
+                  style={{ background: '#FF2D55' }}
+                />
+              )}
             </button>
           ))}
         </div>
-        <div className="p-4 text-[12.5px] leading-relaxed text-muted-foreground space-y-2">
+        <div className="p-5 pt-4 text-[12.5px] leading-relaxed text-muted-foreground space-y-2.5 border-t border-white/[0.05]">
           {tab === 'drive' ? (
             <>
-              <Step n={1} text="Upload your MP3 to Google Drive." />
+              <Step n={1} text="Upload your MP3 / WAV to Google Drive." />
               <Step n={2} text={<>Right-click the file <span className="text-foreground">→ Share</span>.</>} />
-              <Step n={3} text={<>Set access to <span className="text-foreground">“Anyone with the link”</span>.</>} />
-              <Step n={4} text={<>Hit <span className="text-foreground">Copy link</span> and paste below — we’ll convert it for streaming.</>} />
+              <Step n={3} text={<>Set access to <span className="text-foreground">"Anyone with the link"</span>.</>} />
+              <Step n={4} text={<>Hit <span className="text-foreground">Copy link</span> and paste below.</>} />
             </>
           ) : (
             <>
-              <Step n={1} text="Upload your MP3 to Dropbox." />
+              <Step n={1} text="Upload your MP3 / WAV to Dropbox." />
               <Step n={2} text={<>Hover the file <span className="text-foreground">→ Share → Create link</span>.</>} />
               <Step n={3} text={<>Hit <span className="text-foreground">Copy link</span> and paste below.</>} />
               <Step n={4} text={<>We auto-swap <code className="text-foreground">?dl=0</code> to <code className="text-foreground">?dl=1</code> so it streams.</>} />
             </>
           )}
         </div>
+      </BentoCard>
+
+      <Field label="Public share link">
+        <div className="relative">
+          <Link2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={streamUrl}
+            onChange={(e) => setStreamUrl(e.target.value)}
+            placeholder="https://drive.google.com/file/d/…   or   https://dropbox.com/s/…"
+            className="h-12 pl-9 bg-white/[0.03] border-white/[0.08]"
+            spellCheck={false}
+            autoCapitalize="off"
+            autoCorrect="off"
+          />
+        </div>
+        <AnimatePresence mode="wait">
+          {linkState && (
+            <motion.div
+              key={isValid ? 'ok' : 'bad'}
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className={`mt-2 flex items-start gap-2 text-[11.5px] ${
+                isValid ? 'text-emerald-300' : 'text-rose-400'
+              }`}
+            >
+              {isValid
+                ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                : <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
+              <span>{linkMessage}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </Field>
+    </div>
+  );
+}
+
+/* ============================== Step 2 — Details ============================== */
+function DetailsStep({
+  title, setTitle, genre, setGenre, cover, setCover, coverPreview, streamUrl,
+}: {
+  title: string; setTitle: (s: string) => void;
+  genre: string; setGenre: (s: string) => void;
+  cover: File | null; setCover: (f: File | null) => void;
+  coverPreview: string | null;
+  streamUrl: string;
+}) {
+  return (
+    <div className="space-y-5">
+      {/* Waveform preview */}
+      <WaveformPreview streamUrl={streamUrl} cover={coverPreview} title={title || 'Untitled'} />
+
+      <Field label="Song title">
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. Midnight Run"
+          maxLength={80}
+          className="h-12 bg-white/[0.03] border-white/[0.08]"
+        />
+        <p className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+          {title.length}/80
+        </p>
+      </Field>
+
+      <Field label="Genre / mood">
+        <div className="flex flex-wrap gap-1.5">
+          {GENRES.map((g) => (
+            <button
+              key={g}
+              type="button"
+              onClick={() => setGenre(g === genre ? '' : g)}
+              className={`px-3 h-8 rounded-full text-[11.5px] font-medium transition ${
+                genre === g
+                  ? 'bg-white text-black shadow-[0_4px_12px_rgba(255,255,255,0.12)]'
+                  : 'bg-white/[0.05] text-muted-foreground hover:text-foreground active:scale-95'
+              }`}
+            >
+              {g}
+            </button>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="Cover art">
+        <label className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-3.5 flex items-center gap-3 cursor-pointer hover:border-white/20 transition">
+          <div className="w-16 h-16 rounded-xl bg-white/[0.04] grid place-items-center overflow-hidden ring-1 ring-white/10">
+            {cover
+              ? <img src={coverPreview || undefined} className="w-full h-full object-cover" alt="" />
+              : <ImageIcon className="w-5 h-5 text-muted-foreground" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[12.5px] text-foreground truncate">
+              {cover ? cover.name : 'Tap to pick cover'}
+            </p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">
+              Square 1500×1500, JPG or PNG, no watermark.
+            </p>
+          </div>
+          <input
+            type="file"
+            accept="image/*"
+            className="sr-only"
+            onChange={(e) => {
+              setCover(e.target.files?.[0] ?? null);
+              e.target.value = '';
+            }}
+          />
+        </label>
+      </Field>
+    </div>
+  );
+}
+
+/* ============================== Waveform preview ============================== */
+function WaveformPreview({
+  streamUrl, cover, title,
+}: { streamUrl: string; cover: string | null; title: string }) {
+  const bars = useMemo(() => pseudoWaveform(streamUrl || title, 56), [streamUrl, title]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    setPlaying(false);
+    setProgress(0);
+    audioRef.current?.pause();
+  }, [streamUrl]);
+
+  const toggle = async () => {
+    const a = audioRef.current;
+    if (!a) return;
+    if (playing) { a.pause(); setPlaying(false); return; }
+    try { await a.play(); setPlaying(true); }
+    catch { toast.error('Preview blocked — open the link in Drive/Dropbox to confirm it streams.'); }
+  };
+
+  return (
+    <BentoCard glow className="p-4">
+      <div className="flex items-center gap-3">
+        <div className="w-14 h-14 rounded-xl overflow-hidden bg-black/40 shrink-0 ring-1 ring-white/10">
+          {cover
+            ? <img src={cover} alt="" className="w-full h-full object-cover" />
+            : <div className="w-full h-full grid place-items-center"><Music2 className="w-5 h-5 text-muted-foreground" /></div>}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10.5px] uppercase tracking-[0.2em] text-primary/90 font-semibold flex items-center gap-1.5">
+            <Sparkles className="w-3 h-3" /> Preview
+          </p>
+          <p className="text-[14px] font-semibold truncate mt-0.5 font-display">{title}</p>
+        </div>
+        <button
+          onClick={toggle}
+          className="w-11 h-11 rounded-full grid place-items-center text-white shrink-0 active:scale-95 transition"
+          style={{ background: '#FF2D55', boxShadow: '0 10px 24px -8px rgba(255,45,85,0.6)' }}
+          aria-label={playing ? 'Pause' : 'Play'}
+        >
+          {playing ? <Pause className="w-4 h-4" fill="currentColor" /> : <Play className="w-4 h-4 ml-0.5" fill="currentColor" />}
+        </button>
       </div>
 
-      <div className="space-y-4 mt-6">
-        <Field label="Song title">
-          <Input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Midnight Run"
-            maxLength={80}
-            className="h-12"
-          />
-        </Field>
-
-        <Field label="Genre">
-          <div className="flex flex-wrap gap-1.5">
-            {GENRES.map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => setGenre(g === genre ? '' : g)}
-                className={`px-3 h-8 rounded-full text-[11.5px] font-medium transition ${
-                  genre === g ? 'bg-white text-black' : 'bg-white/[0.05] text-muted-foreground active:scale-95'
-                }`}
-              >
-                {g}
-              </button>
-            ))}
-          </div>
-        </Field>
-
-        <Field label="Public share link">
-          <div className="relative">
-            <Link2 className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={streamUrl}
-              onChange={(e) => setStreamUrl(e.target.value)}
-              placeholder="https://drive.google.com/file/d/…   or   https://dropbox.com/s/…"
-              className="h-12 pl-9"
-              spellCheck={false}
-              autoCapitalize="off"
-              autoCorrect="off"
-            />
-          </div>
-          <AnimatePresence mode="wait">
-            {linkState && (
-              <motion.div
-                key={isValid ? 'ok' : 'bad'}
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className={`mt-2 flex items-start gap-2 text-[11.5px] ${
-                  isValid ? 'text-emerald-300' : 'text-rose-400'
-                }`}
-              >
-                {isValid
-                  ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                  : <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />}
-                <span>{linkMessage}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </Field>
-
-        <Field label="Cover art (optional)">
-          <label className="rounded-2xl border border-dashed border-white/10 bg-white/[0.03] p-3.5 flex items-center gap-3 cursor-pointer">
-            <div className="w-14 h-14 rounded-xl bg-white/[0.04] flex items-center justify-center overflow-hidden">
-              {cover
-                ? <img src={coverPreview || undefined} className="w-full h-full object-cover" alt="" />
-                : <ImageIcon className="w-5 h-5 text-muted-foreground" />}
-            </div>
-            <span className="text-[12.5px] text-muted-foreground flex-1 truncate">
-              {cover ? cover.name : 'Tap to pick cover (square recommended)'}
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              className="sr-only"
-              onChange={(e) => {
-                setCover(e.target.files?.[0] ?? null);
-                e.target.value = '';
+      {/* Waveform */}
+      <div className="mt-4 h-[68px] flex items-end gap-[3px]">
+        {bars.map((v, i) => {
+          const isPast = i / bars.length <= progress;
+          return (
+            <span
+              key={i}
+              className="flex-1 rounded-full transition-colors"
+              style={{
+                height: `${v * 100}%`,
+                background: isPast
+                  ? 'linear-gradient(180deg, #FF5A77, #FF2D55)'
+                  : 'rgba(255,255,255,0.14)',
               }}
             />
-          </label>
-        </Field>
-
-        <Button
-          className="w-full h-12 rounded-xl font-semibold text-white"
-          style={{ background: '#FF2D55' }}
-          disabled={saving || !title.trim() || !isValid}
-          onClick={save}
-        >
-          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : (
-            <span className="flex items-center gap-2"><UploadIcon className="w-4 h-4" /> Publish song</span>
-          )}
-        </Button>
+          );
+        })}
       </div>
+
+      <audio
+        ref={audioRef}
+        src={streamUrl || undefined}
+        preload="none"
+        crossOrigin="anonymous"
+        onTimeUpdate={(e) => {
+          const a = e.currentTarget;
+          if (a.duration) setProgress(a.currentTime / a.duration);
+        }}
+        onEnded={() => { setPlaying(false); setProgress(0); }}
+      />
+    </BentoCard>
+  );
+}
+
+/* ============================== Step 3 — Review ============================== */
+function ReviewStep({
+  title, genre, coverPreview, source,
+}: {
+  title: string;
+  genre: string;
+  coverPreview: string | null;
+  source: 'drive' | 'dropbox' | null;
+}) {
+  return (
+    <div className="space-y-4">
+      <BentoCard className="p-5">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground/80 font-semibold mb-3">
+          How it'll appear
+        </p>
+        <div className="flex items-center gap-3">
+          <div className="w-20 h-20 rounded-2xl overflow-hidden bg-black/40 ring-1 ring-white/10 shrink-0">
+            {coverPreview
+              ? <img src={coverPreview} alt="" className="w-full h-full object-cover" />
+              : <div className="w-full h-full grid place-items-center"><Music2 className="w-7 h-7 text-muted-foreground" /></div>}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-display text-[18px] truncate">{title || 'Untitled'}</p>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {genre && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/[0.06] text-foreground/80">
+                  {genre}
+                </span>
+              )}
+              {source && (
+                <span
+                  className="px-2 py-0.5 rounded-full text-[10px] font-medium inline-flex items-center gap-1"
+                  style={{
+                    background: source === 'drive' ? 'rgba(66,133,244,0.14)' : 'rgba(0,97,242,0.14)',
+                    color: source === 'drive' ? '#7BB3FF' : '#7BB3FF',
+                  }}
+                >
+                  {source === 'drive' ? <HardDrive className="w-2.5 h-2.5" /> : <Cloud className="w-2.5 h-2.5" />}
+                  {source === 'drive' ? 'Google Drive' : 'Dropbox'}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </BentoCard>
+
+      <BentoCard className="p-5">
+        <p className="text-[10px] uppercase tracking-[0.22em] text-muted-foreground/80 font-semibold mb-3">
+          Before you publish
+        </p>
+        <ul className="space-y-2.5 text-[12.5px] text-muted-foreground">
+          <Bullet text="You own this recording or have explicit rights to distribute it." />
+          <Bullet text="The cover art is your own — no copyrighted images or watermarks." />
+          <Bullet text="The share link is set to 'Anyone with the link' so Universflow can stream it." />
+        </ul>
+      </BentoCard>
     </div>
+  );
+}
+
+function Bullet({ text }: { text: string }) {
+  return (
+    <li className="flex items-start gap-2">
+      <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 text-emerald-300 shrink-0" />
+      <span>{text}</span>
+    </li>
   );
 }
 
 function Step({ n, text }: { n: number; text: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2.5">
-      <span className="w-5 h-5 rounded-full bg-white/[0.06] text-foreground text-[10.5px] font-semibold flex items-center justify-center shrink-0 mt-0.5">{n}</span>
+      <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-[10.5px] font-semibold grid place-items-center shrink-0 mt-0.5">
+        {n}
+      </span>
       <span>{text}</span>
     </div>
   );
@@ -209,7 +593,9 @@ function Step({ n, text }: { n: number; text: React.ReactNode }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70 mb-2">{label}</span>
+      <span className="block text-[10.5px] uppercase tracking-[0.2em] text-muted-foreground/80 font-semibold mb-2">
+        {label}
+      </span>
       {children}
     </label>
   );
